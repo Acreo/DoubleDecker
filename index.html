@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="UTF-8">
+    <title>Doubledecker by Acreo</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="stylesheets/normalize.css" media="screen">
+    <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/github-light.css" media="screen">
+  </head>
+  <body>
+    <section class="page-header">
+      <h1 class="project-name">Doubledecker</h1>
+      <h2 class="project-tagline">DoubleDecker messaging system</h2>
+      <a href="https://github.com/Acreo/DoubleDecker" class="btn">View on GitHub</a>
+      <a href="https://github.com/Acreo/DoubleDecker/zipball/master" class="btn">Download .zip</a>
+      <a href="https://github.com/Acreo/DoubleDecker/tarball/master" class="btn">Download .tar.gz</a>
+    </section>
+
+    <section class="main-content">
+      <h1>
+<a id="doubledecker-messaging-system" class="anchor" href="#doubledecker-messaging-system" aria-hidden="true"><span class="octicon octicon-link"></span></a>DoubleDecker messaging system</h1>
+
+<p>DoubleDecker is an hierarchical distributed message system based on ZeroMQ 
+which can be used to provide messaging between processes running on a 
+single machine and between processes running on multiple machines. 
+It is hierarchical in the sense that message brokers are connected to 
+each-other in a tree topology and route messages upwards in case they don't 
+have the destination client beneath themselves.</p>
+
+<p>DoubleDecker currently supports two types of messaging, Notifications, i.e. point-to-point messages from one client to another, and Pub/Sub on a topic. The Pub/Sub mechanism furthermore allows scoping when subscribing to a topic. This means that a client can restrict the subscription to messages published only within a certain scope, such as to clients connected to the same broker, a specific broker, or different groups of brokers.</p>
+
+<p>DoubleDecker currently supports multiple tenants by authenticating clients using public/private keys, encrypting messages, and enforcing that messages cannot cross from one tenant to another. Additionally there is a special tenant called 'public' that can cross tenant boundaries. This can be used in order to connect clients that are intended to provide a public service, such as a registration service for all tenants, a name-lookup service, or similar. </p>
+
+<p>This initial release contains only the Python version of the DoubleDecker broker and client library (and a demo client). A version in C is planned to be released shortly. </p>
+
+<p>This work is carried out within the <a href="http://www.fp7-unify.eu/">UNIFY FP7 EU project</a>. For more information about the purpose and how we use DoubleDecker, see:</p>
+
+<ul>
+<li><a href="http://fp7-unify.eu/files/fp7-unify-eu-docs/UNIFY-WP4-D4.2%20Proposal%20for%20SP-DevOps%20network%20capabilities%20and%20tools.pdf">UNIFY Deliverable 4.2, Section 5.1</a></li>
+<li>Paper and presentation at the EWSDN'15 conference, see:
+
+<ul>
+<li><a href="http://www.ewsdn.eu/files/Documents/EWSDN2015/04_03.pdf">Scalable Software-Defined Monitoring for Service Provider DevOps</a></li>
+</ul>
+</li>
+<li>Demonstratoions validating the functionality
+
+<ol>
+<li>Demo at IFIP/IEEE IM'15</li>
+<li>Paper and Demo at EWSDN'15:
+"Monitoring Transport and Cloud for Network Functions Virtualization"</li>
+</ol>
+</li>
+</ul>
+
+<h3>
+<a id="installation" class="anchor" href="#installation" aria-hidden="true"><span class="octicon octicon-link"></span></a>INSTALLATION</h3>
+
+<p>DoubleDecker requires Python &gt; 3.3. To install on Ubuntu 15.10, run the install.sh script which performs these actions: </p>
+
+<div class="highlight highlight-source-shell"><pre><span class="pl-c">#install dependencies </span>
+apt-get update
+apt-get install python3-setuptools python3-nacl python3-zmq python3-urwid python3-tornado git
+<span class="pl-c"># clone the code</span>
+git clone https://github.com/Acreo/DoubleDecker.git
+<span class="pl-c"># install the doubledecker module and scripts</span>
+<span class="pl-c1">cd</span> DoubleDecker/python
+sudo python3 setup.py install
+<span class="pl-c"># generate public/private keys</span>
+<span class="pl-c1">cd</span> /etc
+mkdir doubledecker
+<span class="pl-c1">cd</span> doubledecker
+<span class="pl-c"># create keys for 4 tenants, public, tenant a, b, and c</span>
+ddkeys.py (input <span class="pl-s"><span class="pl-pds">"</span>a,b,c<span class="pl-pds">"</span></span>)</pre></div>
+
+<h3>
+<a id="usage" class="anchor" href="#usage" aria-hidden="true"><span class="octicon octicon-link"></span></a>USAGE</h3>
+
+<div class="highlight highlight-source-shell"><pre><span class="pl-c"># start a broker listening for TCP connections on *:5555, using the keys</span>
+<span class="pl-c"># from broker-keys.json, called 'broker0'</span>
+ddbroker.py -r tcp://<span class="pl-k">*</span>:5555 -k /etc/doubledecker/broker-keys.json broker0
+<span class="pl-c"># start a client from tentant A, called cli1, connect to broker0</span>
+ddclient.py -d tcp://127.0.0.1:5555 -k /etc/doubledecker/a-keys.json cli1 a
+<span class="pl-c"># start a second client tentant A, called cli2, connect to broker0</span>
+ddclient.py -d tcp://127.0.0.1:5555 -k /etc/doubledecker/a-keys.json cli2 a
+<span class="pl-c"># now you can use the CLI interface to send notifications</span>
+<span class="pl-c"># from cli1 to cli2 or to subscribe and publish messages</span>
+<span class="pl-c"># to send a notification from cli1 to cli2</span>
+Send Notification -<span class="pl-k">&gt;</span> Destination: cli2 -<span class="pl-k">&gt;</span> Message: hello -<span class="pl-k">&gt;</span> Notify
+should result <span class="pl-k">in</span> message <span class="pl-s"><span class="pl-pds">"</span>hello<span class="pl-pds">"</span></span> appearing at cli2
+<span class="pl-c"># to subscribe to topic "alarms"</span>
+Subscribe to topic -<span class="pl-k">&gt;</span> Topic: alarms -<span class="pl-k">&gt;</span> Scope: region -<span class="pl-k">&gt;</span> Subscribe
+<span class="pl-c"># to publish on topic alarms</span>
+Publish message -<span class="pl-k">&gt;</span> Topic: alarms -<span class="pl-k">&gt;</span> Message: warning -<span class="pl-k">&gt;</span> Publish</pre></div>
+
+<h3>
+<a id="license" class="anchor" href="#license" aria-hidden="true"><span class="octicon octicon-link"></span></a>LICENSE</h3>
+
+<p>DoubleDecker is licensed under LGPLv2, for more details see COPYING.LESSER.</p>
+
+<p>The file 'python/doubledecker/trie.py' is from the <a href="https://github.com/google/pytrie">Google PyTrie module</a>, licensed under version 2.0 of the Apache License.</p>
+
+      <footer class="site-footer">
+        <span class="site-footer-owner"><a href="https://github.com/Acreo/DoubleDecker">Doubledecker</a> is maintained by <a href="https://github.com/Acreo">Acreo</a>.</span>
+
+        <span class="site-footer-credits">This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the <a href="https://github.com/jasonlong/cayman-theme">Cayman theme</a> by <a href="https://twitter.com/jasonlong">Jason Long</a>.</span>
+      </footer>
+
+    </section>
+
+  
+  </body>
+</html>
