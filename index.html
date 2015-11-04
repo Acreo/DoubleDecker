@@ -1,25 +1,34 @@
 <!DOCTYPE html>
-<html lang="en-us">
+<html>
   <head>
-    <meta charset="UTF-8">
-    <title>Doubledecker by Acreo</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" type="text/css" href="stylesheets/normalize.css" media="screen">
-    <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <link href='https://fonts.googleapis.com/css?family=Architects+Daughter' rel='stylesheet' type='text/css'>
     <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
     <link rel="stylesheet" type="text/css" href="stylesheets/github-light.css" media="screen">
-  </head>
-  <body>
-    <section class="page-header">
-      <h1 class="project-name">Doubledecker</h1>
-      <h2 class="project-tagline">DoubleDecker messaging system</h2>
-      <a href="https://github.com/Acreo/DoubleDecker" class="btn">View on GitHub</a>
-      <a href="https://github.com/Acreo/DoubleDecker/zipball/master" class="btn">Download .zip</a>
-      <a href="https://github.com/Acreo/DoubleDecker/tarball/master" class="btn">Download .tar.gz</a>
-    </section>
+    <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print">
 
-    <section class="main-content">
-      <p><img src="https://i.imgur.com/n9zvNWH.png" alt="DoubleDecker logo"></p>
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+
+    <title>Doubledecker by Acreo</title>
+  </head>
+
+  <body>
+    <header>
+      <div class="inner">
+        <h1>Doubledecker</h1>
+        <h2>DoubleDecker messaging system</h2>
+        <a href="https://github.com/Acreo/DoubleDecker" class="button"><small>View project on</small> GitHub</a>
+      </div>
+    </header>
+
+    <div id="content-wrapper">
+      <div class="inner clearfix">
+        <section id="main-content">
+          <p><img src="https://i.imgur.com/n9zvNWH.png" alt="DoubleDecker logo"></p>
 
 <h1>
 <a id="doubledecker-messaging-system" class="anchor" href="#doubledecker-messaging-system" aria-hidden="true"><span class="octicon octicon-link"></span></a>DoubleDecker messaging system</h1>
@@ -33,9 +42,11 @@ have the destination client beneath themselves.</p>
 
 <p>DoubleDecker currently supports two types of messaging, Notifications, i.e. point-to-point messages from one client to another, and Pub/Sub on a topic. The Pub/Sub mechanism furthermore allows scoping when subscribing to a topic. This means that a client can restrict the subscription to messages published only within a certain scope, such as to clients connected to the same broker, a specific broker, or different groups of brokers.</p>
 
-<p>DoubleDecker currently supports multiple tenants by authenticating clients using public/private keys, encrypting messages, and enforcing that messages cannot cross from one tenant to another. Additionally there is a special tenant called 'public' that can cross tenant boundaries. This can be used in order to connect clients that are intended to provide a public service, such as a registration service for all tenants, a name-lookup service, or similar. 
-<img src="http://i.imgur.com/UFEsqdA.png" alt="Double Decker tenants messaging ">
-This initial release contains only the Python version of the DoubleDecker broker and client library (and a demo client). A version in C is planned to be released shortly. </p>
+<p>DoubleDecker currently supports multiple tenants by authenticating clients using public/private keys, encrypting messages, and enforcing that messages cannot cross from one tenant to another. Additionally there is a special tenant called 'public' that can cross tenant boundaries. This can be used in order to connect clients that are intended to provide a public service, such as a registration service for all tenants, a name-lookup service, or similar. </p>
+
+<p><img src="http://i.imgur.com/UFEsqdA.png" alt="Double Decker tenants messaging "></p>
+
+<p>This initial release contains only the Python version of the DoubleDecker broker and client library (and a demo client). A version in C is planned to be released shortly. </p>
 
 <p>This work is carried out within the <a href="http://www.fp7-unify.eu/">UNIFY FP7 EU project</a>. For more information about the purpose and how we use DoubleDecker, see:</p>
 
@@ -103,14 +114,24 @@ Publish message -<span class="pl-k">&gt;</span> Topic: alarms -<span class="pl-k
 <p>DoubleDecker is licensed under LGPLv2, for more details see COPYING.LESSER.</p>
 
 <p>The file 'python/doubledecker/trie.py' is from the <a href="https://github.com/google/pytrie">Google PyTrie module</a>, licensed under version 2.0 of the Apache License.</p>
+        </section>
 
-      <footer class="site-footer">
-        <span class="site-footer-owner"><a href="https://github.com/Acreo/DoubleDecker">Doubledecker</a> is maintained by <a href="https://github.com/Acreo">Acreo</a>.</span>
+        <aside id="sidebar">
+          <a href="https://github.com/Acreo/DoubleDecker/zipball/master" class="button">
+            <small>Download</small>
+            .zip file
+          </a>
+          <a href="https://github.com/Acreo/DoubleDecker/tarball/master" class="button">
+            <small>Download</small>
+            .tar.gz file
+          </a>
 
-        <span class="site-footer-credits">This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the <a href="https://github.com/jasonlong/cayman-theme">Cayman theme</a> by <a href="https://twitter.com/jasonlong">Jason Long</a>.</span>
-      </footer>
+          <p class="repo-owner"><a href="https://github.com/Acreo/DoubleDecker"></a> is maintained by <a href="https://github.com/Acreo">Acreo</a>.</p>
 
-    </section>
+          <p>This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the Architect theme by <a href="https://twitter.com/jasonlong">Jason Long</a>.</p>
+        </aside>
+      </div>
+    </div>
 
   
   </body>
