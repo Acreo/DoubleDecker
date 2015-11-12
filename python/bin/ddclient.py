@@ -313,8 +313,7 @@ if __name__ == '__main__':
         "--keyfile",
         help='File containing the encryption/authentication keys)',
         nargs='?',
-        default="client-keys.json")
-
+        default='')
 
     args = parser.parse_args()
 
