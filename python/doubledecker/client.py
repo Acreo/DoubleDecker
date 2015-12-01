@@ -48,7 +48,6 @@ class Client(metaclass=abc.ABCMeta):
     def __init__(self, name, dealerurl, customer):
         self._ctx = zmq.Context()
         self._IOLoop = zmq.eventloop.ioloop.IOLoop.instance()
-        self._verbose = False
         self._dealerurl = ''
         self._dealer = self._ctx.socket(zmq.DEALER)
         self._dealer.setsockopt(zmq.LINGER, 1000)
