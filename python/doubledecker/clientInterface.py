@@ -1,16 +1,12 @@
 import logging
 import sys
 import abc
-import json
-import re
 
 import zmq
 import zmq.eventloop.ioloop
 import zmq.eventloop.zmqstream
-import nacl.utils
-import nacl.public
-import nacl.encoding
 
+from . import proto as DD
 
 class Client(metaclass=abc.ABCMeta):
     def __init__(self, name, dealerurl, customer):
@@ -29,11 +25,11 @@ class Client(metaclass=abc.ABCMeta):
         self._hash = ''
         self._cookie = ''
         self._safe = True
-        if type(name) is str:
+        if isinstance(name, str):
             name = name.encode()
-        if type(dealerurl) is str:
+        if isinstance(dealerurl, str):
             dealerurl = dealerurl.encode()
-        if type(customer) is str:
+        if isinstance(customer, str):
             customer = customer.encode()
 
         self._name = name
@@ -54,8 +50,10 @@ class Client(metaclass=abc.ABCMeta):
 
         self._heartbeat_loop = zmq.eventloop.ioloop.PeriodicCallback(self._heartbeat, 1500)
 
-        logging.debug("Configured: name = %s, Dealer = %s, Customer = %s"
-                      % (name.decode('utf8'), dealerurl, customer.decode('utf8')))
+        logging.debug("Configured: name = %s, Dealer = %s, Customer = %s",
+                      name.decode('utf8'),
+                      dealerurl,
+                      customer.decode('utf8'))
 
     def start(self):
         try:
@@ -109,7 +107,7 @@ class Client(metaclass=abc.ABCMeta):
         logging.info('Shutting down')
         if self._state == DD.S_REGISTERED:
             for topic in self._sublist:
-                logging.debug('Unsubscribing from %s' % str(topic))
+                logging.debug('Unsubscribing from %s', str(topic))
                 self._dealer.send_multipart([DD.bPROTO_VERSION, DD.bCMD_UNSUB, topic.encode()])
 
             if self._safe:

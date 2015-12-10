@@ -3,7 +3,6 @@ import sys
 import abc
 import json
 import re
-import ConnectionError
 
 import zmq
 import zmq.eventloop.ioloop
@@ -13,7 +12,7 @@ import nacl.public
 import nacl.encoding
 
 from . import proto as DD
-from . import Client
+from . import clientInterface as Client
 
 
 class ClientSafe(Client):
@@ -27,7 +26,7 @@ class ClientSafe(Client):
         try:
             f = open(filename, 'r')
         except:
-            logging.critical("Could not find key for customer, file: %s" % filename)
+            logging.critical("Could not find key for customer, file: %s", filename)
             self.shutdown()
             raise RuntimeError("Keyfile not found!")
         key = json.load(f)
@@ -53,11 +52,11 @@ class ClientSafe(Client):
             del key['public']
             # create a nacl.public.Box for each customers in a dict, e.g. self.cust_boxes[a] for customer a
             self._cust_boxes = dict()
-            for hash in key:
+            for hash_ in key:
                 cust_public_key = nacl.public.PublicKey(
-                    key[hash]['pubkey'],
+                    key[hash_]['pubkey'],
                     encoder=nacl.encoding.Base64Encoder)
-                self._cust_boxes[key[hash]['r']] = nacl.public.Box(
+                self._cust_boxes[key[hash_]['r']] = nacl.public.Box(
                     self._privkey, cust_public_key)
         else:
             self._privkey = nacl.public.PrivateKey(
@@ -80,7 +79,6 @@ class ClientSafe(Client):
             self._hash = key['hash'].encode()
 
         self._nonce = bytearray(nacl.utils.random(nacl.public.Box.NONCE_SIZE))
-        self._safe = True
 
     def subscribe(self, topic, scope):
         if self._state != DD.S_REGISTERED:
@@ -103,9 +101,9 @@ class ClientSafe(Client):
         else:
             raise SyntaxError("Scope supports ALL/REGION/CLUSTER/NODE/NOSCOPE, or specific values,e.g. /1/2/3/")
         if scopestr == "noscope":
-            logging.debug("Subscribing to %s" % str(topic))
+            logging.debug("Subscribing to %s", topic)
         else:
-            logging.debug("Subscribing to %s" % str(topic + scopestr))
+            logging.debug("Subscribing to %s %s", topic, scopestr)
         self._send(DD.bCMD_SUB, [self._cookie, topic.encode(), scopestr.encode()])
 
     def unsubscribe(self, topic, scope):
@@ -129,18 +127,18 @@ class ClientSafe(Client):
         else:
             raise SyntaxError("Scope supports ALL/REGION/CLUSTER/NODE/NOSCOPE, or specific values,e.g. /1/2/3/")
         if scopestr == "noscope":
-            logging.debug("Subscribing to %s" % str(topic))
+            logging.debug("Subscribing to %s", topic)
         else:
-            logging.debug("Subscribing to %s" % str(topic + scopestr))
+            logging.debug("Subscribing to %s", topic, scopestr)
         self._send(DD.bCMD_UNSUB,
                    [self._cookie, topic.encode(), scopestr.encode()])
 
     def publish(self, topic, message):
         if self._state != DD.S_REGISTERED:
             raise (ConnectionError("Not registered"))
-        if type(topic) is str:
+        if isinstance(topic, str):
             topic = topic.encode('utf8')
-        if type(message) is str:
+        if isnstance(message, str):
             message = message.encode('utf8')
 
         encryptmsg = self._cust_box.encrypt(message, self._get_nonce())
@@ -150,9 +148,9 @@ class ClientSafe(Client):
     def publish_public(self, topic, message):
         if self._state != DD.S_REGISTERED:
             raise (ConnectionError("Not registered"))
-        if type(topic) is str:
+        if isinstance(topic, str):
             topic = topic.encode('utf8')
-        if type(message) is str:
+        if isinstance(message, str):
             message = message.encode('utf8')
 
         encryptmsg = self._pub_box.encrypt(message, self._get_nonce())
@@ -173,9 +171,9 @@ class ClientSafe(Client):
             except:
                 pass
 
-            if type(dst) is str:
+            if isinstance(dst, str):
                 dst = dst.encode('utf8')
-            if type(msg) is str:
+            if isinstance(msg, str):
                 msg = msg.encode('utf8')
 
             if dst_is_public:
@@ -197,9 +195,9 @@ class ClientSafe(Client):
             except:
                 pass
 
-            if type(dst) is str:
+            if isinstance(dst, str):
                 dst = dst.encode('utf8')
-            if type(msg) is str:
+            if isinstance(msg, str):
                 msg = msg.encode('utf8')
 
             if dst_is_public:
@@ -242,8 +240,7 @@ class ClientSafe(Client):
                 return
             dst = cmd[1].encode('utf8')
             msg = cmd[2].strip().encode('utf8')
-            logging.debug("Sending \"%s\" to %s" %
-                          (msg, dst.decode('utf8')))
+            logging.debug("Sending \"%s\" to %s", msg, dst.decode('utf8'))
             self._send(DD.bCMD_SENDPT, [self._cookie, dst, msg])
         elif 'exit' == cmd[0]:
             self.shutdown()
@@ -256,19 +253,19 @@ class ClientSafe(Client):
         elif 'unsub' == cmd[0]:
             if len(cmd) > 1:
                 if cmd[1] in self._sublist:
-                    logging.info("Unsubscribing from %s*" % cmd[1])
+                    logging.info("Unsubscribing from %s*", cmd[1])
                     for sub in self._sublist:
-                        if(sub.startswith(cmd[1]+"/")):
-                            self._dealer.send_multipart([DD.bPROTO_VERSION, DD.bCMD_UNSUB, sub.encode()])
+                        if sub.startswith(cmd[1]+"/"):
+                            self._dealer.send_multipart(
+                                [DD.bPROTO_VERSION, DD.bCMD_UNSUB, sub.encode()])
                             self._sublist.remove(sub)
-
                 else:
-                    logging.info("You are not subscribed to this topic: %s" % cmd[1])
+                    logging.info("You are not subscribed to this topic: %s", cmd[1])
             else:
                 print("usage: unsub [topic]")
         elif 'pub' == cmd[0]:
             if len(cmd) > 2:
-                logging.info("Publishing message on %s*" % cmd[1])
+                logging.info("Publishing message on %s*", cmd[1])
                 if self._customer == b'public':
                     # public --> public
                     self.publish(cmd[1].encode(), cmd[2].encode())
@@ -293,7 +290,7 @@ class ClientSafe(Client):
                 print("usage: pub [topic] [message]")
         elif 'pubpublic' == cmd[0]:
             if len(cmd) > 2 and self._customer != b'public':
-                logging.info("Publishing message on public %s*" % cmd[1])
+                logging.info("Publishing message on public %s*", cmd[1])
                 self.publish_public(cmd[1].encode(), cmd[2].encode())
             else:
                 print("usage: pubpublic [topic] [message]")
@@ -322,14 +319,14 @@ class ClientSafe(Client):
             self._state = DD.S_REGISTERED
             self._register_loop.stop()
             self._cookie = msg.pop(0)
-            if type(self._cookie) is str:
+            if isinstance(self._cookie, str):
                 self._cookie = self._cookie.encode('utf8')
 
-            try:
-                scope = msg.pop(0)
-                self._scope = scope
-            except:
-                pass
+            # try:
+            #     scope = msg.pop(0)
+            #     self._scope = scope
+            # except:
+            #     pass
             self._heartbeat_loop.start()
             self._send(DD.bCMD_PING)
             self.on_reg()
@@ -387,16 +384,16 @@ class ClientSafe(Client):
         elif cmd == DD.bCMD_SUBOK:
             topic = msg.pop(0).decode()
             scope = msg.pop(0).decode()
-            tt = "%s%s"%(topic,scope)
+            tt = "%s%s"%(topic, scope)
             if tt not in self._sublist:
                 self._sublist.append(tt)
             else:
-                logging.error("Already subscribed to topic %s" % str(topic))
+                logging.error("Already subscribed to topic %s", topic)
                 self._dealer.send_multipart([DD.bPROTO_VERSION, DD.bCMD_UNSUB, topic.encode()])
         elif cmd == DD.bCMD_NODST:
-            logging.warning("Unknown client %s" % str(msg.pop(0)))
+            logging.warning("Unknown client %s", msg.pop(0))
         else:
-            logging.warning("Unknown message, got: %d %s" % (int(cmd), str(msg)))
+            logging.warning("Unknown message, got: %i %s", cmd, msg)
 
     def _get_nonce(self):
         index = nacl.public.Box.NONCE_SIZE-1
@@ -419,4 +416,3 @@ class ClientSafe(Client):
         print("sub         [topic]            - subscribe to messages in topic")
         print("unsub       [topic]            - subscribe to messages in topic")
         print('exit                           - unregister and exit')
-
