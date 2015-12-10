@@ -1,14 +1,14 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 __license__ = """
-  Copyright (c) 2015 Pontus Sköldström, Bertrand Pechenot 
-    
+  Copyright (c) 2015 Pontus Sköldström, Bertrand Pechenot
+
   This file is part of libdd, the DoubleDecker hierarchical
   messaging system DoubleDecker is free software; you can
   redistribute it and/or modify it under the terms of the GNU Lesser
   General Public License (LGPL) version 2.1 as published by the Free
-  Software Foundation.  
-  
+  Software Foundation.
+
   As a special exception, the Authors give you permission to link this
   library with independent modules to produce an executable,
   regardless of the license terms of these independent modules, and to
