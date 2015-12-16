@@ -1,7 +1,7 @@
 __author__ = 'eponsko'
 from setuptools import setup, find_packages
 setup(name='doubledecker',
-      version='0.2',
+      version='0.3',
       description='DoubleDecker client and broker',
       url='https://gitlab.testbed.se/double-decker/',
       author='ponsko',

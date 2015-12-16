@@ -12,10 +12,10 @@ import nacl.public
 import nacl.encoding
 
 from . import proto as DD
-from . import clientInterface as Client
+from . import clientInterface as interface
 
 
-class ClientSafe(Client):
+class ClientSafe(interface.Client):
     def __init__(self, name, dealerurl, customer, keyfile):
         super().__init__(name, dealerurl, customer)
 
