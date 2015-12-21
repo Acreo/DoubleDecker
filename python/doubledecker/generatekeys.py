@@ -1,5 +1,3 @@
-#!/usr/bin/python3
-# -*- coding: utf-8 -*-
 __license__ = """
   Copyright (c) 2015 Pontus Sköldström, Bertrand Pechenot
 
@@ -27,7 +25,6 @@ __license__ = """
 """
 
 import binascii
-# import pprint
 from struct import unpack
 from os import urandom
 import json

@@ -1,14 +1,14 @@
 # #!/usr/bin/python3
 # #  -*- coding: utf-8 -*-
 __license__ = """
-  Copyright (c) 2015 Pontus Sköldström, Bertrand Pechenot 
-    
+  Copyright (c) 2015 Pontus Sköldström, Bertrand Pechenot
+
   This file is part of libdd, the DoubleDecker hierarchical
   messaging system DoubleDecker is free software; you can
   redistribute it and/or modify it under the terms of the GNU Lesser
   General Public License (LGPL) version 2.1 as published by the Free
-  Software Foundation.  
-  
+  Software Foundation.
+
   As a special exception, the Authors give you permission to link this
   library with independent modules to produce an executable,
   regardless of the license terms of these independent modules, and to
@@ -90,6 +90,10 @@ if '__main__' == __name__:
     numeric_level = getattr(logging, args_list.loglevel.upper(), None)
     if not isinstance(numeric_level, int):
         raise ValueError('Invalid log level: %s' % args_list.loglevel)
+
+    if args_list.verbose:
+        logging.warning("Verbose option is deprecated, use loglevel instead")
+
     if args_list.logfile:
         logging.basicConfig(format='%(levelname)s:%(message)s',filename=args_list.logfile, level=numeric_level)
     else:
@@ -100,14 +104,12 @@ if '__main__' == __name__:
         genbroker = BrokerUnsafe(name=args_list.name.encode('utf8'),
                                                 routerurl=args_list.router,
                                                 dealerurl=args_list.dealer,
-                                                verbose=args_list.verbose,
                                                 scope=args_list.scope)
     else:
         logging.info("Starting a secure broker")
         genbroker = BrokerSafe(name=args_list.name.encode('utf8'),
                                             routerurl=args_list.router,
                                             dealerurl=args_list.dealer,
-                                            verbose=args_list.verbose,
                                             scope=args_list.scope,
                                             keys=args_list.keys)
 
