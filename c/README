@@ -1,0 +1,20 @@
+Initial C version of Double Decker broker and clients
+
+Dependencies: 
+   libzmq (libzmq3-dev on ubuntu)
+   libczmq (git clone git://github.com/zeromq/czmq) 
+   userspace-rcu + hashtable (in userspace-rcu folder)
+   libsodium (https://github.com/jedisct1/libsodium)
+   	     Needs to be above version 1.0.2 (supporting precomputing keys)
+
+To build:
+
+./boot.sh to generate ./configure 
+
+Running
+#######
+Broker:
+  Currently c-version of the broker is behind, use the python ddbroker.py
+Client:
+  Demo client using the library is provided as 'ddclient'
+

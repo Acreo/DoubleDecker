@@ -1,0 +1,34 @@
+long term addons
+- add automatic generation of client names   
+
+bugs
+- NODST doesn't properly strip tenant. 
+
+   
+
+   
+
+
+
+1. Multi-broker notify doesn't strip "tenant." properly
+- Fixed in 306b7e3 
+2. Multi-broker unsub doesn't work properly (unsub not sent south)
+- Almost fixed, need to add a check in cmd_cb_unsub to only send unsubs south/north if
+   something was actually removed from trie/hashtable
+- FIXED now
+
+ 3. Multi-broker sub doesn't work properly (sub not forwarded north)
+- Fixed (I think?)     
+   4. When a local broker dies, it's clients are not properly delete from dist_cli_ht
+- Fixed!
+
+4. When a higher level broker dies and come backs, the lower only sends it's local
+   clients, but not any distant ones
+- Fixed!, was a race problem with a state betweek REGISTERED and ROOT.
+
+- remove broker names and replace with numberical unique TLV (or LV)
+  - Broker names removed!
+  realized that they dont have to be actually unique, just unique
+  between a top broker and its local broker clients.
+  They already have unique names (sockid!) so .. easy peasy
+

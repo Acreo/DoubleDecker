@@ -64,8 +64,11 @@ Publish message -> Topic: alarms -> Message: warning -> Publish
 
 ### LICENSE
 
-DoubleDecker is licensed under LGPLv2, for more details see COPYING.LESSER.
+DoubleDecker is licensed under LGPLv2, for more details see LICENSE.
 
 The file 'python/doubledecker/trie.py' is from the [Google PyTrie module](https://github.com/google/pytrie), licensed under version 2.0 of the Apache License.
-
-
+The file 'c/src/trie.c' is from [nanomsg](http://nanomsg.org/), licensed under MIT/X11 license.
+The file 'c/src/cli_parser/*' are from [cli_parser](http://sourceforge.net/projects/cliparser/), licensed under a modified BSD license.
+The file 'c/src/hash/xxhash.c' is from [xxHash](http://sourceforge.net/projects/cliparser/) by Yann Collet, licensed under BSD 2-clause license.
+The file 'c/src/hash/murmurhash.c' is from [murmurhash.c](https://github.com/jwerle/murmurhash.c) by Joseph Werle, licensed under MIT license.
+The file 'c/src/lib/b64/cdecode.c' is from the [libb64 project](http://sourceforge.net/projects/libb64/) by Chris Venter, placed in the public domain.
