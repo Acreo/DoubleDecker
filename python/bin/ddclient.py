@@ -30,8 +30,8 @@ __license__ = """
 import argparse
 import logging
 import sys
-from doubledecker.client import ClientSafe
-from doubledecker.client import ClientUnsafe
+from doubledecker.clientSafe import ClientSafe
+from doubledecker.clientUnsafe import ClientUnsafe
 import urwid
 from collections import deque
 import time

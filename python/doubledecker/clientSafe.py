@@ -1,3 +1,4 @@
+# coding=utf-8
 import logging
 import sys
 import abc
@@ -12,10 +13,20 @@ import nacl.public
 import nacl.encoding
 
 from . import proto as DD
-from . import clientInterface as Client
+from .clientInterface import Client
 
 
 class ClientSafe(Client):
+    """
+    DoubleDecker client with encryption and authentication
+
+    :param name: Client name
+    :param dealerurl: URL to connect to
+    :param customer: Customer name
+    :param keyfile: Location of JSON file containing the keys
+    :raise RuntimeError:
+    """
+
     def __init__(self, name, dealerurl, customer, keyfile):
         super().__init__(name, dealerurl, customer)
 
@@ -24,7 +35,7 @@ class ClientSafe(Client):
         else:
             filename = keyfile
         try:
-            f = open(filename, 'r')
+            f = open(filename)
         except:
             logging.critical("Could not find key for customer, file: %s", filename)
             self.shutdown()
@@ -81,6 +92,12 @@ class ClientSafe(Client):
         self._nonce = bytearray(nacl.utils.random(nacl.public.Box.NONCE_SIZE))
 
     def subscribe(self, topic, scope):
+        """
+        Subscribe to a topic with a given scope
+        :param topic: Name of the topic
+        :param scope: all, region, cluster, node or noscope
+        :raise SyntaxError:
+        """
         if self._state != DD.S_REGISTERED:
             raise (ConnectionError("Not registered"))
 
@@ -107,6 +124,12 @@ class ClientSafe(Client):
         self._send(DD.bCMD_SUB, [self._cookie, topic.encode(), scopestr.encode()])
 
     def unsubscribe(self, topic, scope):
+        """
+        Unsubscribe from a partiuclar topic and scope
+        :param topic: Topic to unsubscribe from
+        :param scope: all, region, cluster, node or noscope
+        :raise SyntaxError:
+        """
         if self._state != DD.S_REGISTERED:
             raise (ConnectionError("Not registered"))
 
@@ -134,11 +157,17 @@ class ClientSafe(Client):
                    [self._cookie, topic.encode(), scopestr.encode()])
 
     def publish(self, topic, message):
+        """
+        Publish a message on a topic
+        :param topic: Which topic to publish to
+        :param message: The message to publish
+        :raise (ConnectionError("Not registered")):
+        """
         if self._state != DD.S_REGISTERED:
             raise (ConnectionError("Not registered"))
         if isinstance(topic, str):
             topic = topic.encode('utf8')
-        if isnstance(message, str):
+        if isinstance(message, str):
             message = message.encode('utf8')
 
         encryptmsg = self._cust_box.encrypt(message, self._get_nonce())
@@ -146,6 +175,12 @@ class ClientSafe(Client):
             [DD.bPROTO_VERSION, DD.bCMD_PUB, self._cookie, topic, b'', encryptmsg])
 
     def publish_public(self, topic, message):
+        """
+        Publish a message to a public topic (uses different encryption key)
+        :param topic: Which topic to publish to
+        :param message: The message to publish
+        :raise (ConnectionError("Not registered")):
+        """
         if self._state != DD.S_REGISTERED:
             raise (ConnectionError("Not registered"))
         if isinstance(topic, str):
@@ -158,6 +193,12 @@ class ClientSafe(Client):
             [DD.bPROTO_VERSION, DD.bCMD_PUB, self._cookie, topic, b'', encryptmsg])
 
     def sendmsg(self, dst, msg):
+        """
+        Send a notification
+        :param dst: Destination for the notification
+        :param msg: Data to send
+        :raise (ConnectionError("Not registered")):
+        """
         if self._state != DD.S_REGISTERED:
             raise (ConnectionError("Not registered"))
 
@@ -213,15 +254,30 @@ class ClientSafe(Client):
                 self._send(DD.bCMD_SEND, [self._cookie, dst, msg])
 
     @abc.abstractmethod
-    def on_reg(self):
+    def on_reg(self,src,msg):
         # print('Safe client got registered correctly')
+        """
+        Function called when client registration succeeded
+        :param src:
+        :param msg:
+        """
         pass
 
     @abc.abstractmethod
     def on_discon(self):
+        """
+
+        Called when the client was disconnected from the broker
+        """
         pass
 
     def on_cli(self, dummy, other_dummy):
+        """
+        Called when the CLI is updated, if running interactively
+        :param dummy:
+        :param other_dummy:
+        :return:
+        """
         cmd = sys.stdin.readline().split(maxsplit=2)
         if len(cmd) == 0:
             self._cli_usage()
@@ -255,7 +311,7 @@ class ClientSafe(Client):
                 if cmd[1] in self._sublist:
                     logging.info("Unsubscribing from %s*", cmd[1])
                     for sub in self._sublist:
-                        if sub.startswith(cmd[1]+"/"):
+                        if sub.startswith(cmd[1] + "/"):
                             self._dealer.send_multipart(
                                 [DD.bPROTO_VERSION, DD.bCMD_UNSUB, sub.encode()])
                             self._sublist.remove(sub)
@@ -297,6 +353,9 @@ class ClientSafe(Client):
         else:
             self._cli_usage()
 
+    def _ping(self):
+        self._send(DD.bCMD_PING, [self._cookie])
+
     def _ask_registration(self):
         self._dealer.setsockopt(zmq.LINGER, 0)
         self._stream.close()
@@ -328,7 +387,7 @@ class ClientSafe(Client):
             # except:
             #     pass
             self._heartbeat_loop.start()
-            self._send(DD.bCMD_PING)
+            self._send(DD.bCMD_PING, [self._cookie])
             self.on_reg()
         elif cmd == DD.bCMD_DATA:
             source = msg.pop(0)
@@ -384,7 +443,7 @@ class ClientSafe(Client):
         elif cmd == DD.bCMD_SUBOK:
             topic = msg.pop(0).decode()
             scope = msg.pop(0).decode()
-            tt = "%s%s"%(topic, scope)
+            tt = "%s%s" % (topic, scope)
             if tt not in self._sublist:
                 self._sublist.append(tt)
             else:
@@ -396,7 +455,7 @@ class ClientSafe(Client):
             logging.warning("Unknown message, got: %i %s", cmd, msg)
 
     def _get_nonce(self):
-        index = nacl.public.Box.NONCE_SIZE-1
+        index = nacl.public.Box.NONCE_SIZE - 1
         while True:
             try:
                 self._nonce[index] += 1

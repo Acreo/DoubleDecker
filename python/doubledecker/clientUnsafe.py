@@ -2,14 +2,14 @@ import logging
 import sys
 import abc
 import re
-import ConnectionError
+
 
 import zmq
 import zmq.eventloop.ioloop
 import zmq.eventloop.zmqstream
 
 from . import proto as DD
-from . import Client
+from .clientInterface import Client
 
 
 class ClientUnsafe(Client):
