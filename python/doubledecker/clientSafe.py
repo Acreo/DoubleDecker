@@ -90,6 +90,7 @@ class ClientSafe(Client):
             self._hash = key['hash'].encode()
 
         self._nonce = bytearray(nacl.utils.random(nacl.public.Box.NONCE_SIZE))
+        self._subscriptions = list()
 
     def subscribe(self, topic, scope):
         """
@@ -117,11 +118,19 @@ class ClientSafe(Client):
             scopestr = scope
         else:
             raise SyntaxError("Scope supports ALL/REGION/CLUSTER/NODE/NOSCOPE, or specific values,e.g. /1/2/3/")
+
+        if (topic, scopestr) in self._subscriptions:
+            logging.warning("Already subscribed to %s %s", topic, scopestr)
+            return
+        else:
+            self._subscriptions.append((topic,scopestr))
         if scopestr == "noscope":
             logging.debug("Subscribing to %s", topic)
         else:
             logging.debug("Subscribing to %s %s", topic, scopestr)
+
         self._send(DD.bCMD_SUB, [self._cookie, topic.encode(), scopestr.encode()])
+
 
     def unsubscribe(self, topic, scope):
         """
@@ -150,11 +159,16 @@ class ClientSafe(Client):
         else:
             raise SyntaxError("Scope supports ALL/REGION/CLUSTER/NODE/NOSCOPE, or specific values,e.g. /1/2/3/")
         if scopestr == "noscope":
-            logging.debug("Subscribing to %s", topic)
+            logging.debug("Unsubscribing from %s", topic)
         else:
-            logging.debug("Subscribing to %s", topic, scopestr)
-        self._send(DD.bCMD_UNSUB,
-                   [self._cookie, topic.encode(), scopestr.encode()])
+            logging.debug("Unsubscribing from %s", topic, scopestr)
+        if (topic, scopestr) in self._subscriptions:
+            self._subscriptions.remove((topic, scopestr))
+        else:
+            logging.warning("Not subscribed to %s %s !", topic, scopestr)
+            return
+
+        self._send(DD.bCMD_UNSUB,[self._cookie, topic.encode(), scopestr.encode()])
 
     def publish(self, topic, message):
         """
@@ -388,7 +402,11 @@ class ClientSafe(Client):
             #     pass
             self._heartbeat_loop.start()
             self._send(DD.bCMD_PING, [self._cookie])
+            for (topic, scopestr) in self._subscriptions:
+                self._send(DD.bCMD_SUB, [self._cookie, topic.encode(), scopestr.encode()])
+
             self.on_reg()
+
         elif cmd == DD.bCMD_DATA:
             source = msg.pop(0)
             if self._customer == b'public':

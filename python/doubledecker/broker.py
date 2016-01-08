@@ -1095,7 +1095,9 @@ class BrokerSafe(Broker):
         for n in self.hashes:
             if 'r' in self.hashes[n]:
                 self.tenants.append(self.hashes[n]['r']+".")
-
+        for cust in self.hashes.keys():
+            cookie_string = self.hashes[cust]['R']
+            self.hashes[cust]['R'] = int(cookie_string).to_bytes(8,byteorder=sys.byteorder)
 
     def add_local_cli(self, identity, args):
         """
@@ -1116,7 +1118,7 @@ class BrokerSafe(Broker):
                         nonce = nacl.utils.random(nacl.public.Box.NONCE_SIZE)
                         # Then, we encrypt the customer random number
 
-                        encryptednumber = box.encrypt(str(self.hashes[cust]['R']).encode(), nonce)
+                        encryptednumber = box.encrypt(self.hashes[cust]['R'], nonce)
 #                        import binascii
 #                        print("plaintext len",len(str(self.hashes[cust]['R']).encode())," ",binascii.hexlify(str(self.hashes[cust]['R']).encode()))
 #                        print("encryptednumber len", len(encryptednumber), " ",binascii.hexlify(encryptednumber))
@@ -1155,7 +1157,7 @@ class BrokerSafe(Broker):
                 self.router.send_multipart(
                     [identity, DD.bPROTO_VERSION, DD.bCMD_DATAPT, self.name, b"ERROR: protected name"])
                 return
-            if decryptednumber == str(self.hashes[keyhash]['R']).encode():
+            if decryptednumber == self.hashes[keyhash]['R']:
                 customer_r = self.hashes[keyhash]['r']  # e.g.: A
                 self.local_cli[identity] = (clientname, customer_r)
                 self.local_cli_timeout[identity] = 0
