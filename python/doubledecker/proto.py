@@ -1,14 +1,14 @@
 # coding=utf-8
 __author__ = 'eponsko'
 __license__ = """
-  Copyright (c) 2015 Pontus Sköldström, Bertrand Pechenot 
-    
+  Copyright (c) 2015 Pontus Sköldström, Bertrand Pechenot
+
   This file is part of libdd, the DoubleDecker hierarchical
   messaging system DoubleDecker is free software; you can
   redistribute it and/or modify it under the terms of the GNU Lesser
   General Public License (LGPL) version 2.1 as published by the Free
-  Software Foundation.  
-  
+  Software Foundation.
+
   As a special exception, the Authors give you permission to link this
   library with independent modules to produce an executable,
   regardless of the license terms of these independent modules, and to
@@ -51,6 +51,7 @@ CMD_SENDPT = 20
 CMD_FORWARDPT = 21
 CMD_DATAPT = 22
 CMD_SUBOK = 23
+CMD_REGFAIL = 24
 
 S_UNREG = 1
 S_ROOT = 2
@@ -85,3 +86,4 @@ bCMD_SENDPT = int.to_bytes(CMD_SENDPT, length=4, byteorder='little')
 bCMD_FORWARDPT = int.to_bytes(CMD_FORWARDPT, length=4, byteorder='little')
 bCMD_DATAPT = int.to_bytes(CMD_DATAPT, length=4, byteorder='little')
 bCMD_SUBOK = int.to_bytes(CMD_SUBOK, length=4, byteorder='little')
+bCMD_REGFAIL = int.to_bytes(CMD_REGFAIL, length=4, byteorder='little')

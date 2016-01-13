@@ -469,6 +469,10 @@ class ClientSafe(Client):
                 self._dealer.send_multipart([DD.bPROTO_VERSION, DD.bCMD_UNSUB, topic.encode()])
         elif cmd == DD.bCMD_NODST:
             logging.warning("Unknown client %s", msg.pop(0))
+        elif cmd == DD.bCMD_REGFAIL:
+            logging.error("Broker refused the registration")
+            if len(msg) > 0:
+                print(msg)
         else:
             logging.warning("Unknown message, got: %i %s", cmd, msg)
 

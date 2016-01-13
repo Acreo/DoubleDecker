@@ -23,4 +23,5 @@ const uint32_t dd_cmd_sendpt = DD_CMD_SENDPT;
 const uint32_t dd_cmd_forwardpt = DD_CMD_FORWARDPT;
 const uint32_t dd_cmd_datapt = DD_CMD_DATAPT;
 const uint32_t dd_cmd_subok = DD_CMD_SUBOK;
+const uint32_t dd_cmd_regfail = DD_CMD_REGFAIL;
 const uint32_t dd_version = DD_VERSION;
