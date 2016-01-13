@@ -13,10 +13,10 @@ import nacl.public
 import nacl.encoding
 
 from . import proto as DD
-from .clientInterface import Client
+from . import clientInterface as interface
 
 
-class ClientSafe(Client):
+class ClientSafe(interface.Client):
     """
     DoubleDecker client with encryption and authentication
 

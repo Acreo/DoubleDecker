@@ -3,16 +3,15 @@ import sys
 import abc
 import re
 
-
 import zmq
 import zmq.eventloop.ioloop
 import zmq.eventloop.zmqstream
 
 from . import proto as DD
-from .clientInterface import Client
+from . import clientInterface as interface
 
 
-class ClientUnsafe(Client):
+class ClientUnsafe(interface.Client):
     def __init__(self, name, dealerurl, customer):
         super().__init__(name, dealerurl, customer)
         self._dealer.setsockopt(zmq.IDENTITY, self._customer_name)
