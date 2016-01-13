@@ -9,7 +9,12 @@ Dependencies:
 
 To build:
 
-./boot.sh to generate ./configure 
+```bash
+mkdir -pv m4
+autoreconf --force --install
+./configure
+make
+```
 
 Running
 #######
