@@ -190,8 +190,8 @@ void cmd_cb_addlcl(zframe_t *sockid, zmsg_t *msg) {
         if (ten == NULL) {
                 // TODO add a special ERROR message here
                 dd_error("Could not find key for client");
-                zsock_send(rsock, "fbbss", sockid, &dd_version, 4, &dd_cmd_regfail, 4,
-                                "Authentication failed!");
+                zsock_send(rsock, "fbbbs", sockid, &dd_version, 4, &dd_cmd_error, 4,
+                                &dd_error_regfail, 4, "Authentication failed!");
                 return;
         }
 
@@ -314,8 +314,8 @@ void cmd_cb_challok(zframe_t *sockid, zmsg_t *msg) {
                 if (NULL == hashtable_has_local_broker(sockid, *cookie, 0)) {
                         hashtable_insert_local_broker(sockid, *cookie);
 
-                        char *pubs_endpoint = zsock_endpoint(pubS);
-                        char *subs_endpoint = zsock_endpoint(subS);
+                        const char *pubs_endpoint = zsock_endpoint(pubS);
+                        const char *subs_endpoint = zsock_endpoint(subS);
 
                         dd_info("pubs_endpoint %s", pubs_endpoint);
                         dd_info("subs_endpoint %s", subs_endpoint);
@@ -484,11 +484,11 @@ void cmd_cb_nodst_dsock(zmsg_t *msg) {
         local_client *ln;
         char *dst_string = zmsg_popstr(msg);
         char *src_string = zmsg_popstr(msg);
-        dd_debug("cmd_cb_nodst_dsock called!");
+        dd_debug("cmd_cb_nodst_dsock called! (not really since the introdcution of the command 'error')");
 
         if ((ln = hashtable_has_rev_local_node(src_string, 0))) {
-                zsock_send(rsock, "fbbss", ln->sockid, &dd_version, 4, &dd_cmd_nodst,
-                                4, dst_string, src_string);
+                zsock_send(rsock, "fbbbss", ln->sockid, &dd_version, 4, &dd_cmd_error, 4,
+                                &dd_error_nodst, 4,dst_string, src_string);
         } else {
                 dd_error("Could not forward NODST message downwards");
         }
@@ -892,7 +892,7 @@ void cmd_cb_sub(zframe_t *sockid, zframe_t *cookie, zmsg_t *msg) {
         free(topic);
 #ifdef DEBUG
         nn_trie_dump(&topics_trie);
-#endif DEBUG
+#endif
         // refcount -> integrate in the topic_trie as refcount_s and refcount_n
         // topic_north[newtopic(char*)] = int
         // topic_south[newtopic(char*)] = int
@@ -1443,9 +1443,13 @@ int s_on_router_msg(zloop_t *loop, zsock_t *handle, void *arg) {
                         cmd_cb_challok(source_frame, msg);
                         break;
 
-                case DD_CMD_NODST:
-                        cmd_cb_nodst_rsock(msg);
-                        break;
+                        //case DD_CMD_NODST:
+                        //        cmd_cb_nodst_rsock(msg);
+                        //        break;
+
+                case DD_CMD_ERROR:
+                        //TODO implment
+                        dd_error("not implemented");
 
                 default:
                         dd_error("Unknown command, value: 0x%x", cmd);
@@ -1508,8 +1512,11 @@ int s_on_dealer_msg(zloop_t *loop, zsock_t *handle, void *arg) {
                         break;
                 case DD_CMD_PONG:
                         break;
-                case DD_CMD_NODST:
-                        cmd_cb_nodst_dsock(msg);
+                        //case DD_CMD_NODST:
+                        //        cmd_cb_nodst_dsock(msg);
+                        //        break;
+                case DD_CMD_ERROR:
+                        //TODO check if it's the correct behavior
                         break;
 
                 default:
@@ -1675,12 +1682,13 @@ void forward_up(char *src_string, char *dst_string, zmsg_t *msg) {
 
 void dest_invalid_rsock(zframe_t *sockid, char *src_string,
                 char *dst_string) {
-        zsock_send(rsock, "fbbss", sockid, &dd_version, 4, &dd_cmd_nodst, 4,
+        zsock_send(rsock, "fbbss", sockid, &dd_version, 4, &dd_cmd_error, 4,
+                        // &dd_cmd_nodst, 4,
                         dst_string, src_string);
 }
 
 void dest_invalid_dsock(char *src_string, char *dst_string) {
-        zsock_send(dsock, "fbbss", &dd_version, 4, &dd_cmd_nodst, 4, dst_string,
+        zsock_send(dsock, "bbss", &dd_version, 4, &dd_cmd_error, 4, dst_string,
                         src_string);
 }
 

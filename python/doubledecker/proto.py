@@ -26,7 +26,7 @@ __license__ = """
   see <http://www.gnu.org/licenses/>.
 """
 # Double-decker definitions
-proto_version = 0x0d0d0001
+proto_version = 0x0d0d0003
 CMD_SEND = 0
 CMD_FORWARD = 1
 CMD_PING = 2
