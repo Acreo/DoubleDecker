@@ -22,7 +22,7 @@
    License for more details.  You should have received a copy of the
    GNU Lesser General Public License along with this program.  If not,
    see <http://www.gnu.org/licenses/>.
-   */
+ */
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
@@ -292,7 +292,7 @@ int main(int argc, char *argv[]) {
         parser.cfg.ch_del = 127;
         parser.cfg.ch_help = '?';
         parser.cfg.flags = (debug ? CPARSER_FLAGS_DEBUG : 0);
-        strcpy(parser.cfg.prompt, "DD>> ");
+        sprintf(&parser.cfg.prompt[0], "%s>> ", client_name);
         parser.cfg.fd = STDOUT_FILENO;
         cparser_io_config(&parser);
 
