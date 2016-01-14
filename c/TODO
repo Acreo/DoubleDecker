@@ -1,9 +1,17 @@
+
 long term addons
 - add automatic generation of client names   
+- get rid of the need for adding customer name on command line
+   actually only used to determine wheter client is public or not
+   the same information can be found in the keyfile
 
+- get rid of NODST and replace with a generic ERROR(code, reason) message
+
+   
 bugs
 - NODST doesn't properly strip tenant. 
 
+   
    
 
    
