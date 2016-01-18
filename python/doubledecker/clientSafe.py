@@ -1,7 +1,5 @@
 # coding=utf-8
 import logging
-import sys
-import abc
 import json
 import re
 
@@ -123,14 +121,13 @@ class ClientSafe(interface.Client):
             logging.warning("Already subscribed to %s %s", topic, scopestr)
             return
         else:
-            self._subscriptions.append((topic,scopestr))
+            self._subscriptions.append((topic, scopestr))
         if scopestr == "noscope":
             logging.debug("Subscribing to %s", topic)
         else:
             logging.debug("Subscribing to %s %s", topic, scopestr)
 
         self._send(DD.bCMD_SUB, [self._cookie, topic.encode(), scopestr.encode()])
-
 
     def unsubscribe(self, topic, scope):
         """
@@ -267,106 +264,6 @@ class ClientSafe(interface.Client):
                 # print("self.R: ", type(self.R), " dst: ", type(dst), " msg:", type(msg) )
                 self._send(DD.bCMD_SEND, [self._cookie, dst, msg])
 
-    @abc.abstractmethod
-    def on_reg(self,src,msg):
-        # print('Safe client got registered correctly')
-        """
-        Function called when client registration succeeded
-        :param src:
-        :param msg:
-        """
-        pass
-
-    @abc.abstractmethod
-    def on_discon(self):
-        """
-
-        Called when the client was disconnected from the broker
-        """
-        pass
-
-    def on_cli(self, dummy, other_dummy):
-        """
-        Called when the CLI is updated, if running interactively
-        :param dummy:
-        :param other_dummy:
-        :return:
-        """
-        cmd = sys.stdin.readline().split(maxsplit=2)
-        if len(cmd) == 0:
-            self._cli_usage()
-        elif 'send' == cmd[0]:
-            # send an encrypted message
-            if len(cmd) < 3:
-                self._cli_usage()
-                return
-            dst = cmd[1]
-            msg = cmd[2].strip().encode('utf8')
-            self.sendmsg(dst, msg)
-
-        elif 'sendPT' == cmd[0]:
-            if len(cmd) < 3:
-                self._cli_usage()
-                return
-            dst = cmd[1].encode('utf8')
-            msg = cmd[2].strip().encode('utf8')
-            logging.debug("Sending \"%s\" to %s", msg, dst.decode('utf8'))
-            self._send(DD.bCMD_SENDPT, [self._cookie, dst, msg])
-        elif 'exit' == cmd[0]:
-            self.shutdown()
-        elif 'sub' == cmd[0]:
-            if len(cmd) > 2:
-                # print("Subscribing to",cmd[1]+cmd[2])
-                self.sub_scope(cmd[1], cmd[2])
-            else:
-                print("usage: sub [topic] [scope], where scope is ALL, REGION, CLUSTER, NODE, /1/2/3/, NOSCOPE")
-        elif 'unsub' == cmd[0]:
-            if len(cmd) > 1:
-                if cmd[1] in self._sublist:
-                    logging.info("Unsubscribing from %s*", cmd[1])
-                    for sub in self._sublist:
-                        if sub.startswith(cmd[1] + "/"):
-                            self._dealer.send_multipart(
-                                [DD.bPROTO_VERSION, DD.bCMD_UNSUB, sub.encode()])
-                            self._sublist.remove(sub)
-                else:
-                    logging.info("You are not subscribed to this topic: %s", cmd[1])
-            else:
-                print("usage: unsub [topic]")
-        elif 'pub' == cmd[0]:
-            if len(cmd) > 2:
-                logging.info("Publishing message on %s*", cmd[1])
-                if self._customer == b'public':
-                    # public --> public
-                    self.publish(cmd[1].encode(), cmd[2].encode())
-                else:
-                    topic_is_public = False
-                    topic = cmd[1]
-                    try:
-                        split = topic.split('.')
-                        customer_dst = split[0]
-                        if customer_dst == 'public':
-                            topic_is_public = True
-                            topic = split[1]
-                    except:
-                        pass
-                    if topic_is_public:
-                        # non-public --> public
-                        self.publish_public(topic.encode(), cmd[2].encode())
-                    else:
-                        # public --> public
-                        self.publish(topic.encode(), cmd[2].encode())
-            else:
-                print("usage: pub [topic] [message]")
-        elif 'pubpublic' == cmd[0]:
-            if len(cmd) > 2 and self._customer != b'public':
-                logging.info("Publishing message on public %s*", cmd[1])
-                self.publish_public(cmd[1].encode(), cmd[2].encode())
-            else:
-                print("usage: pubpublic [topic] [message]")
-        else:
-            self._cli_usage()
-
     def _ping(self):
         self._send(DD.bCMD_PING, [self._cookie])
 
@@ -467,12 +364,8 @@ class ClientSafe(interface.Client):
             else:
                 logging.error("Already subscribed to topic %s", topic)
                 self._dealer.send_multipart([DD.bPROTO_VERSION, DD.bCMD_UNSUB, topic.encode()])
-        elif cmd == DD.bCMD_NODST:
-            logging.warning("Unknown client %s", msg.pop(0))
-        elif cmd == DD.bCMD_REGFAIL:
-            logging.error("Broker refused the registration")
-            if len(msg) > 0:
-                print(msg)
+        elif cmd == DD.bCMD_ERROR:
+            self.on_error(int.from_bytes(msg.pop(0), byteorder='little'), msg)
         else:
             logging.warning("Unknown message, got: %i %s", cmd, msg)
 

@@ -37,7 +37,7 @@ CMD_UNREG = 6
 CMD_UNREGDCLI = 7
 CMD_UNREGBR = 8
 CMD_DATA = 9
-CMD_NODST = 10
+CMD_ERROR = 10
 CMD_REGOK = 11
 CMD_PONG = 12
 CMD_CHALL = 13
@@ -51,7 +51,6 @@ CMD_SENDPT = 20
 CMD_FORWARDPT = 21
 CMD_DATAPT = 22
 CMD_SUBOK = 23
-CMD_REGFAIL = 24
 
 S_UNREG = 1
 S_ROOT = 2
@@ -72,7 +71,7 @@ bCMD_UNREG = int.to_bytes(CMD_UNREG, length=4, byteorder='little')
 bCMD_UNREGBR = int.to_bytes(CMD_UNREGBR, length=4, byteorder='little')
 bCMD_UNREGDCLI = int.to_bytes(CMD_UNREGDCLI, length=4, byteorder='little')
 bCMD_DATA = int.to_bytes(CMD_DATA, length=4, byteorder='little')
-bCMD_NODST = int.to_bytes(CMD_NODST, length=4, byteorder='little')
+bCMD_ERROR = int.to_bytes(CMD_ERROR, length=4, byteorder='little')
 bCMD_REGOK = int.to_bytes(CMD_REGOK, length=4, byteorder='little')
 bCMD_PONG = int.to_bytes(CMD_PONG, length=4, byteorder='little')
 bCMD_CHALL = int.to_bytes(CMD_CHALL, length=4, byteorder='little')
@@ -86,4 +85,3 @@ bCMD_SENDPT = int.to_bytes(CMD_SENDPT, length=4, byteorder='little')
 bCMD_FORWARDPT = int.to_bytes(CMD_FORWARDPT, length=4, byteorder='little')
 bCMD_DATAPT = int.to_bytes(CMD_DATAPT, length=4, byteorder='little')
 bCMD_SUBOK = int.to_bytes(CMD_SUBOK, length=4, byteorder='little')
-bCMD_REGFAIL = int.to_bytes(CMD_REGFAIL, length=4, byteorder='little')

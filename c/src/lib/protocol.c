@@ -9,7 +9,6 @@ const uint32_t dd_cmd_unreg = DD_CMD_UNREG;
 const uint32_t dd_cmd_unregdcli = DD_CMD_UNREGDCLI;
 const uint32_t dd_cmd_unregbr = DD_CMD_UNREGBR;
 const uint32_t dd_cmd_data = DD_CMD_DATA;
-// const uint32_t dd_cmd_nodst = DD_CMD_NODST;
 const uint32_t dd_cmd_error = DD_CMD_ERROR;
 const uint32_t dd_cmd_regok = DD_CMD_REGOK;
 const uint32_t dd_cmd_pong = DD_CMD_PONG;
@@ -24,8 +23,9 @@ const uint32_t dd_cmd_sendpt = DD_CMD_SENDPT;
 const uint32_t dd_cmd_forwardpt = DD_CMD_FORWARDPT;
 const uint32_t dd_cmd_datapt = DD_CMD_DATAPT;
 const uint32_t dd_cmd_subok = DD_CMD_SUBOK;
-// const uint32_t dd_cmd_regfail = DD_CMD_REGFAIL;
+
 const uint32_t dd_version = DD_VERSION;
 
 const uint32_t dd_error_regfail = DD_ERROR_REGFAIL;
 const uint32_t dd_error_nodst = DD_ERROR_REGFAIL;
+const uint32_t dd_error_version = DD_ERROR_VERSION;

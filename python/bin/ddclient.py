@@ -83,6 +83,9 @@ class SecureCli(ClientSafe):
         self.registered = False
         self.update_main_text()
 
+    def on_error(self, code, msg):
+        self.add_msg("ERROR n#%d : %s" % (code, msg))
+
     def on_pub(self, src, topic, msg):
         msgstr = "PUB %s from %s: %s" % (str(topic), str(src), str(msg))
         self.add_msg(msgstr)
@@ -108,7 +111,6 @@ class SecureCli(ClientSafe):
 
     def run(self):
         self.choices = ["Subscribe", "Unsubscribe", "Exit"]
-        # substring = json.dumps(self.subscriptions)
         self.update_main_text()
         self.main = urwid.Padding(
             self.menu(self.main_text, self.choices), left=2, right=2)
@@ -151,13 +153,11 @@ class SecureCli(ClientSafe):
         self.notify_msg = new_edit_text
 
     def notify_handler(self, button, choice):
-        # palette = [('I say', 'default,bold', 'default', 'bold'), ]
         destination = urwid.Edit(('I say', u"Destination: "))
         self.reply_notify_dest = urwid.Text(u"")
         message = urwid.Edit(('I say', u"Message: "))
         self.reply_notify_msg = urwid.Text(u"")
         ret = urwid.Button(u'Notify')
-        # div = urwid.Divider()
         urwid.connect_signal(destination, 'change', self.on_not_dest_change)
         urwid.connect_signal(message, 'change', self.on_not_msg_change)
         urwid.connect_signal(ret, 'click', self.return_main, "notify")
@@ -172,11 +172,9 @@ class SecureCli(ClientSafe):
         self.pub_msg = new_edit_text
 
     def publish_handler(self, button, choice):
-        # palette = [('I say', 'default,bold', 'default', 'bold'),]
         topic = urwid.Edit(('I say', u"Topic: "))
         message = urwid.Edit(('I say', u"Message: "))
         ret = urwid.Button(u'Publish')
-        # div = urwid.Divider()
         urwid.connect_signal(topic, 'change', self.on_pub_topic_change)
         urwid.connect_signal(message, 'change', self.on_pub_msg_change)
         urwid.connect_signal(ret, 'click', self.return_main, "publish")
@@ -193,11 +191,9 @@ class SecureCli(ClientSafe):
     def subscribe_handler(self, button, choice):
         self.sub_topic = ''
         self.sub_scope = ''
-        # palette = [('I say', 'default,bold', 'default', 'bold'),]
         topic = urwid.Edit(('I say', u"Topic: "))
         scope = urwid.Edit(('I say', u"Scope(all/region/cluster/node/noscope: "))
         ret = urwid.Button(u'Subscribe')
-        # div = urwid.Divider()
         urwid.connect_signal(topic, 'change', self.on_sub_topic_change)
         urwid.connect_signal(scope, 'change', self.on_sub_scope_change)
         urwid.connect_signal(ret, 'click', self.return_main, "subscribe")
@@ -212,11 +208,9 @@ class SecureCli(ClientSafe):
         self.unsub_scope = new_edit_text
 
     def unsubscribe_handler(self, button, choice):
-        # palette = [('I say', 'default,bold', 'default', 'bold'),]
         topic = urwid.Edit(('I say', u"Topic: "))
         scope = urwid.Edit(('I say', u"Scope(all/region/cluster/node/noscope: "))
         ret = urwid.Button(u'Unsubscribe')
-        # div = urwid.Divider()
         urwid.connect_signal(topic, 'change', self.on_unsub_topic_change)
         urwid.connect_signal(scope, 'change', self.on_unsub_scope_change)
         urwid.connect_signal(ret, 'click', self.return_main, "unsubscribe")
@@ -225,8 +219,6 @@ class SecureCli(ClientSafe):
         self.main.original_widget = top
 
     def return_main(self, button, cmd='None'):
-        # dest = 'none'
-        # msg = 'none'
         if cmd == 'notify':
             self.sendmsg(self.notify_dest, self.notify_msg)
 
@@ -236,7 +228,10 @@ class SecureCli(ClientSafe):
         if cmd == 'subscribe' :
             substr = "%s/%s" % (self.sub_topic, self.sub_scope)
             self.subscriptions.append(substr)
-            self.subscribe(self.sub_topic, self.sub_scope)
+            try :
+                self.subscribe(self.sub_topic, self.sub_scope)
+            except BaseException as e:
+                self.add_msg("Exception caught : %s)" % str(e))
 
         if cmd == 'unsubscribe':
             substr = "%s/%s" % (self.sub_topic, self.sub_scope)

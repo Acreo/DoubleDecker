@@ -47,7 +47,7 @@
 #define DD_STATE_REGISTERED 5
 
 // Commands and version
-#define DD_VERSION 0x0d0d0001
+#define DD_VERSION 0x0d0d0003
 #define DD_CMD_SEND 0
 #define DD_CMD_FORWARD 1
 #define DD_CMD_PING 2
@@ -58,7 +58,7 @@
 #define DD_CMD_UNREGDCLI 7
 #define DD_CMD_UNREGBR 8
 #define DD_CMD_DATA 9
-#define DD_CMD_NODST 10
+#define DD_CMD_ERROR 10
 #define DD_CMD_REGOK 11
 #define DD_CMD_PONG 12
 #define DD_CMD_CHALL 13
@@ -72,7 +72,11 @@
 #define DD_CMD_FORWARDPT 21
 #define DD_CMD_DATAPT 22
 #define DD_CMD_SUBOK 23
-#define DD_CMD_REGFAIL 24
+
+// Error codes
+#define DD_ERROR_REGFAIL 1
+#define DD_ERROR_NODST 2
+#define DD_ERROR_VERSION 3
 
 extern const uint32_t dd_cmd_send;
 extern const uint32_t dd_cmd_forward;
@@ -84,7 +88,7 @@ extern const uint32_t dd_cmd_unreg;
 extern const uint32_t dd_cmd_unregdcli;
 extern const uint32_t dd_cmd_unregbr;
 extern const uint32_t dd_cmd_data;
-extern const uint32_t dd_cmd_nodst;
+extern const uint32_t dd_cmd_error;
 extern const uint32_t dd_cmd_regok;
 extern const uint32_t dd_cmd_pong;
 extern const uint32_t dd_cmd_chall;
@@ -98,8 +102,12 @@ extern const uint32_t dd_cmd_sendpt;
 extern const uint32_t dd_cmd_forwardpt;
 extern const uint32_t dd_cmd_datapt;
 extern const uint32_t dd_cmd_subok;
-extern const uint32_t dd_cmd_regfail;
+
 extern const uint32_t dd_version;
+
+extern const uint32_t dd_error_regfail;
+extern const uint32_t dd_error_nodst;
+extern const uint32_t dd_error_version;
 
 // On connection
 typedef void(dd_con)(void *);
@@ -109,8 +117,8 @@ typedef void(dd_discon)(void *);
 typedef void(dd_data)(char *, unsigned char *, int, void *);
 // On recieve PUB
 typedef void(dd_pub)(char *, char *, unsigned char *, int, void *);
-// On no destination
-typedef void(dd_nodst)(char *, void *);
+// On receive ERROR
+typedef void(dd_error)(int, char*, void *);
 
 typedef struct ddclient {
         void *socket;               //  Socket for clients & workers
@@ -132,7 +140,7 @@ typedef struct ddclient {
         dd_discon(*on_discon);
         dd_data(*on_data);
         dd_pub(*on_pub);
-        dd_nodst(*on_nodst);
+        dd_error(*on_error);
         void (*subscribe)(char *, char *, struct ddclient *);
         void (*unsubscribe)(char *, char *, struct ddclient *);
         void (*publish)(char *, char *, int, struct ddclient *);
@@ -141,6 +149,6 @@ typedef struct ddclient {
 } ddclient_t;
 
 ddclient_t *start_ddthread(int, char *, char *, char *, char *, dd_con,
-                dd_discon, dd_data, dd_pub, dd_nodst);
+                dd_discon, dd_data, dd_pub, dd_error);
 
 #endif

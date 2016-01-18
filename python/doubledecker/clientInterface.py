@@ -8,6 +8,7 @@ import zmq.eventloop.zmqstream
 
 from . import proto as DD
 
+
 class Client(metaclass=abc.ABCMeta):
     def __init__(self, name, dealerurl, customer):
         self._ctx = zmq.Context()
@@ -81,6 +82,10 @@ class Client(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def on_discon(self):
+        pass
+
+    @abc.abstractmethod
+    def on_error(self, code, msg):
         pass
 
     @abc.abstractmethod

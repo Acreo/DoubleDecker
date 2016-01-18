@@ -188,7 +188,6 @@ void cmd_cb_addlcl(zframe_t *sockid, zmsg_t *msg) {
         ten = zhash_lookup(keys->tenantkeys, hash);
         free(hash);
         if (ten == NULL) {
-                // TODO add a special ERROR message here
                 dd_error("Could not find key for client");
                 zsock_send(rsock, "fbbbs", sockid, &dd_version, 4, &dd_cmd_error, 4,
                                 &dd_error_regfail, 4, "Authentication failed!");
@@ -484,11 +483,11 @@ void cmd_cb_nodst_dsock(zmsg_t *msg) {
         local_client *ln;
         char *dst_string = zmsg_popstr(msg);
         char *src_string = zmsg_popstr(msg);
-        dd_debug("cmd_cb_nodst_dsock called! (not really since the introdcution of the command 'error')");
+        dd_debug("cmd_cb_nodst_dsock called!)");
 
         if ((ln = hashtable_has_rev_local_node(src_string, 0))) {
                 zsock_send(rsock, "fbbbss", ln->sockid, &dd_version, 4, &dd_cmd_error, 4,
-                                &dd_error_nodst, 4,dst_string, src_string);
+                                &dd_error_nodst, 4,dst_string);
         } else {
                 dd_error("Could not forward NODST message downwards");
         }
@@ -1336,6 +1335,9 @@ int s_on_router_msg(zloop_t *loop, zsock_t *handle, void *arg) {
         pver = (uint32_t *)zframe_data(proto_frame);
         if (*pver != DD_VERSION) {
                 dd_error("Wrong version, expected 0x%x, got 0x%x", DD_VERSION, *pver);
+                zsock_send(rsock, "fbbbs", source_frame, pver, 4,
+                                &dd_cmd_error, 4, &dd_error_version, 4,
+                                "Different versions in use");
                 goto cleanup;
         }
         cmd_frame = zmsg_pop(msg);
@@ -1443,10 +1445,6 @@ int s_on_router_msg(zloop_t *loop, zsock_t *handle, void *arg) {
                         cmd_cb_challok(source_frame, msg);
                         break;
 
-                        //case DD_CMD_NODST:
-                        //        cmd_cb_nodst_rsock(msg);
-                        //        break;
-
                 case DD_CMD_ERROR:
                         //TODO implment
                         dd_error("not implemented");
@@ -1512,9 +1510,6 @@ int s_on_dealer_msg(zloop_t *loop, zsock_t *handle, void *arg) {
                         break;
                 case DD_CMD_PONG:
                         break;
-                        //case DD_CMD_NODST:
-                        //        cmd_cb_nodst_dsock(msg);
-                        //        break;
                 case DD_CMD_ERROR:
                         //TODO check if it's the correct behavior
                         break;
@@ -1682,14 +1677,13 @@ void forward_up(char *src_string, char *dst_string, zmsg_t *msg) {
 
 void dest_invalid_rsock(zframe_t *sockid, char *src_string,
                 char *dst_string) {
-        zsock_send(rsock, "fbbss", sockid, &dd_version, 4, &dd_cmd_error, 4,
-                        // &dd_cmd_nodst, 4,
-                        dst_string, src_string);
+        zsock_send(rsock, "fbbbs", sockid, &dd_version, 4, &dd_cmd_error, 4,
+                        &dd_error_nodst, 4, dst_string);
 }
 
 void dest_invalid_dsock(char *src_string, char *dst_string) {
-        zsock_send(dsock, "bbss", &dd_version, 4, &dd_cmd_error, 4, dst_string,
-                        src_string);
+        zsock_send(dsock, "bbss", &dd_version, 4, &dd_cmd_error, 4,
+                        &dd_error_nodst, 4, dst_string);
 }
 
 void unreg_cli(zframe_t *sockid, uint64_t cookie) {
