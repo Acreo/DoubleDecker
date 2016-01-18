@@ -32,7 +32,7 @@
 #include "cparser_tree.h"
 #include "dd.h"
 ddclient_t *start_ddthread(int, char *, char *, char *, char *, dd_con,
-                dd_discon, dd_data, dd_pub, dd_error);// dd_nodst);
+                dd_discon, dd_data, dd_pub, dd_error);
 
 static ddclient_t *client;
 
@@ -277,7 +277,7 @@ int main(int argc, char *argv[]) {
                 return 1;
         }
         client = start_ddthread(1, client_name, customer, connect_to, keyfile,
-                        on_reg, on_discon, on_data, on_pub, on_error);// on_nodst);
+                        on_reg, on_discon, on_data, on_pub, on_error);
         if (client == NULL) {
                 printf("DD initialization failed!\n");
                 return -1;

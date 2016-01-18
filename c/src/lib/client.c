@@ -242,7 +242,7 @@ static int publish(char *topic, char *message, int mlen, ddclient_t *dd) {
 }
 
 // - Publish between public and other customers not working
-static int  notify(char *target, char *message, int mlen, ddclient_t *dd) {
+static int notify(char *target, char *message, int mlen, ddclient_t *dd) {
         unsigned char *precalck = NULL;
         int srcpublic = 0;
         int dstpublic = 0;
@@ -387,9 +387,8 @@ static void cmd_cb_regok(zmsg_t *msg, ddclient_t *dd, zloop_t *loop) {
                 fprintf(stderr, "DD: Misformed REGOK message, missing COOKIE!\n");
                 return;
         }
-        unsigned long long int *cookie;
-        cookie = (unsigned long long int *)zframe_data(cookie_frame);
-        dd->cookie = (unsigned long long int)*cookie;
+        uint64_t *cookie2 = (uint64_t *)zframe_data(cookie_frame);
+        dd->cookie = *cookie2;
         zframe_destroy(&cookie_frame);
         dd->state = DD_STATE_REGISTERED;
         zsock_send(dd->socket, "bbb", &dd_version, 4, &dd_cmd_ping, 4,
@@ -400,8 +399,6 @@ static void cmd_cb_regok(zmsg_t *msg, ddclient_t *dd, zloop_t *loop) {
         // if this is re-registration, we should try to subscribe again
         sublist_resubscribe(dd);
         dd->on_reg(dd);
-
-        // TODO call library registered on_reg() callback here
 }
 
 static void cmd_cb_pong(zmsg_t *msg, ddclient_t *dd, zloop_t *loop) {
@@ -525,6 +522,12 @@ static void cmd_cb_subok(zmsg_t *msg, ddclient_t *dd) {
         sublist_activate(topic, scope, dd);
 }
 
+static void cmd_cb_error(zmsg_t *msg, ddclient_t *dd) {
+        long int error_code = atol(zmsg_popstr(msg));
+        char *error_msg = zmsg_popstr(msg);
+        fprintf(stderr, "Error n#%d : %s\n", error_code, error_msg);
+}
+
 //static void cmd_cb_nodst(zmsg_t *msg, ddclient_t *dd) {
 //  char *destination = zmsg_popstr(msg);
 //  dd->on_nodst(destination, dd);
@@ -588,12 +591,8 @@ static int s_on_dealer_msg(zloop_t *loop, zsock_t *handle, void *args) {
                 case DD_CMD_DATA:
                         cmd_cb_data(msg, dd);
                         break;
-                        // case DD_CMD_NODST:
-                        //         fprintf(stderr, "DD: Got command DD_CMD_NODST\n");
-                        //         cmd_cb_nodst(msg, dd);
-                        //         break;
                 case DD_CMD_ERROR:
-                        fprintf(stderr, "not implemented");
+                        cmd_cb_error(msg, dd);
                         break;
                 case DD_CMD_REGOK:
                         cmd_cb_regok(msg, dd, loop);
@@ -688,7 +687,7 @@ void *ddthread(void *args) {
 ddclient_t *start_ddthread(int verbose, char *client_name, char *customer,
                 char *endpoint, char *keyfile, dd_con con,
                 dd_discon discon, dd_data data, dd_pub pub,
-                dd_error error) {//dd_nodst nodst) {
+                dd_error error) {
         ddclient_t *dd = malloc(sizeof(ddclient_t));
         dd->verbose = verbose;
         dd->client_name = strdup(client_name);
