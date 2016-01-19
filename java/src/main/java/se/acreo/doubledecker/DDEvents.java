@@ -1,4 +1,4 @@
-package eu.unify.doubledecker;
+package se.acreo.doubledecker;
 
 public interface DDEvents {
     public void registered(String endpoint);
