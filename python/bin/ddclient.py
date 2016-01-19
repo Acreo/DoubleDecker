@@ -105,10 +105,6 @@ class SecureCli(ClientSafe):
         except AttributeError:
             pass
 
-    def on_cli(self, dummy, other_dummy):
-        cmd = sys.stdin.readline().split(maxsplit=2)
-        print("got %s" % cmd)
-
     def run(self):
         self.choices = ["Subscribe", "Unsubscribe", "Exit"]
         self.update_main_text()
