@@ -1,0 +1,4 @@
+Manifest-Version: 1.0
+Class-Path: jeromq-3.0.5.jar
+Main-Class: se.acreo.doubledecker.testDD
+
