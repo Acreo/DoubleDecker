@@ -43,8 +43,6 @@ class Client(metaclass=abc.ABCMeta):
         self._stream = zmq.eventloop.zmqstream.ZMQStream(self._dealer, self._IOLoop)
         self._stream.on_recv(self._on_message)
 
-        self._IOLoop.add_handler(sys.stdin.fileno(), self.on_cli, self._IOLoop.READ)
-
         self._register_loop = zmq.eventloop.ioloop.PeriodicCallback(self._ask_registration, 1000)
         self._register_loop.start()
         logging.debug('Trying to register')
@@ -62,11 +60,6 @@ class Client(metaclass=abc.ABCMeta):
         except KeyboardInterrupt:
             if self._state != DD.S_EXIT:
                 self.shutdown()
-
-    @abc.abstractmethod
-    def on_cli(self, dummy, other_dummy):
-        # implemented in sub classes
-        pass
 
     @abc.abstractmethod
     def on_pub(self, src, topic, msg):
