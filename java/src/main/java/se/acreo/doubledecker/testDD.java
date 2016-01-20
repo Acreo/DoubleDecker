@@ -141,6 +141,17 @@ public class testDD implements Observer, DDEvents {
         }
         return "Connect first!";
     }
+    @Command(description = "Terminate the testclient")
+    public void quit() {
+        if (client != null) {
+            System.out.println("Unregistering from broker");
+            client.shutdown();
+        }
+        System.out.println("Bye!");
+        System.exit(0);
+        return;
+    }
+
 
     // Go for the Observer pattern like this or with the DDEvents approach?
     @Override

@@ -321,6 +321,12 @@ public class DDClient extends Thread {
         }
     }
 
+    public synchronized void shutdown(){
+        // TODO: implement
+        log.format("DD: shutdown() not implemented yet!");
+    }
+
+
     @Override
     protected void finalize() throws Throwable {
         super.finalize();
