@@ -67,6 +67,11 @@ class SecureCli(ClientSafe):
     def on_discon(self):
         print("The client got disconnected")
 
+        # this function shuts down the client in a clean way
+        # in this example it exists as soon as the client is disconnected
+        # fron its broker
+        self.shutdown()
+
     # callback called when the client receives an error message
     def on_error(self, code, msg):
         print("ERROR n#%d : %s" % (code, msg))
