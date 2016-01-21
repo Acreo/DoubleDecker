@@ -74,7 +74,7 @@
         <dependency>
             <groupId>org.zeromq</groupId>
             <artifactId>jeromq</artifactId>
-            <version>0.3.5-SNAPSHOT</version>
+            <version>0.3.5</version>
         </dependency>
         <dependency>
             <groupId>com.google.code.gson</groupId>
@@ -87,6 +87,13 @@
             <artifactId>commons-codec</artifactId>
             <version>1.9</version>
         </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+            <version>3.0</version>
+        </dependency>
+
+
         <dependency>
             <groupId>com.googlecode.clichemaven</groupId>
             <artifactId>cliche</artifactId>
