@@ -27,5 +27,5 @@ const uint32_t dd_cmd_subok = DD_CMD_SUBOK;
 const uint32_t dd_version = DD_VERSION;
 
 const uint32_t dd_error_regfail = DD_ERROR_REGFAIL;
-const uint32_t dd_error_nodst = DD_ERROR_REGFAIL;
+const uint32_t dd_error_nodst = DD_ERROR_NODST;
 const uint32_t dd_error_version = DD_ERROR_VERSION;

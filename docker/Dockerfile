@@ -39,7 +39,6 @@ WORKDIR /bus
 
 
 # TODO: write a run.sh script that handles ENV variables properly
-ADD ./keys /keys
 ADD ./run.sh /bus/
 ADD ./doubledecker-0.2.tar.gz /
 WORKDIR /doubledecker-0.2

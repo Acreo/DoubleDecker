@@ -486,7 +486,7 @@ void cmd_cb_nodst_dsock(zmsg_t *msg) {
         dd_debug("cmd_cb_nodst_dsock called!)");
 
         if ((ln = hashtable_has_rev_local_node(src_string, 0))) {
-                zsock_send(rsock, "fbbbss", ln->sockid, &dd_version, 4, &dd_cmd_error, 4,
+                zsock_send(rsock, "fbbbs", ln->sockid, &dd_version, 4, &dd_cmd_error, 4,
                                 &dd_error_nodst, 4,dst_string);
         } else {
                 dd_error("Could not forward NODST message downwards");
@@ -1335,8 +1335,7 @@ int s_on_router_msg(zloop_t *loop, zsock_t *handle, void *arg) {
         pver = (uint32_t *)zframe_data(proto_frame);
         if (*pver != DD_VERSION) {
                 dd_error("Wrong version, expected 0x%x, got 0x%x", DD_VERSION, *pver);
-                zsock_send(rsock, "fbbbs", source_frame, pver, 4,
-                                &dd_cmd_error, 4, &dd_error_version, 4,
+                zsock_send(rsock, "fbbbs", source_frame, pver, 4, &dd_cmd_error, 4, &dd_error_version, 4,
                                 "Different versions in use");
                 goto cleanup;
         }
@@ -1447,7 +1446,8 @@ int s_on_router_msg(zloop_t *loop, zsock_t *handle, void *arg) {
 
                 case DD_CMD_ERROR:
                         //TODO implment
-                        dd_error("not implemented");
+                        dd_error("Recived CMD_ERROR from a client!");
+                        break;
 
                 default:
                         dd_error("Unknown command, value: 0x%x", cmd);
@@ -1511,9 +1511,9 @@ int s_on_dealer_msg(zloop_t *loop, zsock_t *handle, void *arg) {
                 case DD_CMD_PONG:
                         break;
                 case DD_CMD_ERROR:
-                        //TODO check if it's the correct behavior
+                  // TODO implement regfail and nodst
+                        dd_error("Recived error from higher-layer broker, not implemented!");
                         break;
-
                 default:
                         dd_error("Unknown command, value: 0x%x", cmd);
                         break;

@@ -203,6 +203,7 @@ public class DDClient extends Thread {
             tosend.add(this.bcookie);
             tosend.add(target);
             tosend.add(ciphertext);
+            tosend.send(socket);
         }
     }
 
@@ -387,8 +388,8 @@ public class DDClient extends Thread {
                 cmd_cb_data(msg);
                 timeout = 0;
                 break;
-            case CMD.NODST:
-                cmd_cb_nodst(msg);
+            case CMD.ERROR:
+                cmd_cb_error(msg);
                 timeout = 0;
                 break;
             case CMD.PONG:
@@ -401,10 +402,6 @@ public class DDClient extends Thread {
                 break;
             case CMD.PUB:
                 cmd_cb_pub(msg);
-                timeout = 0;
-                break;
-            case CMD.ERROR:
-                cmd_cb_error(msg);
                 timeout = 0;
                 break;
             case CMD.SUBOK:
@@ -618,14 +615,32 @@ public class DDClient extends Thread {
         // log.format("DD: cmd_cb_pong called\n");
     }
 
-    private void cmd_cb_nodst(ZMsg msg) {
-        log.format("DD: cmd_cb_nodst called\n");
-        callback.error(1, "No destination");
-    }
-
     private void cmd_cb_error(ZMsg msg) {
         log.format("DD: cmd_cb_error called\n");
-        callback.error(2, "Unknown error thingy");
+        int code = ByteBuffer.wrap(msg.pop().getData()).order(ByteOrder.LITTLE_ENDIAN).getInt();
+        String reason = msg.popString();
+        switch (code){
+            case ERROR.NODST:
+                callback.error(ERROR.NODST, reason);
+                break;
+            case ERROR.REGFAIL:
+                callback.error(ERROR.REGFAIL, reason);
+                log.format("DD: Registration failed: " + reason + "\n");
+                log.format("DD: Terminating...\n");
+                shutdown();
+                System.exit(1);
+                break;
+            case ERROR.VERSION:
+                callback.error(ERROR.VERSION, reason);
+                log.format("DD: Version mismatch: " + reason+ "\n");
+                log.format("DD: Terminating...\n");
+                shutdown();
+                System.exit(1);
+                break;
+            default:
+                log.format("DD: Unknown error code " + code + ". Message: " + reason);
+        }
+        callback.error(code, "No destination");
     }
 
     private void cmd_cb_subok(ZMsg msg) {
@@ -648,7 +663,11 @@ public class DDClient extends Thread {
         REGISTERED,
         UNREG
     }
-
+    private static class ERROR {
+        protected final static int REGFAIL  = 1;
+        protected final static int NODST  = 2;
+        protected final static int VERSION  = 3;
+    }
     private static class CMD {
         protected final static int SEND = 0;
         protected final static int FORWARD = 1;
@@ -660,7 +679,7 @@ public class DDClient extends Thread {
         protected final static int UNREGDCLI = 7;
         protected final static int UNREGBR = 8;
         protected final static int DATA = 9;
-        protected final static int NODST = 10;
+        protected final static int ERROR = 10;
         protected final static int REGOK = 11;
         protected final static int PONG = 12;
         protected final static int CHALL = 13;
@@ -674,9 +693,9 @@ public class DDClient extends Thread {
         protected final static int FORWARDPT = 21;
         protected final static int DATAPT = 22;
         protected final static int SUBOK = 23;
-        protected final static int ERROR = 24;
 
-        protected final static byte[] bprotoVersion = ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(0x0d0d0001).array();
+
+        protected final static byte[] bprotoVersion = ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(0x0d0d0003).array();
         protected final static byte[] bSEND = ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(SEND).array();
         protected final static byte[] bFORWARD = ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(FORWARD).array();
         protected final static byte[] bADDLCL = ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(ADDLCL).array();
@@ -686,7 +705,6 @@ public class DDClient extends Thread {
         protected final static byte[] bUNREGDCLI = ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(UNREGDCLI).array();
         protected final static byte[] bUNREGBR = ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(UNREGBR).array();
         protected final static byte[] bDATA = ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(DATA).array();
-        protected final static byte[] bNODST = ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(NODST).array();
         protected final static byte[] bREGOK = ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(REGOK).array();
         protected final static byte[] bPONG = ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(PONG).array();
         protected final static byte[] bPING = ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(PING).array();
@@ -773,6 +791,7 @@ public class DDClient extends Thread {
                 } else {
                     log.format("Broker did not respond, trying to reconnect\n");
                     cliState = CliState.UNREG;
+                    callback.disconnected(broker);
                     sublistInactivateAll();
                     registrationThread = new Registration(hash);
                     registrationThread.start();
@@ -794,11 +813,11 @@ public class DDClient extends Thread {
             Thread.currentThread().setName("registration-thread");
             listThreads();
             log.format("Starting thread: "+ Thread.currentThread().getName() + "\n");
+            log.format("Trying to connect to broker at %s...\n", broker);
             while (!Thread.currentThread().isInterrupted()) {
                 socket.close();
                 socket = ctx.createSocket(ZMQ.DEALER);
                 socket.connect(broker);
-                log.format("Connecting to broker at %s...\n", broker);
                 ZMsg tosend = new ZMsg();
                 tosend.addFirst(CMD.bprotoVersion);
                 tosend.add(CMD.bADDLCL);
@@ -807,7 +826,6 @@ public class DDClient extends Thread {
                 try {
                     this.sleep(3000);
                 } catch (InterruptedException e) {
-                    log.format("here\n");
                     this.interrupt();
                     log.format("Terminating thread: " + Thread.currentThread().getName() + " id" + Thread.currentThread().getId() + "\n");
                     listThreads();
