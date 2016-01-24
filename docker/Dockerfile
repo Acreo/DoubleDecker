@@ -1,7 +1,7 @@
 FROM ubuntu:latest
-MAINTAINER Pontus Skoldstrom ponsko@acreo.se
+MAINTAINER Bertrand Pechenot berpec@acreo.se
 RUN apt-get update 
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -yq apt-utils wget build-essential libtool 
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -yq apt-utils wget build-essential libtool git
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -yq automake pkg-config libjson0-dev libzmq3-dev
 
 # Broker default port 
@@ -40,9 +40,14 @@ WORKDIR /bus
 
 # TODO: write a run.sh script that handles ENV variables properly
 ADD ./run.sh /bus/
-ADD ./doubledecker-0.2.tar.gz /
-WORKDIR /doubledecker-0.2
+WORKDIR /
+RUN git clone https://github.com/Acreo/DoubleDecker.git
+WORKDIR /DoubleDecker/c/
+RUN mkdir -pv m4
+RUN ls
+RUN autoreconf --force --install
 RUN ./configure
+RUN make
 RUN make install
 RUN ldconfig
 
@@ -50,6 +55,9 @@ ENV BROKER_PORT=tcp://*:5555
 ENV BROKER_SCOPE=0/0/0
 WORKDIR /bus/
 RUN rm -rf czmq-3.0.2 libsodium-1.0.3.tar.gz libsodium-1.0.7.tar.gz userspace-rcu-0.9.1 v3.0.2.tar.gz libsodium-1.0.3 libsodium-1.0.7 userspace-rcu-0.9.1.tar.bz2
+RUN DEBIAN_FRONTEND=noninteractive apt-get remove -yq git apt-utils wget build-essential libtool git libtool-bin automake pkg-config
+RUN DEBIAN_FRONTEND=noninteractive apt-get autoremove -yq
+RUN DEBIAN_FRONTEND=noninteractive apt-get autoclean -yq
 CMD ./run.sh
 
 
