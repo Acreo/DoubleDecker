@@ -23,15 +23,15 @@ This work is carried out within the [UNIFY FP7 EU project](http://www.fp7-unify.
 
 ### C version ; broker and client
 
-See [C README](https://github.com/Acreo/DoubleDecker/c/README.md)
+See [C README](c/README.md)
 
 ### Python version ; client only
 
-See [C README](https://github.com/Acreo/DoubleDecker/python/README.md)
+See [Python README](python/README.md)
 
 ### Java version ; client only
 
-See [C README](https://github.com/Acreo/DoubleDecker/java/README.md)
+See [Java README](java/README.md)
 
 ### LICENSE
 
