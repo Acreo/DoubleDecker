@@ -1511,7 +1511,7 @@ int s_on_dealer_msg(zloop_t *loop, zsock_t *handle, void *arg) {
                 case DD_CMD_PONG:
                         break;
                 case DD_CMD_ERROR:
-                  // TODO implement regfail and nodst
+                        // TODO implement regfail and nodst
                         dd_error("Recived error from higher-layer broker, not implemented!");
                         break;
                 default:
@@ -1855,7 +1855,7 @@ void stop_program(int sig) {
 
 void usage() {
         printf(
-                        "broker -n <name> -d <dealer addr> -r <router addr> -v [verbose] -h "
+                        "broker -m <name> -d <dealer addr> -r <router addr> -v [verbose] -h "
                         "[help]\n"
                         "REQUIRED OPTIONS\n"
                         "-r <router addr> e.g. tcp://127.0.0.1:5555\n"
