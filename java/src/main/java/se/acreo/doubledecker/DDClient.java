@@ -100,7 +100,6 @@ public class DDClient extends Thread {
         socket = ctx.createSocket(ZMQ.DEALER);
         socket.connect(broker);
         this.registrationThread = new Registration(this.hash);
-        //this.heartBeatThread = new HeartBeat("".getBytes());
         registrationThread.start();
     }
 
@@ -480,7 +479,6 @@ public class DDClient extends Thread {
     }
 
     private void cmd_cb_regok(ZMsg msg) {
-        log.format("DD: cmd_cb_regok called\n");
         ZFrame cookieFrame = msg.pop();
         if (cookieFrame == null) {
             log.format("DD: REGOK message malformed, missing cookie!\n");
@@ -491,9 +489,7 @@ public class DDClient extends Thread {
         this.cliState = CliState.REGISTERED;
         log.format("DD: New cookie: " + this.bcookie + "\n");
         // Start the heartbeat with the new cookie
-        log.format("DD: Stopping registration thread \n");
         registrationThread.interrupt();
-        log.format("DD: Setting new heartbeat cookie and starting thread");
         heartBeatThread = new HeartBeat(this.bcookie);
         heartBeatThread.start();
 
@@ -518,7 +514,6 @@ public class DDClient extends Thread {
     }
 
     private void cmd_cb_data(ZMsg msg) {
-        log.format("DD: cmd_cb_data called\n");
         int retval;
         String source = msg.popString();
         ZFrame encrypted = msg.pop();
@@ -561,7 +556,6 @@ public class DDClient extends Thread {
     }
 
     private void cmd_cb_pub(ZMsg msg) {
-        log.format("DD: cmd_cb_pub called\n");
         log.format("Got message: " + msg);
         String source = msg.popString();
         String topic = msg.popString();
@@ -784,7 +778,6 @@ public class DDClient extends Thread {
             timeout = 0;
             listThreads();
             Thread.currentThread().setName("heartbeat-thread");
-            log.format("Starting thread: "+ Thread.currentThread().getName() + "\n");
 
             while (!Thread.currentThread().isInterrupted()) {
                 timeout += 1;
@@ -794,7 +787,6 @@ public class DDClient extends Thread {
                     tosend.add(CMD.bPING);
                     tosend.add(this.bcookie);
                     tosend.send(socket);
-                    //log.format("DD: Sent PING(cookie)\n");
                     try {
                         this.sleep(1500);
                     } catch (InterruptedException e) {
