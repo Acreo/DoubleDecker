@@ -1935,14 +1935,13 @@ int start_broker(char *router_bind, char *dealer_connect, char *keyfile,
         loop = zloop_new();
         assert(loop);
         rsock = zsock_new(ZMQ_ROUTER);
-        zsock_bind(rsock, router_bind);
-
-        if (rsock == NULL) {
+        int rc = zsock_bind(rsock, router_bind);
+        if (rc < 0) {
                 dd_error("Couldn't bind router socket to %s", router_bind);
                 perror("Error: ");
                 exit(EXIT_FAILURE);
         }
-        int rc = zloop_reader(loop, rsock, s_on_router_msg, NULL);
+        rc = zloop_reader(loop, rsock, s_on_router_msg, NULL);
         assert(rc == 0);
         zloop_reader_set_tolerant(loop, rsock);
 
