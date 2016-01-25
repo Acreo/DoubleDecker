@@ -1,0 +1,27 @@
+{
+    "dd": {
+        "privkey": "p5sP8P66nqlMGv0p2n5CdlEX5vlnDyebKDmxWauWUpI=",
+        "R": "2219487223149551189",
+        "pubkey": "/DbdT0df2DE7mnlMVsIp4GpiXyGIpv28ZVCID895BDk="
+    },
+    "d32764b720135625e6d5ae46b2e7b9a03cb523402e994baa3f73bd48dc2dcd18": {
+        "r": "a",
+        "R": "16856119424031212349",
+        "pubkey": "0ydktyATViXm1a5Gsue5oDy1I0AumUuqP3O9SNwtzRg="
+    },
+    "a69975cffb33a9e1fb28bd597990e286a1dd51c3650afab8cf1b1c66a978a56c": {
+        "r": "c",
+        "R": "11509317613581882189",
+        "pubkey": "ppl1z/szqeH7KL1ZeZDihqHdUcNlCvq4zxscZql4pWw="
+    },
+    "4c60a0fd593d40808029cf66eb802b18f70b47a0b4bd0c17f4764902c37aa277": {
+        "r": "public",
+        "R": "3758841934883601082",
+        "pubkey": "TGCg/Vk9QICAKc9m64ArGPcLR6C0vQwX9HZJAsN6onc="
+    },
+    "e8dfaef732d0e2431752d94e234efc110d08c42fa22922b357a895f971eee174": {
+        "r": "b",
+        "R": "2097132756657612545",
+        "pubkey": "6N+u9zLQ4kMXUtlOI078EQ0IxC+iKSKzV6iV+XHu4XQ="
+    }
+}
