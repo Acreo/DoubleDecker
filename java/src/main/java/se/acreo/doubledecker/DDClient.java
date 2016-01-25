@@ -57,7 +57,6 @@ public class DDClient extends Thread {
     private Box tenantBox, brokerBox, publicBox;
     private Registration registrationThread;
     private HeartBeat heartBeatThread;
-    // Cookie as Integer and byte []
     private int cookie;
     private byte[] bcookie;
     private DDEvents callback;
@@ -74,8 +73,7 @@ public class DDClient extends Thread {
         this.name = name;
         this.keyfile = keyfile;
         org.abstractj.kalium.crypto.Random rnd = new org.abstractj.kalium.crypto.Random();
-        this.nonce = rnd.randomBytes(org.abstractj.kalium.NaCl.Sodium.NONCE_BYTES);
-
+        this.nonce = rnd.randomBytes(org.abstractj.kalium.NaCl.Sodium.NONCE_BYTES)
 
         if (verbose) {
             log = new Formatter(System.out);
@@ -94,13 +92,6 @@ public class DDClient extends Thread {
         ddpubkey = b64.decodeBuffer(map.get("ddpubkey"));
         publicpubkey = b64.decodeBuffer(map.get("publicpubkey"));
         hash = map.get("hash");
-/*
-        System.out.println("hash " + hash);
-        System.out.println("B64 decoded privkey      " + privkey.length + " \t: " + Hex.encodeHexString(privkey));
-        System.out.println("B64 decoded pubkey       " + pubkey.length + " \t: " + Hex.encodeHexString(pubkey));
-        System.out.println("B64 decoded ddpubkey     " + ddpubkey.length + " \t: " + Hex.encodeHexString(ddpubkey));
-        System.out.println("B64 decoded publicpubkey " + privkey.length + " \t: " + Hex.encodeHexString(publicpubkey));
-*/
         this.tenantBox = new Box(pubkey, privkey);
         this.brokerBox = new Box(ddpubkey, privkey);
         this.publicBox = new Box(publicpubkey, privkey);
@@ -186,14 +177,27 @@ public class DDClient extends Thread {
         }
         */
         byte[] ciphertext;
+
         if (dstpublic) {
             incrementNonce();
-            log.format("Incremented nonce to " + Hex.encodeHexString(this.nonce) + "\n");
-            ciphertext = this.publicBox.encrypt(this.nonce, message);
+            byte[] res = this.publicBox.encrypt(this.nonce, message);
+            ciphertext = Arrays.copyOf(this.nonce, this.nonce.length + res.length );
+            int j = 0;
+            for (int i = this.nonce.length; i < this.nonce.length+res.length; i++){
+                ciphertext[i] = res[j];
+                j++;
+            }
+
         } else {
             incrementNonce();
-            log.format("Incremented nonce to " + Hex.encodeHexString(this.nonce) + "\n");
-            ciphertext = this.tenantBox.encrypt(this.nonce, message);
+            byte[] res = this.tenantBox.encrypt(this.nonce, message);
+            ciphertext = Arrays.copyOf(this.nonce, this.nonce.length + res.length );
+            int j = 0;
+            for (int i = this.nonce.length; i < this.nonce.length+res.length; i++){
+                ciphertext[i] = res[j];
+                j++;
+            }
+
         }
 
         if (this.cliState == cliState.REGISTERED) {
@@ -235,12 +239,22 @@ public class DDClient extends Thread {
         byte[] ciphertext;
         if (dstpublic) {
             incrementNonce();
-            log.format("Incremented nonce to " + Hex.encodeHexString(this.nonce) + "\n");
-            ciphertext = this.publicBox.encrypt(this.nonce, message);
+            byte[] res = this.publicBox.encrypt(this.nonce, message);
+            ciphertext = Arrays.copyOf(this.nonce, this.nonce.length + res.length );
+            int j = 0;
+            for (int i = this.nonce.length; i < this.nonce.length+res.length; i++){
+                ciphertext[i] = res[j];
+                j++;
+            }
         } else {
             incrementNonce();
-            log.format("Incremented nonce to " + Hex.encodeHexString(this.nonce) + "\n");
-            ciphertext = this.tenantBox.encrypt(this.nonce, message);
+            byte[] res = this.tenantBox.encrypt(this.nonce, message);
+            ciphertext = Arrays.copyOf(this.nonce, this.nonce.length + res.length );
+            int j = 0;
+            for (int i = this.nonce.length; i < this.nonce.length+res.length; i++){
+                ciphertext[i] = res[j];
+                j++;
+            }
         }
 
         if (this.cliState == cliState.REGISTERED) {
@@ -249,7 +263,9 @@ public class DDClient extends Thread {
             tosend.add(CMD.bPUB);
             tosend.add(this.bcookie);
             tosend.add(topic);
+            tosend.add("");
             tosend.add(ciphertext);
+            log.format("Publishing on topic " + topic + " : " + tosend.toString() + "\n");
             tosend.send(socket);
         } else {
             log.format("DD: Trying to publish while not connected");
@@ -784,8 +800,6 @@ public class DDClient extends Thread {
                     } catch (InterruptedException e) {
                         log.format(e.toString());
                         this.interrupt();
-                        log.format("Terminating thread: " + Thread.currentThread().getName() + " id" + Thread.currentThread().getId()+"\n");
-                        listThreads();
                         return;
                     }
                 } else {
@@ -798,7 +812,6 @@ public class DDClient extends Thread {
                     Thread.currentThread().interrupt();
                 }
             }
-            System.out.println("Terminating thread: " + Thread.currentThread().getName() + " id" + Thread.currentThread().getId() + "\n");
         }
     }
 
@@ -812,8 +825,7 @@ public class DDClient extends Thread {
         public void run() {
             Thread.currentThread().setName("registration-thread");
             listThreads();
-            log.format("Starting thread: "+ Thread.currentThread().getName() + "\n");
-            log.format("Trying to connect to broker at %s...\n", broker);
+            log.format("Trying to connect to broker at "+broker+"...\n");
             while (!Thread.currentThread().isInterrupted()) {
                 socket.close();
                 socket = ctx.createSocket(ZMQ.DEALER);
@@ -827,15 +839,10 @@ public class DDClient extends Thread {
                     this.sleep(3000);
                 } catch (InterruptedException e) {
                     this.interrupt();
-                    log.format("Terminating thread: " + Thread.currentThread().getName() + " id" + Thread.currentThread().getId() + "\n");
-                    listThreads();
                     return;
                 }
             }
-            log.format("Terminating thread: " + Thread.currentThread().getName() + " id" + Thread.currentThread().getId() + "\n");
         }
     }
 
 }
-
-

@@ -9,7 +9,9 @@ long term addons
 
    
 bugs
-- NODST doesn't properly strip tenant. 
+- Return -1 or 0 depending if notify(), subscribe(), etc succedded (i.e.  were registered
+- when then call was made)
+
 
    
    

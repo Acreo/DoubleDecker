@@ -29,41 +29,87 @@ import asg.cliche.Command;
 import asg.cliche.Param;
 import asg.cliche.Shell;
 import asg.cliche.ShellFactory;
+import org.apache.commons.cli.*;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Observable;
+import java.util.Observer;
 
 
 public class testDD implements Observer, DDEvents {
     DDClient client = null;
-    public testDD() {
-    }
 
-    public static void main(String[] args) throws IOException {
-        Shell shell = ShellFactory.createConsoleShell("DD", "DoubleDecker java test client", new testDD());
-        shell.commandLoop();
-    }
-
-    @Command(description = "Connect to a broker")
-    public void connect(
-            @Param(name = "BrokerURL", description = "URL the broker is listening on (e.g. tcp://localhost:5555)")
-            String brokerUrl,
-            @Param(name = "ClientName", description = "Name of of the client (e.g. bob)")
-            String name) {
+    public testDD(String dealer, String keyfile, String name, String customer) {
         try {
-            client = new DDClient(brokerUrl, name, true, this, "/etc/doubledecker/a-keys.json");
+
+            client = new DDClient(dealer, name, true, this, keyfile);
         } catch (IOException e) {
             e.printStackTrace();
             System.exit(1);
-        }        // we're the observer, subscribe us to the event source
-        // can be more observers per client
-        // starts the event thread
-
+        }
         Thread thread = new Thread(client);
         thread.start();
-
     }
 
+    public static void main(String[] args) throws IOException {
+        String dealer = null;
+        String keyfile = null;
+        String name = null;
+        String customer = null;
+
+        CommandLineParser parser = new DefaultParser();
+
+        Options options = new Options();
+        options.addOption("d", "dealer", true, "Which dealer to connect to");
+        options.addOption("k", "keyfile", true, "Keyfile to read");
+        options.addOption("n", "name", true, "Client name");
+        options.addOption("c", "customer", true, "Customer name");
+
+        try {
+            System.out.println("Parsing command like arguments..");
+            CommandLine line = parser.parse(options, args);
+            if (line.hasOption("dealer")) {
+                dealer = line.getOptionValue("dealer");
+            } else {
+                System.out.println("Missing required parameter: dealer");
+                System.exit(1);
+            }
+            if (line.hasOption("keyfile")) {
+                keyfile = line.getOptionValue("keyfile");
+            } else {
+                System.out.println("Missing required parameter: keyfile");
+                System.exit(1);
+            }
+            if (line.hasOption("name")) {
+                name = line.getOptionValue("name");
+            } else {
+                System.out.println("Missing required parameter: name");
+                System.exit(1);
+            }
+            if (line.hasOption("customer")) {
+                customer = line.getOptionValue("customer");
+            } else {
+                System.out.println("Missing required parameter: customer");
+                System.exit(1);
+            }
+
+        } catch (ParseException exp) {
+            System.out.println("Unexpected exception:" + exp.getMessage());
+        }
+
+
+        Shell shell = ShellFactory.createConsoleShell("DD", "DoubleDecker java test client",
+                new testDD(dealer, keyfile, name, customer));
+        shell.commandLoop();
+    }
+
+    /*@Command(description = "Connect to a broker")
+    public void connect(
+
+    }
+*/
     @Command(description = "Get status of the DD connection")
     public String status() {
         if (client == null) {
@@ -77,15 +123,15 @@ public class testDD implements Observer, DDEvents {
     }
 
     @Command(description = "List subscriptions and their status")
-    public String subscriptions(){
-        if(client == null){
+    public String subscriptions() {
+        if (client == null) {
             return "Not started";
         }
         StringBuilder sb = new StringBuilder();
-        HashMap<List<String>,Boolean> list = client.sublistGet();
-        for (List<String> l : list.keySet()){
+        HashMap<List<String>, Boolean> list = client.sublistGet();
+        for (List<String> l : list.keySet()) {
             System.out.println("Subscriptions: " + l);
-            sb.append("Sub: " + l.get(0) + " " + l.get(1)+"\tActive: " + list.get(l) + "\n");
+            sb.append("Sub: " + l.get(0) + " " + l.get(1) + "\tActive: " + list.get(l) + "\n");
         }
         return sb.toString();
     }
@@ -141,6 +187,7 @@ public class testDD implements Observer, DDEvents {
         }
         return "Connect first!";
     }
+
     @Command(description = "Terminate the testclient")
     public void quit() {
         if (client != null) {

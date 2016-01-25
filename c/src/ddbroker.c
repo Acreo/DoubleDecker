@@ -50,9 +50,11 @@
 #include <execinfo.h>
 #include <signal.h>
 #include <stdlib.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 #include <err.h>
 #include "../include/trie.h"
-
+#define DEBUG 1
 char *broker_scope;
 
 char *dealer_connect = NULL;
@@ -584,7 +586,6 @@ void cmd_cb_ping(zframe_t *sockid, zframe_t *cookie) {
         dd_debug("cmd_cb_ping called");
         zframe_print(sockid, "sockid");
         zframe_print(cookie, "cookie");
-        zmsg_print(msg);
 #endif
 
         if (hashtable_has_local_node(sockid, cookie, 1)) {
@@ -959,7 +960,7 @@ void cmd_cb_unreg_dist_cli(zframe_t *sockid, zframe_t *cookie_frame,
 #ifdef DEBUG
         dd_debug("cmd_cb_unreg_dist_cli called");
         zframe_print(sockid, "sockid");
-        zframe_print(cookie, "cookie");
+        zframe_print(cookie_frame, "cookie");
         zmsg_print(msg);
 #endif
 
@@ -1935,109 +1936,159 @@ int start_broker(char *router_bind, char *dealer_connect, char *keyfile,
         loop = zloop_new();
         assert(loop);
         rsock = zsock_new(ZMQ_ROUTER);
+        char *needle = strcasestr(router_bind,"ipc://");
+        if(needle){
+          // check if file exists before trying to bind to it
+          if(zfile_exists(router_bind+5)){
+            dd_error("File %s already exists, aborting.", router_bind);
+            exit(1);
+          }
+        }
         zsock_bind(rsock, router_bind);
-
+        
         if (rsock == NULL) {
                 dd_error("Couldn't bind router socket to %s", router_bind);
                 perror("Error: ");
                 exit(EXIT_FAILURE);
         }
-        int rc = zloop_reader(loop, rsock, s_on_router_msg, NULL);
+        int rc;
+        if(needle){
+          rc = chmod(router_bind+5,S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH);
+          if(rc == -1){
+            perror("Error: ");
+            dd_error("Couldn't set permissions on IPC socket\n");
+            exit(EXIT_FAILURE);
+          }
+          dd_notice("Set permission of IPC file to 666\n");
+        }
+        
+        rc = zloop_reader(loop, rsock, s_on_router_msg, NULL);
         assert(rc == 0);
         zloop_reader_set_tolerant(loop, rsock);
 
         if (dealer_connect != NULL) {
-                dsock = zsock_new(ZMQ_DEALER);
-                zsock_connect(dsock, dealer_connect);
-                if (dsock == NULL) {
-                        dd_error("Couldn't connect dealer socket to %s", dealer_connect);
-                        perror("Error: ");
-                        exit(EXIT_FAILURE);
-                }
-                rc = zloop_reader(loop, dsock, s_on_dealer_msg, NULL);
-                assert(rc == 0);
-                zloop_reader_set_tolerant(loop, dsock);
-                reg_loop = zloop_timer(loop, 1000, 0, s_register, dsock);
+          dsock = zsock_new(ZMQ_DEALER);
+          zsock_connect(dsock, dealer_connect);
+          if (dsock == NULL) {
+            dd_error("Couldn't connect dealer socket to %s", dealer_connect);
+            perror("Error: ");
+            exit(EXIT_FAILURE);
+          }
+          rc = zloop_reader(loop, dsock, s_on_dealer_msg, NULL);
+          assert(rc == 0);
+          zloop_reader_set_tolerant(loop, dsock);
+          reg_loop = zloop_timer(loop, 1000, 0, s_register, dsock);
         } else {
-                dd_info("No dealer defined, the broker will act as the root");
-                state = DD_STATE_ROOT;
+          dd_info("No dealer defined, the broker will act as the root");
+          state = DD_STATE_ROOT;
         }
-
+        
         if (monitor_name) {
-                msock = zsock_new(ZMQ_REP);
-                char endpoint[512];
-                snprintf(&endpoint[0], 512, "ipc:///tmp/%s.debug", monitor_name);
-                zsock_bind(msock, &endpoint[0]);
-                if (msock == NULL) {
-                        dd_error("Couldn't connect monitor socket to %s", &endpoint[0]);
-                        perror("Error: ");
-                        exit(EXIT_FAILURE);
-                }
-                rc = zloop_reader(loop, msock, s_on_monitor_msg, NULL);
-                assert(rc == 0);
+          msock = zsock_new(ZMQ_REP);
+          char endpoint[512];
+          snprintf(&endpoint[0], 512, "ipc:///tmp/%s.debug", monitor_name);
+          zsock_bind(msock, &endpoint[0]);
+          if (msock == NULL) {
+            dd_error("Couldn't connect monitor socket to %s", &endpoint[0]);
+            perror("Error: ");
+            exit(EXIT_FAILURE);
+          }
+          rc = zloop_reader(loop, msock, s_on_monitor_msg, NULL);
+          assert(rc == 0);
         }
-
+        
         cli_timeout_loop = zloop_timer(loop, 3000, 0, s_check_cli_timeout, NULL);
         br_timeout_loop = zloop_timer(loop, 1000, 0, s_check_br_timeout, NULL);
-
+        
         /*
          * check if router_bind is tcp, if so, start pubS & subS
          */
         int port = 0;
         if (strstr(router_bind, "tcp")) {
-                char *token, *string, *tofree;
-                tofree = string = strdup(router_bind);
-                assert(string != NULL);
-
-                while ((token = strsep(&string, ":")) != NULL) {
-                        sscanf(token, "%d", &port);
-                }
-                dd_debug("port found %d", port);
-                free(tofree);
-                if (port == 0) {
-                        dd_info("couldn't find tcp port in router_bind %s", router_bind);
-                        dd_info("wont start pub/sub");
-                } else {
-                        start_pubsub_tcp(router_bind, port);
-                }
+          char *token, *string, *tofree;
+          tofree = string = strdup(router_bind);
+          assert(string != NULL);
+          
+          while ((token = strsep(&string, ":")) != NULL) {
+            sscanf(token, "%d", &port);
+          }
+          dd_debug("port found %d", port);
+          free(tofree);
+          if (port == 0) {
+            dd_info("couldn't find tcp port in router_bind %s", router_bind);
+            dd_info("wont start pub/sub");
+          } else {
+            start_pubsub_tcp(router_bind, port);
+          }
         }
-
+        
         if (strstr(router_bind, "ipc")) {
+          
+          int len = strlen(router_bind) + strlen(".pub") + 1;
+          pub_bind = malloc(len);
+          sub_bind = malloc(len);
+          snprintf(pub_bind, len, "%s.pub", router_bind);
+          snprintf(sub_bind, len, "%s.sub", router_bind);
+          
+          // check if file exists before trying to bind to it
+          if(zfile_exists(pub_bind+5)){
+            dd_error("File %s already exists, aborting.", pub_bind);
+            exit(1);
+          }
+          if(zfile_exists(sub_bind+5)){
+            dd_error("File %s already exists, aborting.", sub_bind);
+            exit(1);
+          }
+          
+          
+          
+          
+          pubS = zsock_new(ZMQ_XPUB);
+          subS = zsock_new(ZMQ_XSUB);
+          int rc = zsock_bind(pubS, pub_bind);
+          if (rc < 0) {
+            dd_error("Unable to bind pubS to %s", pub_bind);
+            perror("Error: ");
+            exit(EXIT_FAILURE);
+          }
+          rc = zsock_bind(subS, sub_bind);
+          if (rc < 0) {
+            dd_error("Unable to bind subS to %s", sub_bind);
+            perror("Error: ");
+            exit(EXIT_FAILURE);
+          }
 
-                int len = strlen(router_bind) + strlen(".pub") + 1;
-                pub_bind = malloc(len);
-                sub_bind = malloc(len);
-                snprintf(pub_bind, len, "%s.pub", router_bind);
-                snprintf(sub_bind, len, "%s.pub", router_bind);
+          rc = chmod(pub_bind+5,S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH);
+          if(rc == -1){
+            perror("Error: ");
+            dd_error("Couldn't set permissions on IPC socket\n");
+            exit(EXIT_FAILURE);
+          }
+          dd_notice("Set permission of PUB IPC file to 666\n");
 
-                pubS = zsock_new(ZMQ_XPUB);
-                subS = zsock_new(ZMQ_XSUB);
-                int rc = zsock_bind(pubS, pub_bind);
-                if (rc < 0) {
-                        dd_error("Unable to bind pubS to %s", pub_bind);
-                        perror("Error: ");
-                        exit(EXIT_FAILURE);
-                }
-                rc = zsock_bind(subS, sub_bind);
-                if (rc < 0) {
-                        dd_error("Unable to bind subS to %s", sub_bind);
-                        perror("Error: ");
-                        exit(EXIT_FAILURE);
-                }
+          rc = chmod(sub_bind+5,S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH);
+          if(rc == -1){
+            perror("Error: ");
+            dd_error("Couldn't set permissions on IPC socket\n");
+            exit(EXIT_FAILURE);
+          }
+          dd_notice("Set permission of SUB IPC file to 666\n");
 
-                rc = zloop_reader(loop, pubS, s_on_pubS_msg, NULL);
-                assert(rc == 0);
-                zloop_reader_set_tolerant(loop, pubS);
 
-                rc = zloop_reader(loop, subS, s_on_subS_msg, NULL);
-                assert(rc == 0);
-                zloop_reader_set_tolerant(loop, subS);
+
+          rc = zloop_reader(loop, pubS, s_on_pubS_msg, NULL);
+          assert(rc == 0);
+          zloop_reader_set_tolerant(loop, pubS);
+          
+          rc = zloop_reader(loop, subS, s_on_subS_msg, NULL);
+          assert(rc == 0);
+          zloop_reader_set_tolerant(loop, subS);
         }
-
+        
         zloop_start(loop);
         if (monitor_name)
-                zsock_destroy(&msock);
-
+          zsock_destroy(&msock);
+        
         zsock_destroy(&dsock);
         zsock_destroy(&rsock);
         zsock_destroy(&pubS);
