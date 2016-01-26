@@ -1026,66 +1026,66 @@ void cmd_cb_unsub(zframe_t *sockid, zframe_t *cookie, zmsg_t *msg) {
         int len = 128;
         int retval;
         if (strcmp(scopestr, "noscope") == 0) {
-                retval = snprintf(nsptr, len, "");
-                len -= retval;
-                nsptr += retval;
+          retval = snprintf(nsptr, len, "");
+          len -= retval;
+          nsptr += retval;
         } else {
-                for (j = 1, str1 = scopestr;; j++, str1 = NULL) {
-                        token = strtok_r(str1, "/", &saveptr1);
-                        if (token == NULL)
-                                break;
-
-                        if (t != NULL) {
-                                if (strcmp(token, "*") == 0) {
-                                        retval = snprintf(nsptr, len, "/%s", t);
-                                        len -= retval;
-                                        nsptr += retval;
-                                } else {
-                                        if (is_int(token) == 0) {
-                                                dd_error("%s in scope string is not an integer", token);
-                                        }
-                                        retval = snprintf(nsptr, len, "/%s", token);
-                                        len -= retval;
-                                        nsptr += retval;
-                                }
-                                t = zlist_next(scope);
-                        } else {
-                                dd_error("Requested scope is longer than assigned scope!");
-
-                                free(scopedup);
-                                free(scopestr);
-                                free(topic);
-                        }
-                }
-                retval = snprintf(nsptr, len, "/");
+          for (j = 1, str1 = scopestr;; j++, str1 = NULL) {
+            token = strtok_r(str1, "/", &saveptr1);
+            if (token == NULL)
+              break;
+            
+            if (t != NULL) {
+              if (strcmp(token, "*") == 0) {
+                retval = snprintf(nsptr, len, "/%s", t);
                 len -= retval;
                 nsptr += retval;
+              } else {
+                if (is_int(token) == 0) {
+                  dd_error("%s in scope string is not an integer", token);
+                }
+                retval = snprintf(nsptr, len, "/%s", token);
+                len -= retval;
+                nsptr += retval;
+              }
+              t = zlist_next(scope);
+            } else {
+              dd_error("Requested scope is longer than assigned scope!");
+              
+              free(scopedup);
+              free(scopestr);
+              free(topic);
+            }
+          }
+          retval = snprintf(nsptr, len, "/");
+          len -= retval;
+          nsptr += retval;
         }
         free(scopedup);
-
+        
         retval = snprintf(ntptr, 256, "%s.%s%s", ln->tenant, topic,
-                        (char *)&newscope[0]);
+                          (char *)&newscope[0]);
         dd_info("deltopic = %s, len = %d\n", ntptr, retval);
-
+        
         int new = 0;
         retval = remove_subscription(sockid, ntptr);
-
+        
         // only delete a subscription if something was actually removed
         // from the trie and/or hashtable Otherwise multiple unsub from
         // a single client will f up for the  others
 
         if (retval == 0)
-                return;
-
+          return;
+        
         newtopic[0] = 0;
         ntptr = &newtopic[0];
         if (subN) {
-                dd_debug("deleting 1 subscription for %s to north SUB", &newtopic[1]);
-                retval = zsock_send(subN, "b", &newtopic[0], 1 + strlen(&newtopic[1]));
+          dd_debug("deleting 1 subscription for %s to north SUB", &newtopic[1]);
+          retval = zsock_send(subN, "b", &newtopic[0], 1 + strlen(&newtopic[1]));
         }
         if (subS) {
-                dd_debug("deleting 1 subscription for %s to south SUB", &newtopic[1]);
-                retval = zsock_send(subS, "b", &newtopic[0], 1 + strlen(&newtopic[1]));
+          dd_debug("deleting 1 subscription for %s to south SUB", &newtopic[1]);
+          retval = zsock_send(subS, "b", &newtopic[0], 1 + strlen(&newtopic[1]));
         }
 }
 

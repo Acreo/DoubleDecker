@@ -537,15 +537,14 @@ int remove_subscription(zframe_t *sockid, char *topic) {
   if (sn->topics) {
     ntop = zlist_size(sn->topics);
     char *t = zlist_first(sn->topics);
-    char *oldt;
-    while (topic) {
+    while (t) {
       if (strcmp(topic, t) == 0) {
         nn_trie_unsubscribe(&topics_trie, (uint8_t *)topic, strlen(topic),
                             sockid, 1);
         zlist_remove(sn->topics, t);
         free(t);
       }
-      topic = zlist_next(sn->topics);
+      t = zlist_next(sn->topics);
     }
 
     zlist_destroy(&sn->topics);
