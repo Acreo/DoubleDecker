@@ -30,8 +30,6 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import org.abstractj.kalium.NaCl;
 import org.abstractj.kalium.crypto.Box;
-import org.apache.commons.codec.binary.Hex;
-import org.apache.commons.lang3.tuple.Pair;
 import org.zeromq.ZContext;
 import org.zeromq.ZFrame;
 import org.zeromq.ZMQ;
@@ -73,7 +71,7 @@ public class DDClient extends Thread {
         this.name = name;
         this.keyfile = keyfile;
         org.abstractj.kalium.crypto.Random rnd = new org.abstractj.kalium.crypto.Random();
-        this.nonce = rnd.randomBytes(org.abstractj.kalium.NaCl.Sodium.NONCE_BYTES)
+        this.nonce = rnd.randomBytes(org.abstractj.kalium.NaCl.Sodium.NONCE_BYTES);
 
         if (verbose) {
             log = new Formatter(System.out);
@@ -594,7 +592,6 @@ public class DDClient extends Thread {
     }
 
     private void cmd_cb_chall(ZMsg msg) {
-        log.format("DD: cmd_cb_chall called\n");
         ZFrame encrypted = msg.pop();
         if (encrypted == null) {
             log.format("DD: Error, empty CHALL!\n");
@@ -654,7 +651,6 @@ public class DDClient extends Thread {
     }
 
     private void cmd_cb_subok(ZMsg msg) {
-        log.format("DD: cmd_cb_subok called\n");
         String topic = msg.popString();
         String scope = msg.popString();
         sublistActivate(topic, scope);
