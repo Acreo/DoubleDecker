@@ -194,7 +194,6 @@ public class DDClient extends Thread {
                 ciphertext[i] = res[j];
                 j++;
             }
-
         }
 
         if (this.cliState == cliState.REGISTERED) {
@@ -351,7 +350,6 @@ public class DDClient extends Thread {
 
     public synchronized void shutdown(){
         // TODO: implement
-        //elf._send(DD.bCMD_UNREG, [self._customer, self._name, self._cookie])
         ZMsg tosend = new ZMsg();
         tosend.addFirst(CMD.bprotoVersion);
         tosend.add(CMD.bUNREG);
@@ -371,7 +369,6 @@ public class DDClient extends Thread {
             }
         }
     }
-
 
     @Override
     protected void finalize() throws Throwable {
