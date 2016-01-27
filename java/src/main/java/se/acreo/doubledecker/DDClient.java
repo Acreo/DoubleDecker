@@ -152,7 +152,7 @@ public class DDClient extends Thread {
         }
     }
 
-    public synchronized void sendmsg(String target, byte[] message) {
+    public synchronized boolean sendmsg(String target, byte[] message) {
 
         boolean srcpublic = false;
         boolean dstpublic = false;
@@ -205,14 +205,18 @@ public class DDClient extends Thread {
             tosend.add(target);
             tosend.add(ciphertext);
             tosend.send(socket);
+            return true;
+        } else {
+            log.format("DD: Couldn't send, not registered!");
+            return false;
         }
     }
 
-    public synchronized void sendmsg(String target, String message) {
-        sendmsg(target, message.getBytes());
+    public synchronized boolean sendmsg(String target, String message) {
+        return sendmsg(target, message.getBytes());
     }
 
-    public synchronized void publish(String topic, byte[] message) {
+    public synchronized boolean publish(String topic, byte[] message) {
 
         boolean srcpublic = false;
         boolean dstpublic = false;
@@ -262,22 +266,24 @@ public class DDClient extends Thread {
             tosend.add(topic);
             tosend.add("");
             tosend.add(ciphertext);
-            log.format("Publishing on topic " + topic + " : " + tosend.toString() + "\n");
+            log.format("DD: Publishing on topic " + topic + " : " + tosend.toString() + "\n");
             tosend.send(socket);
+            return true;
         } else {
             log.format("DD: Trying to publish while not connected");
+            return false;
         }
     }
 
-    public synchronized void publish(String topic, String message) {
-        publish(topic, message.getBytes());
+    public synchronized boolean publish(String topic, String message) {
+        return publish(topic, message.getBytes());
     }
 
     public synchronized CliState getStatus() {
         return this.cliState;
     }
 
-    public synchronized void subscribe(String topic, String scope) {
+    public synchronized boolean subscribe(String topic, String scope) {
         String scopestr;
         if (scope.equals("all")) {
             scopestr = "/";
@@ -303,10 +309,14 @@ public class DDClient extends Thread {
             tosend.add(topic);
             tosend.add(scopestr);
             tosend.send(socket);
+            return true;
+        } else {
+            log.format("DD: Couldn't subscribe, not connected!");
+            return false;
         }
     }
 
-    public synchronized void unsubscribe(String topic, String scope) {
+    public synchronized boolean unsubscribe(String topic, String scope) {
         String scopestr;
         if (scope.equals("all")) {
             scopestr = "/";
@@ -332,19 +342,41 @@ public class DDClient extends Thread {
             tosend.add(topic);
             tosend.add(scopestr);
             tosend.send(socket);
+            return true;
+        } else {
+            log.format("DD: Couldn't unsubscribe, not connected.");
+            return false;
         }
     }
 
     public synchronized void shutdown(){
         // TODO: implement
-        log.format("DD: shutdown() not implemented yet!");
+        //elf._send(DD.bCMD_UNREG, [self._customer, self._name, self._cookie])
+        ZMsg tosend = new ZMsg();
+        tosend.addFirst(CMD.bprotoVersion);
+        tosend.add(CMD.bUNREG);
+        tosend.add(this.bcookie);
+        tosend.add(this.name);
+        tosend.send(socket);
+        log.format("DD: Unregistering..");
+        if(this.registrationThread != null) {
+            if (this.registrationThread.isAlive()) {
+                this.registrationThread.interrupt();
+            }
+        }
+
+        if(this.heartBeatThread != null) {
+            if (this.heartBeatThread.isAlive()) {
+                this.heartBeatThread.interrupt();
+            }
+        }
     }
 
 
     @Override
     protected void finalize() throws Throwable {
         super.finalize();
-        log.format("Cleaning up before closing\n");
+        log.format("DD: Cleaning up before closing\n");
         socket.close();
         ctx.destroy();
     }
@@ -352,7 +384,7 @@ public class DDClient extends Thread {
     @Override
     public void run() {
         // Wait for new messages, receive them, and process
-        while (true) {
+        while (!Thread.currentThread().isInterrupted()) {
             ZMQ.Poller items = new ZMQ.Poller(1);
             items.register(socket, ZMQ.Poller.POLLIN);
 

@@ -169,8 +169,10 @@ public class testDD implements Observer, DDEvents {
             @Param(name = "Scope", description = "all/region/cluster/node or /0/2/3/")
             String scope) {
         if (client != null) {
-            client.unsubscribe(topic, scope);
-            return "Subscribed!";
+            if(client.unsubscribe(topic, scope))
+                return "Subscribed!";
+            else
+                return "Failure";
         }
         return "Connect first!";
     }
