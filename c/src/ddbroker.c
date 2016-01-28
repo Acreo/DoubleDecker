@@ -934,7 +934,7 @@ void cmd_cb_unreg_cli(zframe_t *sockid, zframe_t *cookie, zmsg_t *msg) {
         dd_debug("cmd_cb_unreg_cli called");
         zframe_print(sockid, "sockid");
         zframe_print(cookie, "cookie");
-        zmsg_print(msg);
+//        zmsg_print(msg);
 #endif
 
         local_client *ln;
