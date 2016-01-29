@@ -1,7 +1,7 @@
 FROM ubuntu:latest
 MAINTAINER Bertrand Pechenot berpec@acreo.se
 RUN apt-get update 
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -yq apt-utils wget build-essential libtool git
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -yq apt-utils wget build-essential libtool
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -yq automake pkg-config libjson0-dev libzmq3-dev
 
 # Broker default port 
@@ -40,9 +40,9 @@ WORKDIR /bus
 
 # TODO: write a run.sh script that handles ENV variables properly
 ADD ./run.sh /bus/
-WORKDIR /
-RUN git clone https://github.com/Acreo/DoubleDecker.git
-WORKDIR /DoubleDecker/c/
+RUN wget https://github.com/Acreo/DoubleDecker/archive/master.tar.gz -O dd.tar.gz
+RUN tar xzf dd.tar.gz
+WORKDIR /bus/DoubleDecker-master/c/
 RUN mkdir -pv m4
 RUN ls
 RUN autoreconf --force --install
