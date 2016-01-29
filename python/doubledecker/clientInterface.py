@@ -110,7 +110,7 @@ class Client(metaclass=abc.ABCMeta):
 
             if self._safe:
                 logging.debug('Unregistering from broker, safe')
-                self._send(DD.bCMD_UNREG, [self._customer, self._name, self._cookie])
+                self._send(DD.bCMD_UNREG, [self._cookie, self._customer, self._name])
             else:
                 logging.debug('Unregistering from broker')
                 self._send(DD.bCMD_UNREG)
@@ -125,6 +125,8 @@ class Client(metaclass=abc.ABCMeta):
         logging.debug('Stopping IOloop')
         self._IOLoop.stop()
         self._IOLoop.close()
+        logging.debug('Closing socket')
+        self._dealer.close()
         logging.debug('Terminating context')
         self._ctx.term()
         logging.debug('Calling sys.exit')
