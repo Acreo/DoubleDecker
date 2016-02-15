@@ -60,6 +60,7 @@ class Client(metaclass=abc.ABCMeta):
         except KeyboardInterrupt:
             if self._state != DD.S_EXIT:
                 self.shutdown()
+            raise
 
     @abc.abstractmethod
     def on_pub(self, src, topic, msg):
@@ -130,7 +131,6 @@ class Client(metaclass=abc.ABCMeta):
         logging.debug('Terminating context')
         self._ctx.term()
         logging.debug('Calling sys.exit')
-        sys.exit(0)
 
     @abc.abstractmethod
     def _ask_registration(self):
