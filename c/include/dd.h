@@ -78,6 +78,8 @@
 #define DD_ERROR_NODST 2
 #define DD_ERROR_VERSION 3
 
+#define DD_CALLBACK 1
+#define DD_ACTOR 2
 extern const uint32_t dd_cmd_send;
 extern const uint32_t dd_cmd_forward;
 extern const uint32_t dd_cmd_ping;
@@ -150,5 +152,7 @@ typedef struct ddclient {
 
 ddclient_t *start_ddthread(int, char *, char *, char *, char *, dd_con,
                 dd_discon, dd_data, dd_pub, dd_error);
+zactor_t * start_ddactor(int, char *, char *, char *, char *);
+
 
 #endif
