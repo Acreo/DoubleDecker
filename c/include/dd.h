@@ -33,6 +33,10 @@
  *           By:
  *
  */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 #ifndef _DD_H_
 #define _DD_H_
 
@@ -124,6 +128,7 @@ typedef void(dd_error)(int, char*, void *);
 
 typedef struct ddclient {
         void *socket;               //  Socket for clients & workers
+        void *pipe; 
         int verbose;                //  Print activity to stdout
         unsigned char *endpoint;    //  Broker binds to this endpoint
         unsigned char *customer;    //  Our customer id
@@ -137,6 +142,7 @@ typedef struct ddclient {
         struct ddkeystate *keys;    // Encryption keys loaded from JSON file
         zlistx_t *sublist; // List of subscriptions, and if they're active
         zloop_t *loop;
+        int style; 
         unsigned char nonce[crypto_box_NONCEBYTES];
         dd_con(*on_reg);
         dd_discon(*on_discon);
@@ -155,4 +161,7 @@ ddclient_t *start_ddthread(int, char *, char *, char *, char *, dd_con,
 zactor_t * start_ddactor(int, char *, char *, char *, char *);
 
 
+#endif
+#ifdef __cplusplus
+ {
 #endif
