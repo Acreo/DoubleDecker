@@ -1,3 +1,8 @@
+### WARNING
+
+The python version of the broker is not supported at the moment. Please use the
+C version unless you have very specific needs.
+
 ### INSTALLATION
 DoubleDecker requires Python > 3.3. To install on Ubuntu 15.10, run the install.sh script which performs these actions: 
 ```bash
@@ -19,9 +24,8 @@ ddkeys.py (input "a,b,c")
 
 ### USAGE
 ```bash
-# start a broker listening for TCP connections on *:5555, using the keys
-# from broker-keys.json, called 'broker0'
-ddbroker.py -r tcp://*:5555 -k /etc/doubledecker/broker-keys.json broker0
+#First you need to start a broker, you can use the C version available on this
+# repository or the container version
 # start a client from tentant A, called cli1, connect to broker0
 ddclient.py -d tcp://127.0.0.1:5555 -k /etc/doubledecker/a-keys.json cli1 a
 # start a second client tentant A, called cli2, connect to broker0

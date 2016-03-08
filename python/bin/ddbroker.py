@@ -33,6 +33,10 @@ from doubledecker.broker import BrokerSafe
 from doubledecker.broker import BrokerUnsafe
 
 if '__main__' == __name__:
+    logging.critical('\t\t\033[91m-----------------------------------------------\n\
+                     \tThis version of the broker is deprecated and you\n\
+                     \tshould use the C version\n\
+                     \t-----------------------------------------------\033[0m')
     parser = argparse.ArgumentParser(description='Generic message broker')
     parser.add_argument('name', help='Identity of this broker')
     parser.add_argument('-r',
