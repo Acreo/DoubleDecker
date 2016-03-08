@@ -54,7 +54,6 @@
 #include <sys/stat.h>
 #include <err.h>
 #include "../include/trie.h"
-#define DEBUG 1
 char *broker_scope;
 
 char *dealer_connect = NULL;

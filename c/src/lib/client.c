@@ -533,6 +533,92 @@ static void cmd_cb_error(zmsg_t *msg, ddclient_t *dd) {
 //  dd->on_nodst(destination, dd);
 //}
 
+static int s_on_pipe_msg(zloop_t *loop, zsock_t *handle, void *args) {
+  ddclient_t *dd = (ddclient_t *)args;
+  zmsg_t *msg = zmsg_recv(handle);
+  zmsg_print(msg);
+  char *command = zmsg_popstr (msg);
+  //  All actors must handle $TERM in this way
+  // returning -1 should stop zloop_start and terminate the actor
+  if (streq (command, "$TERM")) {
+    fprintf(stderr,"s_on_pipe_msg, got $TERM, quitting\n");  
+    return -1;
+  } else if (streq (command, "subscribe")) {
+    char *topic = zmsg_popstr(msg);
+    char *scope = zmsg_popstr(msg);
+    dd->subscribe(topic, scope,dd);
+    free(topic);
+    free(scope);
+  } else if (streq (command, "unsubscribe")) {
+    char *topic = zmsg_popstr(msg);
+    char *scope = zmsg_popstr(msg);
+    dd->unsubscribe(topic, scope,dd);
+    free(topic);
+    free(scope);
+  } else if (streq (command, "publish")) {
+    char *topic = zmsg_popstr(msg);
+    char *message = zmsg_popstr(msg);
+    zframe_t *mlen = zmsg_pop(msg);
+    uint32_t len =  *((uint32_t*)zframe_data(mlen));
+    dd->publish(topic, message, len,dd);
+    zframe_destroy(&mlen);
+    free(topic);
+    free(message);
+        
+  } else if (streq (command, "notify")) {
+    char *target = zmsg_popstr(msg);
+    char *message = zmsg_popstr(msg);
+    zframe_t *mlen = zmsg_pop(msg);
+    uint32_t len =  *((uint32_t*)zframe_data(mlen));
+    dd->notify(target, message, len,dd);
+    zframe_destroy(&mlen);
+    free(target);
+    free(message);
+  } else {
+    fprintf(stderr,"s_on_pipe_msg, got unknown command: %s\n", command);      
+  }
+  zmsg_destroy(&msg);
+  free(command);
+  return 0;
+}
+
+void actor_con(void *args) {
+  ddclient_t *dd = (ddclient_t *)args;
+  fprintf(stderr,"actor Registered with broker %s!\n", dd->endpoint);
+  zsock_send(dd->pipe, "ss", "reg", dd->endpoint);
+}
+
+void actor_discon(void *args) {
+  ddclient_t *dd = (ddclient_t *)args;
+  fprintf(stderr,"actor Got disconnected from broker %s!\n", dd->endpoint);
+  zsock_send(dd->pipe, "ss", "discon", dd->endpoint);
+}
+
+void actor_pub(char *source, char *topic, unsigned char *data, int length,
+                void *args) {
+        ddclient_t *dd = (ddclient_t *)args;
+        fprintf(stderr,"actor PUB S: %s T: %s L: %d D: '%s'", source, topic,
+                length, data);
+        zsock_send(dd->pipe, "sssbb", "pub", source, topic, &length,
+                   sizeof(length), data, length);
+}
+
+void actor_data(char *source, unsigned char *data, int length, void *args) {
+        ddclient_t *dd = (ddclient_t *)args;
+        fprintf(stderr,"actor DATA S: %s L: %d D: '%s'", source, length, data);
+        zsock_send(dd->pipe, "ssbb", "data", source, &length,
+                   sizeof(length), data, length);
+
+}
+void actor_error(int error_code, char* error_message, void* args){
+        ddclient_t *dd = (ddclient_t *)args;
+        fprintf(stderr,"actor Error %d : %s", error_code, error_message);
+        zsock_send(dd->pipe, "ssb", "error", error_message, &error_code,
+                   sizeof(error_code));       
+}
+
+
+
 static int s_on_dealer_msg(zloop_t *loop, zsock_t *handle, void *args) {
         ddclient_t *dd = (ddclient_t *)args;
         dd->timeout = 0;
@@ -644,7 +730,6 @@ static int s_on_dealer_msg(zloop_t *loop, zsock_t *handle, void *args) {
 }
 
 // Threads
-
 void *ddthread(void *args) {
         ddclient_t *dd = (ddclient_t *)args;
         int rc;
@@ -684,11 +769,81 @@ void *ddthread(void *args) {
         zloop_destroy(&dd->loop);
 }
 
+void dd_actor(zsock_t *pipe, void *args){
+  ddclient_t *dd = (ddclient_t*) args;
+        int rc;
+        zsock_signal (pipe, 0);
+        dd->pipe = pipe;        
+        dd->socket = zsock_new_dealer(NULL);
+        if (!dd->socket) {
+          fprintf(stderr, "DD: Error in zsock_new_dealer: %s\n",
+                  zmq_strerror(errno));
+          free(dd);
+          return NULL;
+        }
+        //  zsock_set_identity (dd->socket, dd->client_name);
+        rc = zsock_connect(dd->socket, dd->endpoint);
+        if (rc != 0) {
+          fprintf(stderr, "DD: Error in zmq_connect: %s\n", zmq_strerror(errno));
+          free(dd);
+          return NULL;
+        }
+        
+        dd->keys = read_ddkeys(dd->keyfile, dd->customer);
+        if (dd->keys == NULL) {
+          fprintf(stderr, "DD: Error reading keyfile!\n");
+          return NULL;
+        }
+        
+        dd->sublist = zlistx_new();
+        zlistx_set_destructor(dd->sublist, (czmq_destructor *)sublist_free);
+        zlistx_set_duplicator(dd->sublist, (czmq_duplicator *)sublist_dup);
+        zlistx_set_comparator(dd->sublist, (czmq_comparator *)sublist_cmp);
+        
+        dd->loop = zloop_new();
+        assert(dd->loop);
+        dd->registration_loop =
+            zloop_timer(dd->loop, 1000, 0, s_ask_registration, dd);
+        rc = zloop_reader(dd->loop, dd->socket, s_on_dealer_msg, dd);
+        rc = zloop_reader(dd->loop, pipe, s_on_pipe_msg, dd);
+        zloop_start(dd->loop);
+        zloop_destroy(&dd->loop);
+        
+}
+
+zactor_t * start_ddactor(int verbose, char *client_name, char *customer,
+                 char *endpoint, char *keyfile) {
+  ddclient_t *dd = malloc(sizeof(ddclient_t));
+  dd->style = DD_ACTOR; 
+  dd->verbose = verbose;
+  dd->client_name = strdup(client_name);
+  dd->customer = strdup(customer);
+  dd->endpoint = strdup(endpoint);
+  dd->keyfile = strdup(keyfile);
+  dd->timeout = 0;
+  dd->state = DD_STATE_UNREG;
+  randombytes_buf(dd->nonce, crypto_box_NONCEBYTES);
+  dd->on_reg = actor_con;
+  dd->on_discon = actor_discon;
+  dd->on_data = actor_data;
+  dd->on_pub = actor_pub;
+  dd->on_error = actor_error;
+  dd->subscribe = subscribe;
+  dd->unsubscribe = unsubscribe;
+  dd->publish = publish;
+  dd->notify = notify;
+  
+  dd->shutdown = ddthread_shutdown;
+  zactor_t *actor = zactor_new (dd_actor, dd);
+  return actor;
+}
+
 ddclient_t *start_ddthread(int verbose, char *client_name, char *customer,
                 char *endpoint, char *keyfile, dd_con con,
                 dd_discon discon, dd_data data, dd_pub pub,
                 dd_error error) {
         ddclient_t *dd = malloc(sizeof(ddclient_t));
+        dd->style = DD_CALLBACK;
         dd->verbose = verbose;
         dd->client_name = strdup(client_name);
         dd->customer = strdup(customer);
@@ -712,6 +867,8 @@ ddclient_t *start_ddthread(int verbose, char *client_name, char *customer,
         return dd;
 }
 
+
+
 void print_ddkeystate(ddkeystate_t *keys) {
         char *hex = malloc(100);
         printf("Hash value: \t%s", keys->hash);
@@ -723,3 +880,4 @@ void print_ddkeystate(ddkeystate_t *keys) {
                         sodium_bin2hex(hex, 100, keys->publicpubkey, 32));
         free(hex);
 }
+
