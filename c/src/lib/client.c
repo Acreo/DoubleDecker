@@ -542,6 +542,7 @@ static int s_on_pipe_msg(zloop_t *loop, zsock_t *handle, void *args) {
   // returning -1 should stop zloop_start and terminate the actor
   if (streq (command, "$TERM")) {
     fprintf(stderr,"s_on_pipe_msg, got $TERM, quitting\n");  
+    
     return -1;
   } else if (streq (command, "subscribe")) {
     char *topic = zmsg_popstr(msg);
@@ -778,21 +779,28 @@ void dd_actor(zsock_t *pipe, void *args){
         if (!dd->socket) {
           fprintf(stderr, "DD: Error in zsock_new_dealer: %s\n",
                   zmq_strerror(errno));
+          zsock_send(dd->pipe, "ss", "$TERM","Error creating socket");
+          dd->shutdown(dd);
           free(dd);
-          return NULL;
+          return;
         }
         //  zsock_set_identity (dd->socket, dd->client_name);
         rc = zsock_connect(dd->socket, dd->endpoint);
         if (rc != 0) {
           fprintf(stderr, "DD: Error in zmq_connect: %s\n", zmq_strerror(errno));
+          zsock_send(dd->pipe, "ss", "$TERM","Connection failed");
+          dd->shutdown(dd);
           free(dd);
-          return NULL;
+          return;
         }
         
         dd->keys = read_ddkeys(dd->keyfile, dd->customer);
         if (dd->keys == NULL) {
           fprintf(stderr, "DD: Error reading keyfile!\n");
-          return NULL;
+          zsock_send(dd->pipe, "s", "$TERM", "Missing keyfile");
+          dd->shutdown(dd);
+          free(dd);
+          return;
         }
         
         dd->sublist = zlistx_new();
@@ -808,7 +816,7 @@ void dd_actor(zsock_t *pipe, void *args){
         rc = zloop_reader(dd->loop, pipe, s_on_pipe_msg, dd);
         zloop_start(dd->loop);
         zloop_destroy(&dd->loop);
-        
+        zsock_destroy(&pipe);
 }
 
 zactor_t * start_ddactor(int verbose, char *client_name, char *customer,

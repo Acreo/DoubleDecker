@@ -7,7 +7,9 @@ void main (int argc, char **argv)
   printf ("test libdd zactor model \n"); 
   zactor_t *actor =
       start_ddactor(1, "testactor", "a", "tcp://127.0.0.1:5555",
-                  "/etc/doubledecker/a-keys.json");
+                  "/etc/doubledecker/ape-keys.json");
+
+  printf("actor = %p\n", actor);
   
   // zactor_t is a zeromq thingy representing a thread
   // you can get and select()/poll() etc a fileno for it
@@ -66,6 +68,12 @@ void main (int argc, char **argv)
       free(event);
       free(message);
       zframe_destroy(&mlen);
+    }
+    else if (streq("$TERM",event)){
+      char * error = zmsg_popstr(msg);
+      printf("Error initilizing DD client, %s\n", error);
+      zactor_destroy(&actor);
+      return EXIT_FAILURE;
     }
   }
   zsock_send(actor, "s", "$TERM");
