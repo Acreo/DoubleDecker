@@ -163,5 +163,5 @@ zactor_t * start_ddactor(int, char *, char *, char *, char *);
 
 #endif
 #ifdef __cplusplus
- {
+ }
 #endif
