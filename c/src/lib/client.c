@@ -314,9 +314,12 @@ static int ddthread_shutdown(ddclient_t *dd) {
                 zsock_send(dd->socket, "bbb", &dd_version, 4, &dd_cmd_unreg, 4,
                                 &dd->cookie, sizeof(dd->cookie));
         }
-        zlistx_destroy(&dd->sublist);
-        zloop_destroy(&dd->loop);
-        zsock_destroy((zsock_t **)&dd->socket);
+        if(dd->sublist)
+          zlistx_destroy(&dd->sublist);
+        if(dd->loop)
+          zloop_destroy(&dd->loop);
+        if(dd->socket)
+          zsock_destroy((zsock_t **)&dd->socket);
         dd->state = DD_STATE_EXIT;
 }
 
@@ -779,7 +782,7 @@ void dd_actor(zsock_t *pipe, void *args){
         if (!dd->socket) {
           fprintf(stderr, "DD: Error in zsock_new_dealer: %s\n",
                   zmq_strerror(errno));
-          zsock_send(dd->pipe, "ss", "$TERM","Error creating socket");
+          zsock_send(dd->pipe, "ss", "$TERM", "Error creating socket");
           dd->shutdown(dd);
           free(dd);
           return;
@@ -788,7 +791,7 @@ void dd_actor(zsock_t *pipe, void *args){
         rc = zsock_connect(dd->socket, dd->endpoint);
         if (rc != 0) {
           fprintf(stderr, "DD: Error in zmq_connect: %s\n", zmq_strerror(errno));
-          zsock_send(dd->pipe, "ss", "$TERM","Connection failed");
+          zsock_send(dd->pipe, "ss", "$TERM", "Connection failed");
           dd->shutdown(dd);
           free(dd);
           return;
@@ -797,7 +800,7 @@ void dd_actor(zsock_t *pipe, void *args){
         dd->keys = read_ddkeys(dd->keyfile, dd->customer);
         if (dd->keys == NULL) {
           fprintf(stderr, "DD: Error reading keyfile!\n");
-          zsock_send(dd->pipe, "s", "$TERM", "Missing keyfile");
+          zsock_send(dd->pipe, "ss", "$TERM", "Missing keyfile");
           dd->shutdown(dd);
           free(dd);
           return;
@@ -830,6 +833,11 @@ zactor_t * start_ddactor(int verbose, char *client_name, char *customer,
   dd->keyfile = strdup(keyfile);
   dd->timeout = 0;
   dd->state = DD_STATE_UNREG;
+
+  dd->pipe = NULL;
+  dd->sublist = NULL;
+  dd->loop = NULL;
+  
   randombytes_buf(dd->nonce, crypto_box_NONCEBYTES);
   dd->on_reg = actor_con;
   dd->on_discon = actor_discon;
@@ -840,7 +848,6 @@ zactor_t * start_ddactor(int verbose, char *client_name, char *customer,
   dd->unsubscribe = unsubscribe;
   dd->publish = publish;
   dd->notify = notify;
-  
   dd->shutdown = ddthread_shutdown;
   zactor_t *actor = zactor_new (dd_actor, dd);
   return actor;

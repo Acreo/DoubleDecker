@@ -1,8 +1,9 @@
 #include <czmq.h>
 #include <dd.h>
 #include <stdio.h>
+#include <stdlib.h>
 
-void main (int argc, char **argv)
+int main (int argc, char **argv)
 {
   printf ("test libdd zactor model \n"); 
   zactor_t *actor =
@@ -20,7 +21,6 @@ void main (int argc, char **argv)
   while(stay_alive){
     // recieve a message from the DD client actor thread
     zmsg_t *msg = zmsg_recv (actor);
-    zmsg_print(msg);
     char *event = zmsg_popstr(msg);
 
     // if successfully registered

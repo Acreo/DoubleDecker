@@ -21,7 +21,7 @@ ddbrokerkeys_t *read_ddbrokerkeys(char *filename) {
     fprintf(stderr, "Could not stat %s, exiting..\n", filename);
     return NULL;
   }
-  char *data = malloc(stats.st_size + 1);
+  char *data = (char*)malloc(stats.st_size + 1);
   if (data == NULL) {
     fprintf(stderr, "Error allocating memory\n");
     return NULL;
@@ -34,7 +34,7 @@ ddbrokerkeys_t *read_ddbrokerkeys(char *filename) {
   struct json_object *parse_result = json_tokener_parse((char *)data);
   free(data);
   base64_decodestate state_in;
-  ddkeys = calloc(1, sizeof(ddbrokerkeys_t));
+  ddkeys = (ddbrokerkeys_t*)calloc(1, sizeof(ddbrokerkeys_t));
   ddkeys->tenantkeys = zhash_new();
   ddkeys->tenants = zlist_new();
   // Find DD key first
@@ -46,10 +46,10 @@ ddbrokerkeys_t *read_ddbrokerkeys(char *filename) {
       json_object_object_foreach(val, key2, val2) {
         if (strcmp(key2, "privkey") == 0) {
           base64_init_decodestate(&state_in);
-          ddkeys->privkey = calloc(1, 33);
+          ddkeys->privkey = (unsigned char*)calloc(1, 33);
           retval = base64_decode_block(json_object_get_string(val2),
                                        json_object_get_string_len(val2),
-                                       ddkeys->privkey, &state_in);
+                                       (char*)ddkeys->privkey, &state_in);
           if (retval != 32) {
             fprintf(stderr, "Error during base64_decode of %s\n", key2);
             return NULL;
@@ -57,10 +57,10 @@ ddbrokerkeys_t *read_ddbrokerkeys(char *filename) {
         } else if (strcmp(key2, "pubkey") == 0) {
           ddkeys->hash = strdup(json_object_get_string(val2));
           base64_init_decodestate(&state_in);
-          ddkeys->pubkey = calloc(1, 33);
+          ddkeys->pubkey = (unsigned char*)calloc(1, 33);
           retval = base64_decode_block(json_object_get_string(val2),
                                        json_object_get_string_len(val2),
-                                       ddkeys->pubkey, &state_in);
+                                       (char*)ddkeys->pubkey, &state_in);
           if (retval != 32) {
             fprintf(stderr, "Error during base64_decode of %s\n", key2);
             return NULL;
@@ -75,17 +75,17 @@ ddbrokerkeys_t *read_ddbrokerkeys(char *filename) {
   }
 
   // pre-calc the broker<->broker shared key
-  ddkeys->ddboxk = calloc(1, crypto_box_BEFORENMBYTES);
+  ddkeys->ddboxk = (unsigned char*) calloc(1, crypto_box_BEFORENMBYTES);
   retval =
       crypto_box_beforenm(ddkeys->ddboxk, ddkeys->pubkey, ddkeys->privkey);
 
   // second pass to find tenant keys
   json_object_object_foreach(parse_result, key3, val3) {
     if (strcmp(key3, "dd") != 0) {
-      ddtenant_t *ten = calloc(1, sizeof(ddtenant_t));
+      ddtenant_t *ten = (ddtenant_t*)calloc(1, sizeof(ddtenant_t));
       char *hash = NULL;
       char pubkey[33];
-      unsigned long long int *cookie =
+      unsigned long long int *cookie = (long long unsigned int*)
           malloc(sizeof(unsigned long long int));
       hash = strdup(key3);
       json_object_object_foreach(val3, key4, val4) {
@@ -100,8 +100,9 @@ ddbrokerkeys_t *read_ddbrokerkeys(char *filename) {
             fprintf(stderr, "Error during base64_decode of %s\n", key4);
             return NULL;
           }
-          ten->boxk = calloc(1, crypto_box_BEFORENMBYTES);
-          retval = crypto_box_beforenm(ten->boxk, pubkey, ddkeys->privkey);
+          ten->boxk = (char*)calloc(1, crypto_box_BEFORENMBYTES);
+          retval = crypto_box_beforenm((unsigned char*)ten->boxk,
+                                       (const unsigned char*) pubkey, ddkeys->privkey);
           if (retval != 0) {
             fprintf(stderr, "Error precalculating shared key!\n");
             return NULL;
@@ -127,20 +128,20 @@ ddbrokerkeys_t *read_ddbrokerkeys(char *filename) {
 }
 
 void print_ddbrokerkeys(ddbrokerkeys_t *keys) {
-  char *hex = malloc(100);
+  char *hex = (char*) malloc(100);
   //  printf ("Hash value: \t%s\n", keys->hash);
   printf("Private key: \t%s", sodium_bin2hex(hex, 100, keys->privkey, 32));
   printf("Public key: \t%s", sodium_bin2hex(hex, 100, keys->pubkey, 32));
-  printf("Cookie: \t%llu", keys->cookie);
+  printf("Cookie: \t%llu", (unsigned long long int)keys->cookie);
   printf("Hash:\t\t%s", keys->hash);
 
-  printf("Tenants:  %d : ", zlist_size(keys->tenants));
+  printf("Tenants:  %d : ", (int)zlist_size(keys->tenants));
 
   char *k = NULL;
-  k = zlist_first(keys->tenants);
+  k = (char*)zlist_first(keys->tenants);
   while (k) {
     printf("%s", k);
-    k = zlist_next(keys->tenants);
+    k = (char*)zlist_next(keys->tenants);
     if (k != NULL)
       printf(", ");
   }
@@ -149,15 +150,15 @@ void print_ddbrokerkeys(ddbrokerkeys_t *keys) {
   printf("Tenant keys: ");
   zlist_t *precalc = zhash_keys(keys->tenantkeys);
   ddtenant_t *ten;
-  k = zlist_first(precalc);
+  k = (char*)zlist_first(precalc);
   while (k) {
-    ten = zhash_lookup(keys->tenantkeys, k);
-    sodium_bin2hex(hex, 100, ten->boxk, crypto_box_BEFORENMBYTES);
+    ten = (ddtenant_t*)zhash_lookup(keys->tenantkeys, k);
+    sodium_bin2hex(hex, 100, (const unsigned char*) ten->boxk, crypto_box_BEFORENMBYTES);
     //		printf("key for cust %s = %s\n",k,hex);
     printf("\t %s", k);
     printf("\t precalc: %s", hex);
     printf("\t name: %s cookie %llu", ten->name, ten->cookie);
-    k = zlist_next(precalc);
+    k = (char*)zlist_next(precalc);
   }
   free(hex);
 }
@@ -184,7 +185,7 @@ struct ddkeystate *read_ddkeys(char *filename, char *customer) {
     fprintf(stderr, "Could not stat %s, exiting..\n", filename);
     return NULL;
   }
-  char *data = malloc(stats.st_size + 1);
+  char *data = (char*) malloc(stats.st_size + 1);
   if (data == NULL) {
     fprintf(stderr, "Error allocating memory\n");
     return NULL;
@@ -199,7 +200,7 @@ struct ddkeystate *read_ddkeys(char *filename, char *customer) {
   const char *unjson = json_object_get_string(parse_result);
 
   base64_decodestate state_in;
-  ddkeys = calloc(1, sizeof(struct ddkeystate));
+  ddkeys =(ddkeystate_t *) calloc(1, sizeof(struct ddkeystate));
   ddkeys->clientkeys = zhash_new();
 
   if (ispublic) {
@@ -210,40 +211,40 @@ struct ddkeystate *read_ddkeys(char *filename, char *customer) {
           enum json_type o_type2 = json_object_get_type(val2);
           if (strcmp(key2, "publicpubkey") == 0) {
             base64_init_decodestate(&state_in);
-            ddkeys->publicpubkey = calloc(1, 33);
+            ddkeys->publicpubkey = (unsigned char*)calloc(1, 33);
             retval = base64_decode_block(json_object_get_string(val2),
                                          json_object_get_string_len(val2),
-                                         ddkeys->publicpubkey, &state_in);
+                                         (char*)ddkeys->publicpubkey, &state_in);
             if (retval != 32) {
               fprintf(stderr, "Error during base64_decode of %s\n", key2);
               return NULL;
             }
           } else if (strcmp(key2, "ddpubkey") == 0) {
             base64_init_decodestate(&state_in);
-            ddkeys->ddpubkey = calloc(1, 33);
+            ddkeys->ddpubkey = (unsigned char*)calloc(1, 33);
             retval = base64_decode_block(json_object_get_string(val2),
                                          json_object_get_string_len(val2),
-                                         ddkeys->ddpubkey, &state_in);
+                                         (char*)ddkeys->ddpubkey, &state_in);
             if (retval != 32) {
               fprintf(stderr, "Error during base64_decode of %s\n", key2);
               return NULL;
             }
           } else if (strcmp(key2, "privkey") == 0) {
             base64_init_decodestate(&state_in);
-            ddkeys->privkey = calloc(1, 33);
+            ddkeys->privkey = (unsigned char*) calloc(1, 33);
             retval = base64_decode_block(json_object_get_string(val2),
                                          json_object_get_string_len(val2),
-                                         ddkeys->privkey, &state_in);
+                                         (char*)ddkeys->privkey, &state_in);
             if (retval != 32) {
               fprintf(stderr, "Error during base64_decode of %s\n", key2);
               return NULL;
             }
           } else if (strcmp(key2, "pubkey") == 0) {
             base64_init_decodestate(&state_in);
-            ddkeys->pubkey = calloc(1, 33);
+            ddkeys->pubkey = (unsigned char*)calloc(1, 33);
             retval = base64_decode_block(json_object_get_string(val2),
                                          json_object_get_string_len(val2),
-                                         ddkeys->pubkey, &state_in);
+                                         (char*) ddkeys->pubkey, &state_in);
             if (retval != 32) {
               fprintf(stderr, "Error during base64_decode of %s\n", key2);
               return NULL;
@@ -276,9 +277,10 @@ struct ddkeystate *read_ddkeys(char *filename, char *customer) {
           if (customer_name && customer_pubkey) {
             base64_init_decodestate(&state_in);
             retval = base64_decode_block(customer_pubkey,
-                                         strlen(customer_pubkey), pubkey,
+                                         strlen(customer_pubkey), (char*) pubkey,
                                          &state_in);
-            unsigned char *precalck = calloc(1, crypto_box_BEFORENMBYTES);
+            unsigned char *precalck = (unsigned char*)
+                calloc(1, crypto_box_BEFORENMBYTES);
             retval =
                 crypto_box_beforenm(precalck, pubkey, ddkeys->privkey);
             zhash_insert(ddkeys->clientkeys, customer_name, precalck);
@@ -293,40 +295,40 @@ struct ddkeystate *read_ddkeys(char *filename, char *customer) {
       enum json_type o_type2 = json_object_get_type(val2);
       if (strcmp(key2, "publicpubkey") == 0) {
         base64_init_decodestate(&state_in);
-        ddkeys->publicpubkey = calloc(1, 33);
+        ddkeys->publicpubkey = (unsigned char*)calloc(1, 33);
         retval = base64_decode_block(json_object_get_string(val2),
                                      json_object_get_string_len(val2),
-                                     ddkeys->publicpubkey, &state_in);
+                                     (char*) ddkeys->publicpubkey, &state_in);
         if (retval != 32) {
           fprintf(stderr, "Error during base64_decode of %s\n", key2);
           return NULL;
         }
       } else if (strcmp(key2, "ddpubkey") == 0) {
         base64_init_decodestate(&state_in);
-        ddkeys->ddpubkey = calloc(1, 33);
+        ddkeys->ddpubkey = (unsigned char*) calloc(1, 33);
         retval = base64_decode_block(json_object_get_string(val2),
                                      json_object_get_string_len(val2),
-                                     ddkeys->ddpubkey, &state_in);
+                                     (char*)ddkeys->ddpubkey, &state_in);
         if (retval != 32) {
           fprintf(stderr, "Error during base64_decode of %s\n", key2);
           return NULL;
         }
       } else if (strcmp(key2, "privkey") == 0) {
         base64_init_decodestate(&state_in);
-        ddkeys->privkey = calloc(1, 33);
+        ddkeys->privkey = (unsigned char*)calloc(1, 33);
         retval = base64_decode_block(json_object_get_string(val2),
                                      json_object_get_string_len(val2),
-                                     ddkeys->privkey, &state_in);
+                                     (char*)ddkeys->privkey, &state_in);
         if (retval != 32) {
           fprintf(stderr, "Error during base64_decode of %s\n", key2);
           return NULL;
         }
       } else if (strcmp(key2, "pubkey") == 0) {
         base64_init_decodestate(&state_in);
-        ddkeys->pubkey = calloc(1, 33);
+        ddkeys->pubkey = (unsigned char*)calloc(1, 33);
         retval = base64_decode_block(json_object_get_string(val2),
                                      json_object_get_string_len(val2),
-                                     ddkeys->pubkey, &state_in);
+                                     (char*)ddkeys->pubkey, &state_in);
         if (retval != 32) {
           fprintf(stderr, "Error during base64_decode of %s\n", key2);
           return NULL;
@@ -342,17 +344,17 @@ struct ddkeystate *read_ddkeys(char *filename, char *customer) {
   // TODO: how to free the memory used by the json parser here?
 
   // pre-calculate the shared keys for the DD bus itself
-  ddkeys->ddboxk = calloc(1, crypto_box_BEFORENMBYTES);
+  ddkeys->ddboxk = (unsigned char*) calloc(1, crypto_box_BEFORENMBYTES);
   retval = crypto_box_beforenm(ddkeys->ddboxk, ddkeys->ddpubkey,
                                ddkeys->privkey);
 
   // pre-calculate the shared keys for the particular customer
-  ddkeys->custboxk = calloc(1, crypto_box_BEFORENMBYTES);
+  ddkeys->custboxk = (unsigned char*)calloc(1, crypto_box_BEFORENMBYTES);
   retval = crypto_box_beforenm(ddkeys->custboxk, ddkeys->pubkey,
                                ddkeys->privkey);
 
   // pre-calculate the shared keys for the public customer
-  ddkeys->pubboxk = calloc(1, crypto_box_BEFORENMBYTES);
+  ddkeys->pubboxk = (unsigned char*)calloc(1, crypto_box_BEFORENMBYTES);
   retval = crypto_box_beforenm(ddkeys->pubboxk, ddkeys->publicpubkey,
                                ddkeys->privkey);
 
