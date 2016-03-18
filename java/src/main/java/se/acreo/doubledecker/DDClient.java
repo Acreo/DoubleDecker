@@ -349,7 +349,6 @@ public class DDClient extends Thread {
     }
 
     public synchronized void shutdown(){
-        // TODO: implement
         ZMsg tosend = new ZMsg();
         tosend.addFirst(CMD.bprotoVersion);
         tosend.add(CMD.bUNREG);
@@ -664,19 +663,16 @@ public class DDClient extends Thread {
                 log.format("DD: Registration failed: " + reason + "\n");
                 log.format("DD: Terminating...\n");
                 shutdown();
-                System.exit(1);
                 break;
             case ERROR.VERSION:
                 callback.error(ERROR.VERSION, reason);
                 log.format("DD: Version mismatch: " + reason+ "\n");
                 log.format("DD: Terminating...\n");
                 shutdown();
-                System.exit(1);
                 break;
             default:
                 log.format("DD: Unknown error code " + code + ". Message: " + reason);
         }
-        callback.error(code, "No destination");
     }
 
     private void cmd_cb_subok(ZMsg msg) {
