@@ -54,8 +54,13 @@
 #include <sys/stat.h>
 #include <err.h>
 #include "../include/trie.h"
-char *broker_scope;
 
+#define IPC_REGEX "(ipc://)(.+)"
+#define TCP_REGEX "(tcp://[^:]+:)(\\d+)"
+
+
+
+char *broker_scope;
 char *dealer_connect = NULL;
 char *router_bind = "tcp://*:5555";
 char *monitor_name = NULL;
@@ -63,7 +68,7 @@ char *pub_bind = NULL, *pub_connect = NULL;
 char *sub_bind = NULL, *sub_connect = NULL;
 char nonce[crypto_box_NONCEBYTES];
 ddbrokerkeys_t *keys;
-
+mode_t rw_mode = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH;
 // timer IDs
 int br_timeout_loop, cli_timeout_loop, heartbeat_loop, reg_loop;
 
@@ -72,6 +77,7 @@ struct nn_trie topics_trie;
 // Broker Identity, assigned by higher broker
 zframe_t *broker_id = NULL, *broker_id_null;
 zlist_t *scope;
+zlist_t *rstrings;
 zloop_t *loop;
 zsock_t *pubN = NULL, *subN = NULL;
 zsock_t *pubS = NULL, *subS = NULL;
@@ -1696,87 +1702,59 @@ void unreg_broker(local_broker *np) {
         dd_warning("unreg_broker called, unimplemented!\n");
 }
 
-void connect_pubsubN_tcp(char *puburl, char *suburl) {
-        // extract
-        int dealport = -1;
-        int pubport = -1;
-        int subport = -1;
+void connect_pubsubN(char *deprecated1, char *deprecated2) {
+  dd_debug("Connect pubsubN (%s, %s)", deprecated1, deprecated2);
+  
+  zrex_t *rexipc = zrex_new(IPC_REGEX);
+  assert(zrex_valid (rexipc));
+  zrex_t *rextcp = zrex_new(TCP_REGEX);
+  assert(zrex_valid (rextcp));
+  sub_connect = malloc(strlen(dealer_connect)+5);
+  pub_connect = malloc(strlen(dealer_connect)+5);
+  
+  
+  char tmpfile[1024];
+  if(zrex_matches (rexipc,dealer_connect)){      
+    sprintf(sub_connect,"%s.pub",dealer_connect);
+    sprintf(pub_connect, "%s.sub",dealer_connect);
+  }
+  else if(zrex_matches (rextcp,dealer_connect)){
+    int port = atoi(zrex_hit(rextcp,2));
+    sprintf(pub_connect, "%s%d",zrex_hit(rextcp, 1),port+2);
+    sprintf(sub_connect, "%s%d",zrex_hit(rextcp, 1),port+1);
+  } else {
+    dd_error("%s doesnt match anything!");
+    exit(EXIT_FAILURE);
+  }    
 
-        if (strstr(dealer_connect, "tcp")) {
-                char *token, *string, *tofree;
-                tofree = string = strdup(dealer_connect);
-                assert(string != NULL);
-
-                while ((token = strsep(&string, ":")) != NULL) {
-                        sscanf(token, "%d", &dealport);
-                }
-                dd_debug("dealport found %d", dealport);
-                free(tofree);
-        }
-        if (strstr(puburl, "tcp")) {
-                char *token, *string, *tofree;
-                tofree = string = strdup(puburl);
-                assert(string != NULL);
-
-                while ((token = strsep(&string, ":")) != NULL) {
-                        sscanf(token, "%d", &pubport);
-                }
-                dd_debug("pubport found %d", pubport);
-                free(tofree);
-        }
-        if (strstr(suburl, "tcp")) {
-                char *token, *string, *tofree;
-                tofree = string = strdup(suburl);
-                assert(string != NULL);
-
-                while ((token = strsep(&string, ":")) != NULL) {
-                        sscanf(token, "%d", &subport);
-                }
-                dd_debug("subport found %d", subport);
-                free(tofree);
-        }
-        char orig[10], prep[10], srep[10];
-        sprintf(orig, "%d", dealport);
-        sprintf(prep, "%d", pubport);
-        sprintf(srep, "%d", subport);
-        sub_connect = str_replace(dealer_connect, orig, prep);
-        pub_connect = str_replace(dealer_connect, orig, srep);
-}
-
-void connect_pubsubN(char *puburl, char *suburl) {
-        dd_debug("Connect pubsubN (%s, %s)", puburl, suburl);
-
-        if (strstr(dealer_connect, "tcp")) {
-                connect_pubsubN_tcp(puburl, suburl);
-        }
-        if (strstr(dealer_connect, "ipc")) {
-                pub_connect = puburl;
-                sub_connect = suburl;
-        }
-
-        dd_info("pub_connect: %s sub_connect: %s", pub_connect, sub_connect);
-        pubN = zsock_new(ZMQ_XPUB);
-        subN = zsock_new(ZMQ_XSUB);
-        int rc = zsock_connect(pubN, pub_connect);
-        if (rc < 0) {
-                dd_error("Unable to connect pubN to %s", pub_connect);
-                perror("Error: ");
-                exit(EXIT_FAILURE);
-        }
-
-        rc = zsock_connect(subN, sub_connect);
-        if (rc < 0) {
-                dd_error("Unable to connect subN to %s", sub_connect);
-                perror("Error: ");
-                exit(EXIT_FAILURE);
-        }
-        rc = zloop_reader(loop, pubN, s_on_pubN_msg, NULL);
-        assert(rc == 0);
-        zloop_reader_set_tolerant(loop, pubN);
-
-        rc = zloop_reader(loop, subN, s_on_subN_msg, NULL);
-        assert(rc == 0);
-        zloop_reader_set_tolerant(loop, subN);
+  zrex_destroy(&rexipc);
+  zrex_destroy(&rextcp);
+  
+ 
+  
+  dd_info("pub_connect: %s sub_connect: %s", pub_connect, sub_connect);
+  pubN = zsock_new(ZMQ_XPUB);
+  subN = zsock_new(ZMQ_XSUB);
+  int rc = zsock_connect(pubN, pub_connect);
+  if (rc < 0) {
+    dd_error("Unable to connect pubN to %s", pub_connect);
+    perror("Error: ");
+    exit(EXIT_FAILURE);
+  }
+  
+  rc = zsock_connect(subN, sub_connect);
+  if (rc < 0) {
+    dd_error("Unable to connect subN to %s", sub_connect);
+    perror("Error: ");
+    exit(EXIT_FAILURE);
+  }
+  rc = zloop_reader(loop, pubN, s_on_pubN_msg, NULL);
+  assert(rc == 0);
+  zloop_reader_set_tolerant(loop, pubN);
+  
+  rc = zloop_reader(loop, subN, s_on_subN_msg, NULL);
+  assert(rc == 0);
+  zloop_reader_set_tolerant(loop, subN);
 }
 
 char *str_replace(const char *string, const char *substr,
@@ -1875,38 +1853,167 @@ void usage() {
                         "-h [help]\n");
 }
 
-void start_pubsub_tcp(char *rstr, int port) {
-        char orig[10], prep[10], srep[10];
+static void change_permission(char *t){
+  dd_debug("Setting permission on \"%s\" to rw-rw-rw-",t);
+  int rc = chmod(t,rw_mode);
+  if(rc == -1){
+    perror("Error: ");
+    dd_error("Couldn't set permissions on IPC socket\n");
+    exit(EXIT_FAILURE);
+  }
+}
 
-        sprintf(orig, "%d", port);
-        sprintf(prep, "%d", port + 1);
-        sprintf(srep, "%d", port + 2);
-        pub_bind = str_replace(rstr, orig, prep);
-        sub_bind = str_replace(rstr, orig, srep);
-        dd_debug("puburl: %s suburl: %s", pub_bind, sub_bind);
 
-        pubS = zsock_new(ZMQ_XPUB);
-        subS = zsock_new(ZMQ_XSUB);
-        int rc = zsock_bind(pubS, pub_bind);
-        if (rc < 0) {
-                dd_error("Unable to bind pubS to %s", pub_bind);
-                perror("Error: ");
-                exit(EXIT_FAILURE);
-        }
-        rc = zsock_bind(subS, sub_bind);
-        if (rc < 0) {
-                dd_error("Unable to bind subS to %s", sub_bind);
-                perror("Error: ");
-                exit(EXIT_FAILURE);
-        }
 
-        rc = zloop_reader(loop, pubS, s_on_pubS_msg, NULL);
-        assert(rc == 0);
-        zloop_reader_set_tolerant(loop, pubS);
+zlist_t *pub_strings, *sub_strings;
+void start_pubsub(){
+  zrex_t *rexipc = zrex_new(IPC_REGEX);
+  assert(zrex_valid (rexipc));
+  zrex_t *rextcp = zrex_new(TCP_REGEX);
+  assert(zrex_valid (rextcp));
+  
+  pub_strings = zlist_new();
+  sub_strings = zlist_new();
+  char *t = zlist_first(rstrings);
+  char tmpfile[1024];
+  while(t != NULL){
+    if(zrex_matches (rexipc,t)){      
+      sprintf(tmpfile,"%s.pub",zrex_hit(rexipc, 2));      
+      if(zfile_exists(tmpfile)){
+        dd_error("File %s already exists, aborting.", tmpfile);
+        exit(EXIT_FAILURE);
+      }            
+      sprintf(tmpfile,"%s.sub",zrex_hit(rexipc, 2));      
+      if(zfile_exists(tmpfile)){
+        dd_error("File %s already exists, aborting.", tmpfile);
+        exit(EXIT_FAILURE);
+      }                  
+      char *sub_ipc = malloc(strlen(t)+5);
+      char *pub_ipc = malloc(strlen(t)+5);
+      sprintf(sub_ipc,"%s.sub",t);
+      sprintf(pub_ipc, "%s.pub",t);
+      zlist_append(sub_strings,sub_ipc);
+      zlist_append(pub_strings,pub_ipc);      
+      // Should not be necessary, but weird results otherwise..
+      zrex_destroy(&rexipc);
+      rexipc = zrex_new(IPC_REGEX);
+    }
+    else if(zrex_matches (rextcp,t)){
+      int port = atoi(zrex_hit(rextcp,2));
+      char *sub_tcp = malloc(strlen(t)+1);
+      char *pub_tcp = malloc(strlen(t)+1);
+      sprintf(pub_tcp, "%s%d",zrex_hit(rextcp, 1),port+1);
+      sprintf(sub_tcp, "%s%d",zrex_hit(rextcp, 1),port+2);
+      zlist_append(sub_strings,sub_tcp);
+      zlist_append(pub_strings,pub_tcp);      
+      // Should not be necessary, but weird results otherwise..
+      zrex_destroy(&rextcp);
+      rextcp = zrex_new(TCP_REGEX);
+    } else {
+      dd_error("%s doesnt match anything!");
+      exit(EXIT_FAILURE);
+    }    
+    t = zlist_next(rstrings);
+  }
 
-        rc = zloop_reader(loop, subS, s_on_subS_msg, NULL);
-        assert(rc == 0);
-        zloop_reader_set_tolerant(loop, subS);
+  zrex_destroy(&rextcp);
+  zrex_destroy(&rexipc);
+      
+  
+  t  = zlist_first(pub_strings);
+  int pub_strings_len = 0;
+  while (t != NULL){
+    pub_strings_len += strlen(t) + 1;
+    t = zlist_next(pub_strings);
+  }
+
+  int sub_strings_len = 0;
+  t  = zlist_first(sub_strings);
+  while (t != NULL){
+    sub_strings_len += strlen(t) + 1; 
+    t = zlist_next(sub_strings);
+  }
+
+  if(zlist_size(pub_strings) < 1){
+    dd_error("pub_strings zlist empty!");
+    exit(EXIT_FAILURE);
+  }
+  if(zlist_size(sub_strings) < 1){
+    dd_error("sub_strings zlist empty!");
+    exit(EXIT_FAILURE);
+  }
+
+  
+  pub_bind = malloc(pub_strings_len);
+  sub_bind = malloc(sub_strings_len);
+
+  int i, written=0;
+  int num_len = zlist_size(pub_strings);
+
+  for(i = 0; i < num_len; i++) {
+    if(i == 0){
+      t = zlist_first(pub_strings);
+    } else {
+      t = zlist_next(pub_strings);
+    }
+    written += snprintf(pub_bind + written, pub_strings_len - written, (i != 0 ? ",%s" : "%s"),t);
+    if(written == pub_strings_len)
+      break;
+  }
+  
+  written=0;
+  num_len = zlist_size(sub_strings);
+
+  for(i = 0; i < num_len; i++) {
+    if(i == 0){
+      t = zlist_first(sub_strings);
+    } else {
+      t = zlist_next(sub_strings);
+    }
+    written += snprintf(sub_bind + written, sub_strings_len - written, (i != 0 ? ",%s" : "%s"),t);
+    if(written == sub_strings_len)
+      break;
+  }
+
+  pubS = zsock_new(ZMQ_XPUB);
+  subS = zsock_new(ZMQ_XSUB);
+  int rc = zsock_attach(pubS, pub_bind,true);
+  if (rc < 0) {
+    dd_error("Unable to attach pubS to %s", pub_bind);
+    perror("Error: ");
+    exit(EXIT_FAILURE);
+  }
+  rc = zsock_attach(subS, sub_bind,true);
+  if (rc < 0) {
+    dd_error("Unable to attach subS to %s", sub_bind);
+    perror("Error: ");
+    exit(EXIT_FAILURE);
+  }
+
+
+  t = zlist_first(pub_strings);
+  while (t != NULL) {
+    if(strcasestr(t,"ipc://")){
+      change_permission(t+6);
+    }
+    t = zlist_next(pub_strings);
+  }
+  
+  t = zlist_first(sub_strings);
+  while (t != NULL) {
+    if(strcasestr(t,"ipc://")){
+      change_permission(t+6);
+    }
+    t = zlist_next(sub_strings);
+  }
+  
+  rc = zloop_reader(loop, pubS, s_on_pubS_msg, NULL);
+  assert(rc == 0);
+  zloop_reader_set_tolerant(loop, pubS);
+  
+  rc = zloop_reader(loop, subS, s_on_subS_msg, NULL);
+  assert(rc == 0);
+  zloop_reader_set_tolerant(loop, subS);
 }
 
 int start_broker(char *router_bind, char *dealer_connect, char *keyfile,
@@ -1935,15 +2042,33 @@ int start_broker(char *router_bind, char *dealer_connect, char *keyfile,
         loop = zloop_new();
         assert(loop);
         rsock = zsock_new(ZMQ_ROUTER);
-        char *needle = strcasestr(router_bind,"ipc://");
-        if(needle){
-          // check if file exists before trying to bind to it
-          if(zfile_exists(router_bind+5)){
-            dd_error("File %s already exists, aborting.", router_bind);
-            exit(1);
+        // Look for IPC strings in the rstrings list, check if the files already exist
+        char *t = zlist_first(rstrings);
+        char *needle;
+        while (t != NULL) {
+          needle = strcasestr(t,"ipc://");
+          if(needle){
+            if(zfile_exists(t+6)){
+              dd_error("File %s already exists, aborting.", t+6);
+              exit(EXIT_FAILURE);
+            }            
           }
+          t = zlist_next(rstrings);
         }
-        zsock_bind(rsock, router_bind);
+   
+     
+        //zsock_bind(rsock, router_bind);
+        //use zsock_attach instead, as it supports multiple endpoints
+        int rc;
+        dd_info("Attaching ROUTER socket to: %s", router_bind);
+        rc = zsock_attach(rsock, router_bind, 1 == 1);
+        if(rc == 0){
+          dd_info("Successfully bound router to %s", router_bind);
+        } else {
+          dd_info("Failed to bind router to %s", router_bind);
+          exit(EXIT_FAILURE);
+        }
+        
         
         if (rsock == NULL) {
                 dd_error("Couldn't bind router socket to %s", router_bind);
@@ -1951,17 +2076,16 @@ int start_broker(char *router_bind, char *dealer_connect, char *keyfile,
                 exit(EXIT_FAILURE);
         }
 
-        int rc;
-        if(needle){
-          rc = chmod(router_bind+5,S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH);
-          if(rc == -1){
-            perror("Error: ");
-            dd_error("Couldn't set permissions on IPC socket\n");
-            exit(EXIT_FAILURE);
+        // change the permission on the IPC sockets to allow anyone to connect
+        t = zlist_first(rstrings);
+        while (t != NULL) {
+          needle = strcasestr(t,"ipc://");
+          if(needle){
+            change_permission(t+6);
           }
-          dd_notice("Set permission of IPC file to 666\n");
+          t = zlist_next(rstrings);
         }
-        
+
         rc = zloop_reader(loop, rsock, s_on_router_msg, NULL);
         assert(rc == 0);
         zloop_reader_set_tolerant(loop, rsock);
@@ -1999,92 +2123,10 @@ int start_broker(char *router_bind, char *dealer_connect, char *keyfile,
         
         cli_timeout_loop = zloop_timer(loop, 3000, 0, s_check_cli_timeout, NULL);
         br_timeout_loop = zloop_timer(loop, 1000, 0, s_check_br_timeout, NULL);
-        
-        /*
-         * check if router_bind is tcp, if so, start pubS & subS
-         */
-        int port = 0;
-        if (strstr(router_bind, "tcp")) {
-          char *token, *string, *tofree;
-          tofree = string = strdup(router_bind);
-          assert(string != NULL);
-          
-          while ((token = strsep(&string, ":")) != NULL) {
-            sscanf(token, "%d", &port);
-          }
-          dd_debug("port found %d", port);
-          free(tofree);
-          if (port == 0) {
-            dd_info("couldn't find tcp port in router_bind %s", router_bind);
-            dd_info("wont start pub/sub");
-          } else {
-            start_pubsub_tcp(router_bind, port);
-          }
-        }
-        
-        if (strstr(router_bind, "ipc")) {
-          
-          int len = strlen(router_bind) + strlen(".pub") + 1;
-          pub_bind = malloc(len);
-          sub_bind = malloc(len);
-          snprintf(pub_bind, len, "%s.pub", router_bind);
-          snprintf(sub_bind, len, "%s.sub", router_bind);
-          
-          // check if file exists before trying to bind to it
-          if(zfile_exists(pub_bind+5)){
-            dd_error("File %s already exists, aborting.", pub_bind);
-            exit(1);
-          }
-          if(zfile_exists(sub_bind+5)){
-            dd_error("File %s already exists, aborting.", sub_bind);
-            exit(1);
-          }
-          
-          
-          
-          
-          pubS = zsock_new(ZMQ_XPUB);
-          subS = zsock_new(ZMQ_XSUB);
-          int rc = zsock_bind(pubS, pub_bind);
-          if (rc < 0) {
-            dd_error("Unable to bind pubS to %s", pub_bind);
-            perror("Error: ");
-            exit(EXIT_FAILURE);
-          }
-          rc = zsock_bind(subS, sub_bind);
-          if (rc < 0) {
-            dd_error("Unable to bind subS to %s", sub_bind);
-            perror("Error: ");
-            exit(EXIT_FAILURE);
-          }
 
-          rc = chmod(pub_bind+5,S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH);
-          if(rc == -1){
-            perror("Error: ");
-            dd_error("Couldn't set permissions on IPC socket\n");
-            exit(EXIT_FAILURE);
-          }
-          dd_notice("Set permission of PUB IPC file to 666\n");
-
-          rc = chmod(sub_bind+5,S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH);
-          if(rc == -1){
-            perror("Error: ");
-            dd_error("Couldn't set permissions on IPC socket\n");
-            exit(EXIT_FAILURE);
-          }
-          dd_notice("Set permission of SUB IPC file to 666\n");
-
-
-
-          rc = zloop_reader(loop, pubS, s_on_pubS_msg, NULL);
-          assert(rc == 0);
-          zloop_reader_set_tolerant(loop, pubS);
-          
-          rc = zloop_reader(loop, subS, s_on_subS_msg, NULL);
-          assert(rc == 0);
-          zloop_reader_set_tolerant(loop, subS);
-        }
-        
+        // create and attach the pubsub southbound sockets
+        start_pubsub();
+               
         zloop_start(loop);
         if (monitor_name)
           zsock_destroy(&msock);
@@ -2183,10 +2225,25 @@ int main(int argc, char **argv) {
         }
 
         scope = zlist_new();
+        rstrings = zlist_new();
         char *str1, *str2, *token, *subtoken;
         char *saveptr1, *saveptr2;
         int j;
-
+        
+        char *rbind_cpy = strdup(router_bind);
+        token = strtok(rbind_cpy, ",");
+        while (token) {
+          zlist_append(rstrings,token);
+          token = strtok(NULL, ",");            
+        }
+        
+        char *t = zlist_first(rstrings);
+        while (t != NULL) {
+          dd_debug("Found router string %s",t);
+          t = zlist_next(rstrings);
+        }
+       
+        
         for (j = 1, str1 = scopestr;; j++, str1 = NULL) {
                 token = strtok_r(str1, "/", &saveptr1);
                 if (token == NULL)
@@ -2205,7 +2262,7 @@ int main(int argc, char **argv) {
         broker_scope += retval;
         len -= retval;
 
-        char *t = zlist_first(scope);
+        t = zlist_first(scope);
         while (t != NULL) {
                 retval = snprintf(broker_scope, len, "%s/", t);
                 broker_scope += retval;

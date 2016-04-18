@@ -86,7 +86,7 @@ void connect_pubsubN(char *puburl, char *suburl);
 void stop_program(int sig);
 void usage(void);
 extern int verbose;
-void start_pubsub(char *rstr, int port);
+void start_pubsub();
 int start_broker(char *, char *, char *, int, char *);
 char *str_replace(const char *string, const char *substr,
                 const char *replacement);
