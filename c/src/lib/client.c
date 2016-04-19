@@ -517,9 +517,18 @@ static void cmd_cb_subok(zmsg_t *msg, ddclient_t *dd) {
 }
 
 static void cmd_cb_error(zmsg_t *msg, ddclient_t *dd) {
-  long int error_code = atol(zmsg_popstr(msg));
+  zframe_t *code_frame;
+  code_frame = zmsg_pop(msg);
+  if (code_frame == NULL) {
+    fprintf(stderr, "DD: Misformed ERROR message, missing ERROR_CODE!\n");
+    return;
+  }
+
+  int32_t *error_code = (int32_t *)zframe_data(code_frame);
   char *error_msg = zmsg_popstr(msg);
-  dd->on_error(error_code, error_msg, dd);
+  dd->on_error(*error_code, error_msg, dd);
+  zframe_destroy(&code_frame);
+  free(error_msg);
 }
 
 // static void cmd_cb_nodst(zmsg_t *msg, ddclient_t *dd) {
@@ -679,7 +688,6 @@ static int s_on_dealer_msg(zloop_t *loop, zsock_t *handle, void *args) {
     cmd_cb_pong(msg, dd, loop);
     break;
   case DD_CMD_CHALL:
-    fprintf(stderr, "DD: Got command DD_CMD_CHALL\n");
     cmd_cb_chall(msg, dd);
     break;
   case DD_CMD_CHALLOK:

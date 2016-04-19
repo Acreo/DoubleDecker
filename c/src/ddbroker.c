@@ -42,7 +42,7 @@
 #include <urcu.h>
 #include <zmq.h>
 #include <czmq.h>
-#include "dd.h"
+#include "../include/dd.h"
 #include "../include/broker.h"
 #include "sodium.h"
 #include "../include/ddhtable.h"
@@ -107,6 +107,10 @@ int is_int(char *s) {
 
   return 1;
 }
+static void remote_reg_failed(zframe_t *sockid, char *cli_name) {
+  zsock_send(rsock, "fbbbss", sockid, &dd_version, 4, &dd_cmd_error, 4,
+             &dd_error_regfail, 4, cli_name);
+}
 
 void delete_dist_clients(local_broker *br) {
   struct cds_lfht_iter iter;
@@ -134,6 +138,76 @@ void delete_dist_clients(local_broker *br) {
 }
 
 /** Functions for handling incoming messages */
+
+void cmd_cb_high_error(zmsg_t *msg) {
+  zframe_t *code_frame = zmsg_pop(msg);
+  if (code_frame == NULL) {
+    dd_error("DD: Misformed ERROR message, missing ERROR_CODE!\n");
+    return;
+  }
+  local_client *ln;
+  struct dist_node *dn;
+
+  int32_t *error_code = (int32_t *)zframe_data(code_frame);
+  switch (*error_code) {
+  case DD_ERROR_NODST:
+    dd_debug("Recieved ERROR_NODST from higher broker!");
+    // original destination
+    char *dst_string = zmsg_popstr(msg);
+    // source of failing command
+    char *src_string = zmsg_popstr(msg);
+
+    // Check if src_string is a local client
+    if ((ln = hashtable_has_rev_local_node(src_string, 0))) {
+      dd_debug("Source of NODST is local!");
+      char *dot = strchr(dst_string, '.');
+      dest_invalid_rsock(ln->sockid, src_string, dot + 1);
+
+    } else if (dn = hashtable_has_dist_node(src_string)) {
+      dd_debug("Source of NODST is distant!");
+      dest_invalid_rsock(dn->broker, src_string, dst_string);
+    } else {
+      dd_warning("Could not find NODST source, cannot 'raise' error");
+    }
+
+    free(dst_string);
+    free(src_string);
+    break;
+  case DD_ERROR_REGFAIL:
+    dd_debug("Recived ERROR_REGFAIL from higher broker!");
+    char *cli_name = zmsg_popstr(msg);
+    dn = hashtable_has_dist_node(cli_name);
+    ln = hashtable_has_rev_local_node(cli_name, 0);
+    // is cli_name a local client?
+    if ((ln = hashtable_has_rev_local_node(cli_name, 0))) {
+      dd_info(" - Removed local client: %s", ln->prefix_name);
+      int a = remove_subscriptions(ln->sockid);
+      dd_info("   - Removed %d subscriptions", a);
+      hashtable_unlink_local_node(ln->sockid, ln->cookie);
+      hashtable_unlink_rev_local_node(ln->prefix_name);
+      remote_reg_failed(ln->sockid, "remote");
+      zframe_destroy(&ln->sockid);
+      free(ln->prefix_name);
+      free(ln->name);
+      free(ln);
+    } else if (dn = hashtable_has_dist_node(cli_name)) {
+      dd_info(" - Removed distant client: %s", cli_name);
+      remote_reg_failed(dn->broker, cli_name);
+      hashtable_remove_dist_node(cli_name);
+    } else {
+      dd_warning("Could not locate offending client!");
+    }
+    free(cli_name);
+    break;
+  case DD_ERROR_VERSION:
+    dd_error("ERROR_VERSION from higher broker!");
+    break;
+  default:
+    dd_error("Unknown error code from higher broker!");
+    break;
+  }
+  zframe_destroy(&code_frame);
+}
 
 void cmd_cb_addbr(zframe_t *sockid, zmsg_t *msg) {
 #ifdef DEBUG
@@ -226,7 +300,7 @@ void cmd_cb_adddcl(zframe_t *sockid, zframe_t *cookie_frame, zmsg_t *msg) {
 #endif
   uint64_t *cookie = (uint64_t *)zframe_data(cookie_frame);
   if (hashtable_has_local_broker(sockid, *cookie, 0) == NULL) {
-    dd_debug("Got ADDDCL from unregistered broker...");
+    dd_warning("Got ADDDCL from unregistered broker...");
     return;
   }
 
@@ -234,19 +308,24 @@ void cmd_cb_adddcl(zframe_t *sockid, zframe_t *cookie_frame, zmsg_t *msg) {
   char *name = zmsg_popstr(msg);
   zframe_t *dist_frame = zmsg_pop(msg);
   int *dist = (int *)zframe_data(dist_frame);
+  // does name exist in local hashtable?
+  local_client *ln;
 
-  if (dn = hashtable_has_dist_node(name)) {
-    add_cli_up(name, *dist);
-    zframe_destroy(&dn->broker);
-    dn->broker = sockid;
+  if ((ln = hashtable_has_rev_local_node(name, 0))) {
+    dd_info(" - Local client '%s' already exists!", name);
+    remote_reg_failed(sockid, name);
     free(name);
+
+  } else if (dn = hashtable_has_dist_node(name)) {
+    dd_info(" - Remote client '%s' already exists!", name);
+    remote_reg_failed(sockid, name);
+    free(name);
+
   } else {
     hashtable_insert_dist_node(name, sockid, *dist);
     dd_info(" + Dist client added: %s (%d)", name, *dist);
-    // zframe_print(sockid, "brsockid");
     add_cli_up(name, *dist);
   }
-
   zframe_destroy(&dist_frame);
 }
 
@@ -352,6 +431,7 @@ void cmd_cb_challok(zframe_t *sockid, zmsg_t *msg) {
   retval = insert_local_client(sockid, ten, client_name);
   if (retval == -1) {
     // TODO: send error message
+    remote_reg_failed(sockid, "local");
     dd_error("DD_CMD_CHALLOK: Couldn't insert local client!");
     goto cleanup;
     return;
@@ -485,8 +565,8 @@ void cmd_cb_nodst_dsock(zmsg_t *msg) {
   dd_debug("cmd_cb_nodst_dsock called!)");
 
   if ((ln = hashtable_has_rev_local_node(src_string, 0))) {
-    zsock_send(rsock, "fbbbs", ln->sockid, &dd_version, 4, &dd_cmd_error, 4,
-               &dd_error_nodst, 4, dst_string);
+    zsock_send(rsock, "fbbbss", ln->sockid, &dd_version, 4, &dd_cmd_error, 4,
+               &dd_error_nodst, 4, dst_string, src_string);
   } else {
     dd_error("Could not forward NODST message downwards");
   }
@@ -1507,8 +1587,7 @@ int s_on_dealer_msg(zloop_t *loop, zsock_t *handle, void *arg) {
   case DD_CMD_PONG:
     break;
   case DD_CMD_ERROR:
-    // TODO implement regfail and nodst
-    dd_error("Recived error from higher-layer broker, not implemented!");
+    cmd_cb_high_error(msg);
     break;
   default:
     dd_error("Unknown command, value: 0x%x", cmd);
@@ -1669,13 +1748,13 @@ void forward_up(char *src_string, char *dst_string, zmsg_t *msg) {
 }
 
 void dest_invalid_rsock(zframe_t *sockid, char *src_string, char *dst_string) {
-  zsock_send(rsock, "fbbbs", sockid, &dd_version, 4, &dd_cmd_error, 4,
-             &dd_error_nodst, 4, dst_string);
+  zsock_send(rsock, "fbbbss", sockid, &dd_version, 4, &dd_cmd_error, 4,
+             &dd_error_nodst, 4, dst_string, src_string);
 }
 
 void dest_invalid_dsock(char *src_string, char *dst_string) {
   zsock_send(dsock, "bbss", &dd_version, 4, &dd_cmd_error, 4, &dd_error_nodst,
-             4, dst_string);
+             4, dst_string, src_string);
 }
 
 void unreg_cli(zframe_t *sockid, uint64_t cookie) {

@@ -232,7 +232,21 @@ void on_data(char *source, unsigned char *data, int length, void *args) {
 // }
 
 void on_error(int error_code, char* error_message, void* args){
-  printf("Error %d : %s", error_code, error_message);
+  switch(error_code){
+    case DD_ERROR_NODST:
+      printf("Error - no destination: %s\n", error_message);
+      break;
+    case DD_ERROR_REGFAIL:
+      printf("Error - registration failed: %s\n", error_message);
+      break;
+    case DD_ERROR_VERSION:
+      printf("Error - version: %s\n", error_message);
+      break;
+    default:
+      printf("Error - unknown error!\n");
+      break;
+  }
+  fflush(stdout);
 }
 
 int main(int argc, char *argv[]) {

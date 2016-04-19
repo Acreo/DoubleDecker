@@ -100,6 +100,11 @@ int insert_local_client(zframe_t *sockid, ddtenant_t *ten,
   XXH32_update(&hash1, prefix_name, prelen + 1);
   unsigned long int prename = XXH32_digest(&hash1);
 
+  struct dist_node *dn;
+  if (dn = hashtable_has_dist_node(np->prefix_name)) {
+    goto cleanup;
+  }
+
   // Check if already there?
   rcu_read_lock();
   cds_lfht_lookup(lcl_cli_ht, sockid_cookie, match_lcl_node_sockid, sockid,
