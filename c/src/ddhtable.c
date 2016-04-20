@@ -209,12 +209,12 @@ void hashtable_remove_dist_node(char *prefix_name) {
     struct dist_node *mp =
         caa_container_of(ht_node, struct dist_node, node);
     if (ret) {
-      dd_info(" - Distant client %s deleted (concurrently)", mp->name);
+      dd_debug(" - Distant client %s deleted (concurrently)", mp->name);
       rcu_read_unlock();
     } else {
       rcu_read_unlock();
       synchronize_rcu();
-      dd_info(" - Dist client %s deleted", mp->name);
+      dd_debug(" - Dist client %s deleted", mp->name);
       free(mp);
     }
   }

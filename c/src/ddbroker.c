@@ -323,7 +323,7 @@ void cmd_cb_adddcl(zframe_t *sockid, zframe_t *cookie_frame, zmsg_t *msg) {
 
   } else {
     hashtable_insert_dist_node(name, sockid, *dist);
-    dd_info(" + Dist client added: %s (%d)", name, *dist);
+    dd_info(" + Added remote client: %s (%d)", name, *dist);
     add_cli_up(name, *dist);
   }
   zframe_destroy(&dist_frame);
@@ -394,8 +394,8 @@ void cmd_cb_challok(zframe_t *sockid, zmsg_t *msg) {
       const char *pubs_endpoint = zsock_endpoint(pubS);
       const char *subs_endpoint = zsock_endpoint(subS);
 
-      dd_info("pubs_endpoint %s", pubs_endpoint);
-      dd_info("subs_endpoint %s", subs_endpoint);
+      //dd_info("pubs_endpoint %s", pubs_endpoint);
+      //dd_info("subs_endpoint %s", subs_endpoint);
 
       zsock_send(rsock, "fbbbss", sockid, &dd_version, 4, &dd_cmd_regok, 4,
                  &keys->cookie, sizeof(keys->cookie), pubs_endpoint,
