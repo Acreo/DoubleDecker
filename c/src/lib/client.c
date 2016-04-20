@@ -3,8 +3,13 @@
 #include <string.h>
 #include <strings.h>
 #include <czmq.h>
+#include "../config.h"
 #include "dd.h"
 #include "ddkeys.h"
+
+const char *libdd_version(){
+  return PACKAGE_VERSION;
+}
 
 // ///////////////////
 // ///SUBLIST stuff //

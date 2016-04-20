@@ -1,0 +1,28 @@
+// This is the CLI syntax file for DD-Client 
+
+// Show all subscriptions
+show subscriptions
+
+// Show overall status
+show status
+
+// Show loaded keys
+show keys
+
+// Subscribe to topic/scope
+subscribe <STRING:topic> <STRING:scope>
+
+// Unsubscribe to topic/scope
+no subscribe <STRING:topic> <STRING:scope>
+
+// Publish a message on topic
+publish <STRING:topic> <STRING:message>
+
+// Send message to destination 
+notify <STRING:destination> <STRING:message>
+
+// Stop the client
+quit
+
+// Get some help
+help

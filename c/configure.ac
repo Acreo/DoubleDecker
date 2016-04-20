@@ -1,5 +1,8 @@
-AC_INIT([doubledecker], [0.2], [ponsko@acreo.se])
-
+AC_INIT([DoubleDecker],
+    m4_esyscmd_s(echo $(git describe --abbrev=7 --dirty --always --tags || echo "0.4-tgz")),
+    [ponsko@acreo.se],
+    [],
+    [http://acreo.github.io/DoubleDecker/])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 AM_PROG_AR
 AC_PROG_CC
@@ -41,7 +44,7 @@ AC_SEARCH_LIBS([cds_lfht_add], [urcu-cds], [], [
 ])
 
 AC_SEARCH_LIBS([sodium_bin2hex], [sodium], [], [
-  AC_MSG_ERROR([unable to find the sodium_bin2hex function, libsodium installed? ])
+  AC_MSG_ERROR([unable to find the sodium_increment function, libsodium installed? ])
 ])
 
 AC_SEARCH_LIBS([json_tokener_parse], [json], [], [

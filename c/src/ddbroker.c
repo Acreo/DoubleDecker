@@ -42,6 +42,7 @@
 #include <urcu.h>
 #include <zmq.h>
 #include <czmq.h>
+#include "../config.h"
 #include "../include/dd.h"
 #include "../include/broker.h"
 #include "sodium.h"
@@ -2275,6 +2276,8 @@ int main(int argc, char **argv) {
     usage();
     exit(EXIT_FAILURE);
   }
+
+  dd_info("%s - <%s> - %s", PACKAGE_STRING, PACKAGE_BUGREPORT, PACKAGE_URL);  
 
   scope = zlist_new();
   rstrings = zlist_new();
