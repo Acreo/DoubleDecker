@@ -939,20 +939,22 @@ void cmd_cb_sub(zframe_t *sockid, zframe_t *cookie, zmsg_t *msg) {
 
   retval =
       snprintf(ntptr, 256, "%s.%s%s", ln->tenant, topic, (char *)&newscope[0]);
-  dd_info("newtopic = %s, len = %d\n", ntptr, retval);
+  dd_debug("newtopic = %s, len = %d\n", ntptr, retval);
 
   int new = 0;
   // Hashtable
   // subscriptions[sockid(5byte array)] = [topic,topic,topic]
   retval = insert_subscription(sockid, ntptr);
 
-  dd_info("insert_subscription() returned %d", retval);
+  dd_debug("insert_subscription() returned %d", retval);
   if (retval != 0)
     new += 1;
 
-  print_sub_ht();
+#ifdef DEBUG
+   print_sub_ht();
+#endif
 
-  // Trie
+   // Trie
   // topics_trie[newtopic(char*)] = [sockid, sockid, sockid]
   retval = nn_trie_subscribe(&topics_trie, ntptr, strlen(ntptr), sockid, 1);
   // doesn't really matter
