@@ -582,7 +582,7 @@ public class DDClient extends Thread {
     }
 
     private void cmd_cb_pub(ZMsg msg) {
-        log.format("Got message: " + msg);
+     //   log.format("Got message: " + msg);
         String source = msg.popString();
         String topic = msg.popString();
         ZFrame encrypted = msg.pop();
@@ -647,11 +647,11 @@ public class DDClient extends Thread {
     }
 
     private void cmd_cb_pong(ZMsg msg) {
-        // log.format("DD: cmd_cb_pong called\n");
+      //  log.format("DD: cmd_cb_pong called\n");
     }
 
     private void cmd_cb_error(ZMsg msg) {
-        log.format("DD: cmd_cb_error called\n");
+    //    log.format("DD: cmd_cb_error called\n");
         int code = ByteBuffer.wrap(msg.pop().getData()).order(ByteOrder.LITTLE_ENDIAN).getInt();
         String reason = msg.popString();
         switch (code){
@@ -660,9 +660,9 @@ public class DDClient extends Thread {
                 break;
             case ERROR.REGFAIL:
                 callback.error(ERROR.REGFAIL, reason);
-                log.format("DD: Registration failed: " + reason + "\n");
-                log.format("DD: Terminating...\n");
-                shutdown();
+               // log.format("DD: Registration failed: " + reason + "\n");
+               // log.format("DD: Terminating...\n");
+               // shutdown();
                 break;
             case ERROR.VERSION:
                 callback.error(ERROR.VERSION, reason);
@@ -694,7 +694,7 @@ public class DDClient extends Thread {
         REGISTERED,
         UNREG
     }
-    private static class ERROR {
+    public static class ERROR {
         protected final static int REGFAIL  = 1;
         protected final static int NODST  = 2;
         protected final static int VERSION  = 3;

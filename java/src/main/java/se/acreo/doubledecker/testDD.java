@@ -233,6 +233,19 @@ public class testDD implements Observer, DDEvents {
 
     @Override
     public void error(int code, String reason) {
-        System.out.println("ERROR c: " + code + " reason: " + reason);
+        switch (code) {
+            case DDClient.ERROR.NODST:
+                System.out.println("Destination client: " + reason + " is not registered!");
+                break;
+            case DDClient.ERROR.REGFAIL:
+                System.out.println("Registration failed, client with same name is connected " + reason);
+                break;
+            case DDClient.ERROR.VERSION:
+                System.out.println("Fatal error, wrong doubledecker protocol version!");
+                break;
+            default:
+                System.out.println("Unknown error code: " + code + " reason: " + reason);
+                break;
+        }
     }
 }
