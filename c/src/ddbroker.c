@@ -55,6 +55,8 @@
 #include <sys/stat.h>
 #include <err.h>
 #include "../include/trie.h"
+#include <time.h>
+#include <json/json.h>
 
 #define IPC_REGEX "(ipc://)(.+)"
 #define TCP_REGEX "(tcp://[^:]+:)(\\d+)"
@@ -939,14 +941,14 @@ void cmd_cb_sub(zframe_t *sockid, zframe_t *cookie, zmsg_t *msg) {
 
   retval =
       snprintf(ntptr, 256, "%s.%s%s", ln->tenant, topic, (char *)&newscope[0]);
-  dd_debug("newtopic = %s, len = %d\n", ntptr, retval);
+  //  dd_debug("newtopic = %s, len = %d\n", ntptr, retval);
 
   int new = 0;
   // Hashtable
   // subscriptions[sockid(5byte array)] = [topic,topic,topic]
   retval = insert_subscription(sockid, ntptr);
 
-  dd_debug("insert_subscription() returned %d", retval);
+  //dd_debug("insert_subscription() returned %d", retval);
   if (retval != 0)
     new += 1;
 
@@ -961,9 +963,9 @@ void cmd_cb_sub(zframe_t *sockid, zframe_t *cookie, zmsg_t *msg) {
   if (retval == 0) {
     dd_info("topic %s already in trie!", ntptr);
   } else if (retval == 1) {
-    dd_info("new topic %s", ntptr);
+    dd_debug("new topic %s", ntptr);
   } else if (retval == 2) {
-    dd_info("inserted new sockid on topic %s", ntptr);
+    dd_debug("inserted new sockid on topic %s", ntptr);
   }
 
   free(scopestr);
@@ -2072,6 +2074,174 @@ void start_pubsub() {
   assert(rc == 0);
   zloop_reader_set_tolerant(loop, subS);
 }
+#ifdef REST 
+char *zframe_tojson(zframe_t *self, char *buffer);
+json_object * json_stats(int flags){
+  json_object * jobj = json_object_new_object();
+  json_object *jdist_array = json_object_new_array();
+  
+  //iterate through distant clients 
+  struct cds_lfht_iter iter;
+  dist_client *mp;
+  cds_lfht_first(dist_cli_ht, &iter);
+  struct cds_lfht_node *ht_node = cds_lfht_iter_get_node(&iter);
+  while (ht_node != NULL) {
+    mp = caa_container_of(ht_node, dist_client, node);
+    json_object_array_add(jdist_array, json_object_new_string(mp->name));
+    cds_lfht_next(dist_cli_ht, &iter);
+    ht_node = cds_lfht_iter_get_node(&iter);
+  }
+
+  // Iterate through local clients
+  json_object *jlocal_obj = json_object_new_object();
+  local_client *lp;
+  cds_lfht_first(rev_lcl_cli_ht, &iter);
+  ht_node = cds_lfht_iter_get_node(&iter);
+  while (ht_node != NULL) {
+    local_client *lp = caa_container_of(ht_node, local_client, rev_node);
+    char buf[256];
+    json_object *strval = json_object_new_string(lp->prefix_name);
+    json_object_object_add(jlocal_obj,zframe_tojson(lp->sockid, buf),strval);    
+    cds_lfht_next(rev_lcl_cli_ht, &iter);
+    ht_node = cds_lfht_iter_get_node(&iter);
+  }
+  // iterate through brokers
+  json_object *jbr_array = json_object_new_array();
+  local_broker *br;
+  cds_lfht_first(lcl_br_ht, &iter);
+  ht_node = cds_lfht_iter_get_node(&iter);
+  while (ht_node != NULL) {
+    br = caa_container_of(ht_node, local_broker, node);
+    char buf[256];
+    json_object_array_add(jbr_array,json_object_new_string(zframe_tojson(br->sockid, buf)));
+    cds_lfht_next(lcl_br_ht, &iter);
+    ht_node = cds_lfht_iter_get_node(&iter);
+  }
+  
+  void print_zlist_str(zlist_t *list) {
+    if (list == NULL)
+    return;
+  }
+
+  // iterate through subscriptions
+  subscribe_node *sn;
+  json_object * jsub_dict = json_object_new_object();
+  cds_lfht_first(subscribe_ht, &iter);
+  ht_node = cds_lfht_iter_get_node(&iter);
+  while (ht_node != NULL) {
+    sn = caa_container_of(ht_node, subscribe_node, node);
+    json_object *jsub_array = json_object_new_array();
+      if(sn->topics){
+        char *str = zlist_first(sn->topics);
+        while (str) {
+          json_object_array_add(jsub_array,json_object_new_string(str));
+          str = zlist_next(sn->topics);
+        }
+      } else {
+        json_object_array_add(jsub_array,json_object_new_string("empty!"));
+      }
+      char buf[256];
+      json_object_object_add(jsub_dict,zframe_tojson(sn->sockid,buf),jsub_array);
+      cds_lfht_next(subscribe_ht, &iter);
+      ht_node = cds_lfht_iter_get_node(&iter);
+  }
+
+  json_object_object_add(jobj,"brokers",jbr_array);
+  json_object_object_add(jobj,"local", jlocal_obj);
+  json_object_object_add(jobj,"distant", jdist_array);
+  json_object_object_add(jobj,"subs",jsub_dict);
+  return jobj;  
+}
+
+int s_on_http(zloop_t *loop, zsock_t *handle, void *arg) {
+  zmsg_t *msg = zmsg_recv(handle);
+  zframe_t *id = zmsg_pop(msg);
+  zframe_t *data = zmsg_pop(msg);
+  char *http_request = (char*) zframe_data(data);
+  char *http_all = "GET / HTTP/1.1\r\n";
+  char *http_dist = "GET /distant HTTP/1.1\r\n";
+  char *http_local = "GET /local HTTP/1.1\r\n";
+  char *http_sub = "GET /subscriptions HTTP/1.1\r\n";
+  
+
+  int flags = 0;
+#define HTTP_ALL   0b111
+#define HTTP_SUBS  0b001
+#define HTTP_LOCAL 0b010
+#define HTTP_DIST  0b100
+  if(strncmp(http_all, http_request,strlen(http_all))==0){
+    flags |= HTTP_ALL;
+  } else if (strncmp(http_dist, http_request,strlen(http_dist))==0){
+    flags |= HTTP_DIST;
+  } else if (strncmp(http_local, http_request,strlen(http_local))==0){
+    flags |= HTTP_LOCAL;
+  } else if (strncmp(http_sub, http_request,strlen(http_sub))==0){
+    flags |= HTTP_SUBS;
+  }
+
+    if (flags == 0) {
+      dd_error("Got unknown http request %s",strchr(http_request,'\r'));
+      char http_response []  = 
+          "HTTP/1.1 404 Not Found\r\n"
+          "Date: Fri, 22 Apr 2016 19:04:59 GMT\r\n"
+          "Access-Control-Allow-Origin: *\r\n"
+          "Access-Control-Allow-Methods: GET\r\n"
+          "Access-Control-Allow-Headers: Content-Type\r\n"
+          "Content-Type: application/json\r\n"
+          "Server: DoubleDecker\r\n"
+          "\r\n";
+      zsock_send(handle,"fs",id,http_response);
+      zsock_send(handle,"fz",id);    
+    } else {
+      char timebuf[32]; 
+      struct tm tmstruct; 
+      time_t inctime = time(NULL);
+      if(!gmtime_r(&inctime, &tmstruct)) 
+        return -1; 
+      int tlen = strftime(timebuf, 32, "%a, %d %b %Y %T GMT", &tmstruct); 
+      if(tlen <= 0) 
+        return -1; 
+
+      char *http_res;
+      char http_ok[] =  "HTTP/1.1 200 OK\r\n";
+      char http_stat [] =
+          "Access-Control-Allow-Origin: *\r\n"
+          "Access-Control-Allow-Methods: GET\r\n"
+          "Access-Control-Allow-Headers: Content-Type\r\n"
+          "Content-Type: application/json\r\n"
+          "Server: DoubleDecker\r\n"
+          "Connection: close\r\n";
+      json_object *jobj = json_stats(flags);
+      char *json = json_object_to_json_string(jobj);
+      // get rid of json object
+      int retval = asprintf(&http_res,"%s%s\r\n%sContent-Length: %lu\r\n\r\n%s",http_ok,timebuf,http_stat,strlen(json),json);
+      zsock_send(handle,"fs",id,http_res);
+      zsock_send(handle,"fz",id);
+      free(http_res);
+      //free(json);
+      json_object_put(jobj);
+    }
+    zframe_destroy(&id);
+    zframe_destroy(&data);
+    zmsg_destroy(&msg);
+    return 0;  
+}
+
+void start_httpd(){  
+  zsock_t *http = zsock_new(ZMQ_STREAM);
+  int rc = zsock_bind(http, "tcp://*:9080");
+  if(rc == -1){
+    dd_error("Could not initilize HTTP port 9080!");
+    zsock_destroy(&http);
+    return;
+  }
+  
+  rc = zloop_reader(loop, http, s_on_http, NULL);
+  assert(rc == 0);
+  zloop_reader_set_tolerant(loop, http);
+}
+#endif
+
 
 int start_broker(char *router_bind, char *dealer_connect, char *keyfile,
                  int verbose, char *monitor_name) {
@@ -2182,6 +2352,9 @@ int start_broker(char *router_bind, char *dealer_connect, char *keyfile,
   // create and attach the pubsub southbound sockets
   start_pubsub();
 
+  start_httpd();
+  
+  
   zloop_start(loop);
   if (monitor_name)
     zsock_destroy(&msock);
@@ -2234,7 +2407,7 @@ int main(int argc, char **argv) {
       break;
     case 'm':
       monitor_name = optarg;
-      break;
+      break;      
     case '?':
       if (optopt == 'c' || optopt == 's') {
         dd_error("Option -%c requires an argument.", optopt);
