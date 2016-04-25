@@ -1,5 +1,6 @@
 language: c
 sudo: true
+cache: ccache
 
 install:
   - wget https://github.com/zeromq/czmq/archive/v3.0.2.tar.gz
@@ -11,8 +12,6 @@ install:
   - wget https://download.libsodium.org/libsodium/releases/libsodium-1.0.7.tar.gz
   - tar -xvzf libsodium-1.0.7.tar.gz
   - cd libsodium-1.0.7 && ./configure && sudo make install
-
-
   
 compiler:
   - gcc
@@ -22,8 +21,4 @@ before_install:
   - sudo apt-get install -y wget build-essential libtool automake pkg-config libjson0-dev libzmq3-dev
   
 script:
-  - ./c/boot.sh
-  - ./c/configure && make
-  
-after_success:
-  - bash <(curl -s https://codecov.io/bash)
+  - cd c && /boot.sh && ./configure && make
