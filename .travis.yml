@@ -8,6 +8,7 @@ addons:
     apt:
         packages:
         - libjson-c-dev
+        - libjson-c2
 install:
   - wget https://github.com/zeromq/czmq/archive/v3.0.2.tar.gz
   - tar -xzvf v3.0.2.tar.gz
