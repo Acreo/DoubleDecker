@@ -32,7 +32,14 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include "../config.h"
+#ifdef HAVE_JSON_C_JSON_H
 #include <json-c/json.h>
+#elif HAVE_JSON_H
+#include <json.h>
+#elif HAVE_JSON_JSON_H
+#include <json/json.h>
+#endif
 #include "cdecode.h"
 #include <sodium.h>
 #include <string.h>

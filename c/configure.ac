@@ -14,6 +14,15 @@ AC_CONFIG_FILES([
  src/Makefile
 ])
 
+PKG_CHECK_MODULES([json], [json-c],,
+	[PKG_CHECK_MODULES([json], [json],,
+		[PKG_CHECK_MODULES([json], [json0],,
+			[AC_MSG_WARN([No pkg-config for json-c (aka libjson0, libjson)])])])])
+AC_CHECK_LIB([json], [json_object_new_string],,
+	[AC_CHECK_LIB([json-c], [json_object_new_string],,
+		[AC_MSG_ERROR([Cannot find required library: libjson-c (aka libjson0, libjson)])])
+	])
+
 AC_SEARCH_LIBS([zmq_strerror], [zmq], [], [
   AC_MSG_ERROR([unable to find the zmq_strerror() function, libzmq installed?])
 ])
@@ -33,9 +42,13 @@ AC_SEARCH_LIBS([sodium_bin2hex], [sodium], [], [
   AC_MSG_ERROR([unable to find the sodium_increment function, libsodium installed? ])
 ])
 
-AC_SEARCH_LIBS([json_tokener_parse], [json], [], [
-  AC_MSG_ERROR([unable to find the json_tokener_parse function, libjson-c installed? ])
-])
+
+AC_CHECK_HEADERS([json-c/json.h json/json.h json.h])
+
+
+AM_CONDITIONAL([HAVE_JSON_JSON_H],[test "$ac_cv_header_json_json_h" = 'yes'])
+AM_CONDITIONAL([HAVE_JSON_C_JSON_H],[test "$ac_cv_header_json_c_json_h" = 'yes'])
+AM_CONDITIONAL([HAVE_JSON_H],[test "$ac_cv_header_json_h" = 'yes'])
 
 CFLAGS="$CFLAGS -Wno-format-security -rdynamic"
 

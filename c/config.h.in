@@ -6,6 +6,21 @@
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
+/* Define to 1 if you have the <json-c/json.h> header file. */
+#undef HAVE_JSON_C_JSON_H
+
+/* Define to 1 if you have the <json.h> header file. */
+#undef HAVE_JSON_H
+
+/* Define to 1 if you have the <json/json.h> header file. */
+#undef HAVE_JSON_JSON_H
+
+/* Define to 1 if you have the `json' library (-ljson). */
+#undef HAVE_LIBJSON
+
+/* Define to 1 if you have the `json-c' library (-ljson-c). */
+#undef HAVE_LIBJSON_C
+
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
 

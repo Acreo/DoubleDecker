@@ -39,10 +39,10 @@
  * <ponsko@acreo.se> Created: tis mar 10 22:31:03 2015 (+0100)
  * Last-Updated: By:
  */
+#include "../config.h"
 #include <urcu.h>
 #include <zmq.h>
 #include <czmq.h>
-#include "../config.h"
 #include "../include/dd.h"
 #include "../include/broker.h"
 #include "sodium.h"
@@ -56,7 +56,13 @@
 #include <err.h>
 #include "../include/trie.h"
 #include <time.h>
+#ifdef HAVE_JSON_C_JSON_H
+#include <json-c/json.h>
+#elif HAVE_JSON_H
+#include <json.h>
+#elif HAVE_JSON_JSON_H
 #include <json/json.h>
+#endif
 
 #define IPC_REGEX "(ipc://)(.+)"
 #define TCP_REGEX "(tcp://[^:]+:)(\\d+)"
