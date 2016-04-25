@@ -23,4 +23,4 @@ before_install:
   - sudo apt-get install -y wget build-essential libtool automake pkg-config libjson0-dev libzmq3-dev
   
 script:
-  - cd /home/travis/build/Acreo/DoubleDecker/c && /boot.sh && ./configure && make
+  - cd /home/travis/build/Acreo/DoubleDecker/c && ./boot.sh && ./configure && make
