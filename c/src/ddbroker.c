@@ -1335,52 +1335,6 @@ int s_on_pubS_msg(zloop_t *loop, zsock_t *handle, void *arg) {
   return 0;
 }
 
-// get rid of this and use the REST interface instead..
-/*int s_on_monitor_msg(zloop_t *loop, zsock_t *handle, void *arg) {
-  zmsg_t *msg = zmsg_recv(handle);
-#ifdef DEBUG
-  dd_debug("s_on_monitor_msg called");
-  zmsg_print(msg);
-#endif
-
-  if (msg == NULL) {
-    dd_error("zmsg_recv returned NULL");
-    return 0;
-  }
-
-  if (zmsg_size(msg) < 1) {
-    dd_error("monitor message less than 1, error!");
-    zmsg_destroy(&msg);
-    return 0;
-  }
-  char *cmd = zmsg_popstr(msg);
-
-  if (strcmp("subs", cmd) == 0) {
-    dd_debug("############## SUBSCRIPTIONS ###########");
-    print_sub_ht();
-    dd_debug("########################################");
-  } else if (strcmp("trie", cmd) == 0) {
-    dd_debug("############### TRIE ###################");
-    nn_trie_dump(&topics_trie);
-    dd_debug("########################################");
-  } else if (strcmp("clients", cmd) == 0) {
-    dd_debug("############## CLIENTS #################");
-    print_local_ht();
-    print_dist_ht();
-    dd_debug("########################################");
-  } else if (strcmp("brokers", cmd) == 0) {
-    dd_debug("############## BROKERS #################");
-    char buf[256];
-    dd_debug("My broker id: %s", zframe_tostr(broker_id, buf));
-    print_broker_ht();
-    dd_debug("########################################");
-  }
-
-  zsock_send(msock, "z");
-  free(cmd);
-  zmsg_destroy(&msg);
-}
-*/
 
 int s_on_router_msg(zloop_t *loop, zsock_t *handle, void *arg) {
   zmsg_t *msg = zmsg_recv(handle);
@@ -2075,7 +2029,7 @@ void start_pubsub() {
   assert(rc == 0);
   zloop_reader_set_tolerant(loop, subS);
 }
-#ifdef REST
+
 char *zframe_tojson(zframe_t *self, char *buffer);
 json_object *json_stats(int flags) {
   json_object *jobj = json_object_new_object();
@@ -2244,7 +2198,6 @@ void start_httpd() {
   assert(rc == 0);
   zloop_reader_set_tolerant(loop, http);
 }
-#endif
 
 int start_broker(char *router_bind, char *dealer_connect, char *keyfile,
                  int verbose) {

@@ -13,21 +13,6 @@ AC_CONFIG_FILES([
  Makefile
  src/Makefile
 ])
-AC_ARG_ENABLE([foo],
-    AS_HELP_STRING([--disable-foo], [Disable feature foo]))
-
-AS_IF([test "x$enable_foo" != "xno"], [
-  dnl Do the stuff needed for enabling the feature
-])
-
-dnl Example of default-disabled feature
-AC_ARG_ENABLE([rest],
-    AS_HELP_STRING([--enable-rest], [Enable REST interface]))
-    AS_IF([test "x$enable_rest" = "xyes"], [
-     AC_DEFINE([REST], [1],
-            [Enable REST interface.])
-    AM_CONDITIONAL([ENABLE_REST], [test "$enable_rest" = "yes"])
-  ])
 
 AC_SEARCH_LIBS([zmq_strerror], [zmq], [], [
   AC_MSG_ERROR([unable to find the zmq_strerror() function, libzmq installed?])
