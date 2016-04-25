@@ -14,7 +14,10 @@ install:
   - wget https://download.libsodium.org/libsodium/releases/libsodium-1.0.7.tar.gz
   - tar -xvzf libsodium-1.0.7.tar.gz
   - cd libsodium-1.0.7 && ./configure && sudo make install
-  
+  - cd /home/travis/build/Acreo/DoubleDecker
+  - git clone https://github.com/json-c/json-c.git
+  - cd json-c && ./autogen.sh && ./configure --prefix=/usr && make && sudo make install 
+
 compiler:
   - gcc
   
@@ -22,10 +25,36 @@ before_install:
   - sudo apt-get -qq update
   - sudo apt-get install -y wget build-essential libtool automake pkg-config  libzmq3-dev
 
-addons:
-  apt:
-    packages:
-    - libjson-c-dev
-  
 script:
   - cd /home/travis/build/Acreo/DoubleDecker/c && ./boot.sh && ./configure && make
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
