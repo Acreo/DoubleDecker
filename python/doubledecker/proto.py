@@ -58,6 +58,10 @@ S_EXIT = 3
 S_CHALLENGED = 4
 S_REGISTERED = 5
 
+E_REGFAIL = 1
+E_NODST = 2
+E_VERSION = 3
+
 
 # byte packages
 bPROTO_VERSION = int.to_bytes(proto_version, length=4, byteorder='little')

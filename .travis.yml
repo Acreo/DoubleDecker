@@ -2,8 +2,6 @@ language: c
 cache: ccache
 sudo: required
 dist: trusty
-
-
 addons:
     apt:
         packages:
@@ -23,41 +21,9 @@ install:
   - cd libsodium-1.0.7 && ./configure && sudo make install
 compiler:
   - gcc
-  
 before_install:
   - sudo apt-get -qq update
   - sudo apt-get install -y wget build-essential libtool automake pkg-config  libzmq3-dev
-
 script:
   - cd /home/travis/build/Acreo/DoubleDecker/c && ./boot.sh && ./configure && make
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

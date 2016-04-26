@@ -10,6 +10,9 @@ from . import proto as DD
 
 
 class Client(metaclass=abc.ABCMeta):
+    E_REGFAIL = DD.E_REGFAIL
+    E_NODST = DD.E_NODST
+    E_VERSION = DD.E_VERSION
     def __init__(self, name, dealerurl, customer):
         self._ctx = zmq.Context()
         self._IOLoop = zmq.eventloop.ioloop.IOLoop.instance()
@@ -71,7 +74,7 @@ class Client(metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def on_reg(self, src, msg):
+    def on_reg(self):
         pass
 
     @abc.abstractmethod

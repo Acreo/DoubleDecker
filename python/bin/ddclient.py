@@ -84,7 +84,14 @@ class SecureCli(ClientSafe):
         self.update_main_text()
 
     def on_error(self, code, msg):
-        self.add_msg("ERROR n#%d : %s" % (code, msg))
+        if code == ClientSafe.E_REGFAIL:
+            self.add_msg("ERROR - Registration failed, reason: %s" % msg[0])
+        elif code == ClientSafe.E_VERSION:
+            self.add_msg("ERROR - Registration failed, wrong protcol version!")
+        elif code == ClientSafe.E_NODST:
+            self.add_msg("ERROR - No destination: %s"%msg)
+        else:
+            self.add_msg("ERROR - unknwon (%d,%s)"%(code,msg))
 
     def on_pub(self, src, topic, msg):
         msgstr = "PUB %s from %s: %s" % (str(topic), str(src), str(msg))
