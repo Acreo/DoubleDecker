@@ -58,7 +58,7 @@ static void sublist_add(char *topic, char *scope, char active, ddclient_t *dd) {
   // Check if already there, if so update
   // printf("after _first item = %p\n",item);
 
-  while (item = zlistx_next(dd->sublist)) {
+  while ((item = zlistx_next(dd->sublist))) {
     if (strcmp(item->topic, topic) == 0 && strcmp(item->scope, scope) == 0) {
       item->active = active;
       found = 1;
@@ -81,7 +81,7 @@ static void sublist_delete_topic(char *topic, ddclient_t *dd) {
     if (strcmp(item->topic, topic) == 0) {
       zlistx_delete(dd->sublist, item);
     }
-  } while (item = zlistx_next(dd->sublist));
+  } while ((item = zlistx_next(dd->sublist)));
 }
 
 static void sublist_delete(char *topic, char *scope, ddclient_t *dd) {
@@ -94,8 +94,8 @@ static void sublist_delete(char *topic, char *scope, ddclient_t *dd) {
 }
 
 static void sublist_activate(char *topic, char *scope, ddclient_t *dd) {
-  ddtopic_t *item; // = zlistx_first(dd->sublist);
-  while (item = zlistx_next(dd->sublist)) {
+  ddtopic_t *item;
+  while ((item = zlistx_next(dd->sublist))) {
     if (strcmp(item->topic, topic) == 0 && strcmp(item->scope, scope) == 0) {
       item->active = 1;
     }
@@ -104,7 +104,7 @@ static void sublist_activate(char *topic, char *scope, ddclient_t *dd) {
 
 static void sublist_deactivate_all(ddclient_t *dd) {
   ddtopic_t *item;
-  while (item = zlistx_next(dd->sublist)) {
+  while ((item = zlistx_next(dd->sublist))) {
     item->active = 0;
   }
 }
@@ -117,6 +117,8 @@ static void sublist_resubscribe(ddclient_t *dd) {
   }
 }
 
+// TODO: This should be changed to return a copy of the sublist
+// So that library clients can use it
 void sublist_print(ddclient_t *dd) {
   ddtopic_t *item;
   while (item = zlistx_next(dd->sublist)) {
@@ -240,6 +242,7 @@ static int publish(char *topic, char *message, int mlen, ddclient_t *dd) {
                &dd->cookie, sizeof(dd->cookie), topic, ciphertext, enclen);
   }
   free(ciphertext);
+  return 0;
 }
 
 // - Publish between public and other customers not working
@@ -305,6 +308,7 @@ static int notify(char *target, char *message, int mlen, ddclient_t *dd) {
                &dd->cookie, sizeof(dd->cookie), target, ciphertext, enclen);
   }
   free(ciphertext);
+  return 0;
 }
 
 static int ddthread_shutdown(ddclient_t *dd) {
@@ -320,6 +324,7 @@ static int ddthread_shutdown(ddclient_t *dd) {
   if (dd->socket)
     zsock_destroy((zsock_t **)&dd->socket);
   dd->state = DD_STATE_EXIT;
+  return 0;
 }
 
 // ////////////////////////
@@ -335,6 +340,7 @@ static int s_ping(zloop_t *loop, int timerid, void *args) {
   if (dd->state == DD_STATE_REGISTERED)
     zsock_send(dd->socket, "bbb", &dd_version, 4, &dd_cmd_ping, 4, &dd->cookie,
                sizeof(dd->cookie));
+  return 0;
 }
 
 static int s_heartbeat(zloop_t *loop, int timerid, void *args) {
@@ -347,6 +353,7 @@ static int s_heartbeat(zloop_t *loop, int timerid, void *args) {
     sublist_deactivate_all(dd);
     dd->on_discon(dd);
   }
+  return 0;
 }
 
 static int s_ask_registration(zloop_t *loop, int timerid, void *args) {
@@ -771,6 +778,7 @@ void *ddthread(void *args) {
   rc = zloop_reader(dd->loop, dd->socket, s_on_dealer_msg, dd);
   zloop_start(dd->loop);
   zloop_destroy(&dd->loop);
+  return dd;
 }
 
 void dd_actor(zsock_t *pipe, void *args) {

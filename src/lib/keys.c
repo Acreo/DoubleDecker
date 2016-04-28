@@ -132,7 +132,7 @@ void print_ddbrokerkeys(ddbrokerkeys_t *keys) {
   //  printf ("Hash value: \t%s\n", keys->hash);
   printf("Private key: \t%s", sodium_bin2hex(hex, 100, keys->privkey, 32));
   printf("Public key: \t%s", sodium_bin2hex(hex, 100, keys->pubkey, 32));
-  printf("Cookie: \t%llu", (unsigned long long int)keys->cookie);
+  printf("Cookie: \t%lu", (unsigned long long int)keys->cookie);
   printf("Hash:\t\t%s", keys->hash);
 
   printf("Tenants:  %d : ", (int)zlist_size(keys->tenants));

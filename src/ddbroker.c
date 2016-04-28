@@ -87,7 +87,7 @@ mode_t rw_mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
 // timer IDs
 int br_timeout_loop, cli_timeout_loop, heartbeat_loop, reg_loop;
 
-int daemonize= -1;
+int daemonize = -1;
 int state = DD_STATE_UNREG, timeout = 0, verbose = 0;
 struct nn_trie topics_trie;
 // Broker Identity, assigned by higher broker
@@ -2385,7 +2385,8 @@ void load_config(char *configfile) {
       logfile = zconfig_value(child);
     } else if (strncmp(zconfig_name(child), "syslog", strlen("syslog")) == 0) {
       syslog_enabled = zconfig_value(child);
-    } else if (strncmp(zconfig_name(child), "daemonize", strlen("daemonize")) == 0) {
+    } else if (strncmp(zconfig_name(child), "daemonize", strlen("daemonize")) ==
+               0) {
       daemonize = 1;
     } else {
       dd_error("Unknown key in configuration file, \"%s\"",
