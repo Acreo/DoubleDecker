@@ -39,23 +39,23 @@
  * <ponsko@acreo.se> Created: tis mar 10 22:31:03 2015 (+0100)
  * Last-Updated: By:
  */
-#include "../config.h"
-#include <urcu.h>
-#include <zmq.h>
-#include <czmq.h>
 #include "../include/dd.h"
+#include "../config.h"
 #include "../include/broker.h"
-#include "sodium.h"
 #include "../include/ddhtable.h"
 #include "../include/ddlog.h"
+#include "../include/trie.h"
+#include "sodium.h"
+#include <czmq.h>
+#include <err.h>
 #include <execinfo.h>
+#include <fcntl.h>
 #include <signal.h>
 #include <stdlib.h>
-#include <fcntl.h>
 #include <sys/stat.h>
-#include <err.h>
-#include "../include/trie.h"
 #include <time.h>
+#include <urcu.h>
+#include <zmq.h>
 #ifdef HAVE_JSON_C_JSON_H
 #include <json-c/json.h>
 #elif HAVE_JSON_H
@@ -67,18 +67,27 @@
 #define IPC_REGEX "(ipc://)(.+)"
 #define TCP_REGEX "(tcp://[^:]+:)(\\d+)"
 
+// Package these up into
+// ddbroker_config_t:  for initial configuration
+// and  _ddbroker_t_ as the object, returned by ddbroker_new(ddbroker_config_t)
+
 char *broker_scope;
 char *dealer_connect = NULL;
 char *router_bind = NULL;
 char *reststr = NULL;
 char *pub_bind = NULL, *pub_connect = NULL;
 char *sub_bind = NULL, *sub_connect = NULL;
+int loglevel = DD_LOG_INFO;
+char *logfile = NULL;
+char *syslog_enabled = NULL;
+
 char nonce[crypto_box_NONCEBYTES];
 ddbrokerkeys_t *keys;
 mode_t rw_mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
 // timer IDs
 int br_timeout_loop, cli_timeout_loop, heartbeat_loop, reg_loop;
 
+int daemonize= -1;
 int state = DD_STATE_UNREG, timeout = 0, verbose = 0;
 struct nn_trie topics_trie;
 // Broker Identity, assigned by higher broker
@@ -94,7 +103,6 @@ void print_ddbrokerkeys(ddbrokerkeys_t *keys);
 void dest_invalid_rsock(zframe_t *sockid, char *src_string, char *dst_string);
 void dest_invalid_dsock(char *src_string, char *dst_string);
 
-int loglevel = DD_LOG_INFO;
 void handler(int sig) {
   void *array[10];
   size_t size;
@@ -1341,7 +1349,6 @@ int s_on_pubS_msg(zloop_t *loop, zsock_t *handle, void *arg) {
   return 0;
 }
 
-
 int s_on_router_msg(zloop_t *loop, zsock_t *handle, void *arg) {
   zmsg_t *msg = zmsg_recv(handle);
 
@@ -1842,12 +1849,12 @@ void print_ddbrokerkeys(ddbrokerkeys_t *keys) {
 
 void stop_program(int sig) {
   dd_debug("Stop program called");
-  if(http != NULL)
+  if (http != NULL)
     zsock_destroy(&http);
+  zsock_destroy(&pubS);
 
   zsock_destroy(&rsock);
   zsock_destroy(&dsock);
-  zsock_destroy(&pubS);
   zsock_destroy(&pubN);
   zsock_destroy(&subS);
   zsock_destroy(&subN);
@@ -1873,6 +1880,7 @@ void usage() {
          "-l <loglevel> e:ERROR,w:WARNING,n:NOTICE,i:INFO,d:DEBUG,q:QUIET\n"
          "-w <rest addr> open a REST socket at <rest addr>, eg tcp://*:8080\n"
          "-f <config file> read config from config file\n"
+         "-D  daemonize\n"
          "-v [verbose]\n"
          "-h [help]\n");
 }
@@ -2221,8 +2229,6 @@ int start_broker(char *router_bind, char *dealer_connect, char *keyfile,
   randombytes_buf(nonce, crypto_box_NONCEBYTES);
 
   zframe_t *f;
-  signal(SIGTERM, stop_program);
-  signal(SIGINT, stop_program);
   // needs to be called for each thread using RCU lib
   rcu_register_thread();
 
@@ -2300,20 +2306,44 @@ int start_broker(char *router_bind, char *dealer_connect, char *keyfile,
   // create and attach the pubsub southbound sockets
   start_pubsub();
 
-  if(reststr != NULL)
+  if (reststr != NULL)
     start_httpd();
 
   zloop_start(loop);
 
-  if(http != NULL)
-    zsock_destroy(&http);
-        
-  zsock_destroy(&dsock);
-  zsock_destroy(&rsock);
+  zloop_destroy(&loop);
+  if (http)
+    zsock_set_linger(http, 0);
+  if (pubS)
+    zsock_set_linger(pubS, 0);
+  if (pubN)
+    zsock_set_linger(pubN, 0);
+  if (subS)
+    zsock_set_linger(subS, 0);
+  if (subN)
+    zsock_set_linger(subN, 0);
+  if (dsock)
+    zsock_set_linger(dsock, 0);
+  if (rsock)
+    zsock_set_linger(rsock, 0);
+
+  zsock_destroy(&http);
   zsock_destroy(&pubS);
   zsock_destroy(&pubN);
   zsock_destroy(&subS);
   zsock_destroy(&subN);
+  zsock_destroy(&dsock);
+  zsock_destroy(&rsock);
+  dd_info("Destroyed all open sockets, waiting a second..");
+  // TODO:
+  // Weird bug here, if run in interactive mode and killed with ctrl-c
+  // All IPC unix domain socket files seems to be removed just fine
+  // However, running in daemonized mode and killed with killall (sigterm)
+  // unix socket files are sometimes left. sleeping a second here seems
+  // to fix it.. some background threads that dont have time to finish properly?
+  sleep(1);
+  zsys_shutdown();
+  return 1;
 }
 char *keyfile = NULL;
 char *scopestr = NULL;
@@ -2321,7 +2351,7 @@ char *logstr = "i";
 
 void load_config(char *configfile) {
   zconfig_t *root = zconfig_load(configfile);
-  if(root == NULL){
+  if (root == NULL) {
     dd_error("Could not read configuration file \"%s\"\n", configfile);
     exit(EXIT_FAILURE);
   }
@@ -2332,11 +2362,11 @@ void load_config(char *configfile) {
     } else if (strncmp(zconfig_name(child), "scope", strlen("scope")) == 0) {
       scopestr = zconfig_value(child);
     } else if (strncmp(zconfig_name(child), "router", strlen("router")) == 0) {
-      if(router_bind == NULL){
+      if (router_bind == NULL) {
         router_bind = zconfig_value(child);
       } else {
         char *new_router_bind;
-        asprintf(&new_router_bind,"%s,%s",router_bind, zconfig_value(child));
+        asprintf(&new_router_bind, "%s,%s", router_bind, zconfig_value(child));
         // free(router_bind);
         // can't free here since router_bind may be set by getopt - optarg
         // we'll loose some memory for every asprintf..
@@ -2344,10 +2374,19 @@ void load_config(char *configfile) {
       }
     } else if (strncmp(zconfig_name(child), "rest", strlen("rest")) == 0) {
       reststr = zconfig_value(child);
-    } else if (strncmp(zconfig_name(child), "loglevel", strlen("loglevel")) == 0) {
+    } else if (strncmp(zconfig_name(child), "loglevel", strlen("loglevel")) ==
+               0) {
       logstr = zconfig_value(child);
-    } else if (strncmp(zconfig_name(child), "keyfile", strlen("keyfile")) == 0) {
-      keyfile = zconfig_value(child);      
+    } else if (strncmp(zconfig_name(child), "keyfile", strlen("keyfile")) ==
+               0) {
+      keyfile = zconfig_value(child);
+    } else if (strncmp(zconfig_name(child), "logfile", strlen("logfile")) ==
+               0) {
+      logfile = zconfig_value(child);
+    } else if (strncmp(zconfig_name(child), "syslog", strlen("syslog")) == 0) {
+      syslog_enabled = zconfig_value(child);
+    } else if (strncmp(zconfig_name(child), "daemonize", strlen("daemonize")) == 0) {
+      daemonize = 1;
     } else {
       dd_error("Unknown key in configuration file, \"%s\"",
                zconfig_name(child));
@@ -2363,9 +2402,8 @@ int main(int argc, char **argv) {
 
   void *ctx = zsys_init();
   zsys_set_logident("DD");
-  nn_trie_init(&topics_trie);
   opterr = 0;
-  while ((c = getopt(argc, argv, "d:r:l:k:s:vhm:f:w:")) != -1)
+  while ((c = getopt(argc, argv, "d:r:l:k:s:vhm:f:w:D")) != -1)
     switch (c) {
     case 'd':
       dealer_connect = optarg;
@@ -2375,6 +2413,9 @@ int main(int argc, char **argv) {
       break;
     case 'v':
       verbose = 1;
+      break;
+    case 'D':
+      daemonize = 1;
       break;
     case 'h':
       usage();
@@ -2412,28 +2453,35 @@ int main(int argc, char **argv) {
       abort();
     }
 
-  if (strncmp(logstr, "e", 1) == 0) {
-    printf("setting loglevel error\n");
-    loglevel = DD_LOG_ERROR;
-  } else if (strncmp(logstr, "w", 1) == 0) {
-    printf("setting loglevel WARNING\n");
-    loglevel = DD_LOG_WARNING;
-  } else if (strncmp(logstr, "n", 1) == 0) {
-    printf("setting loglevel NOTICE\n");
-    loglevel = DD_LOG_NOTICE;
-  } else if (strncmp(logstr, "i", 1) == 0) {
-    printf("setting loglevel INFO\n");
-    loglevel = DD_LOG_INFO;
-  } else if (strncmp(logstr, "d", 1) == 0) {
-    printf("setting loglevel DEBUG\n");
-    loglevel = DD_LOG_DEBUG;
-  } else if (strncmp(logstr, "q", 1) == 0) {
-    printf("setting loglevel NONE\n");
-    loglevel = DD_LOG_NONE;
-  }
-
   if (configfile != NULL) {
     load_config(configfile);
+  }
+
+  if (strncmp(logstr, "e", 1) == 0) {
+    loglevel = DD_LOG_ERROR;
+  } else if (strncmp(logstr, "w", 1) == 0) {
+    loglevel = DD_LOG_WARNING;
+  } else if (strncmp(logstr, "n", 1) == 0) {
+    loglevel = DD_LOG_NOTICE;
+  } else if (strncmp(logstr, "i", 1) == 0) {
+    loglevel = DD_LOG_INFO;
+  } else if (strncmp(logstr, "d", 1) == 0) {
+    loglevel = DD_LOG_DEBUG;
+  } else if (strncmp(logstr, "q", 1) == 0) {
+    loglevel = DD_LOG_NONE;
+  }
+  if (logfile) {
+    FILE *logfp = fopen(logfile, "w+");
+    if (logfp) {
+      zsys_set_logstream(logfp);
+    } else {
+      dd_error("Couldn't open logfile %s", logfile);
+      exit(EXIT_FAILURE);
+    }
+  }
+  if (syslog) {
+    dd_info("Logging to syslog..");
+    zsys_set_logsystem(true);
   }
   if (keyfile == NULL) {
     dd_error("Keyfile required (-k <file>>)\n");
@@ -2446,11 +2494,15 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
 
+  if (daemonize == 1) {
+    daemon(0, 0);
+  }
+  nn_trie_init(&topics_trie);
   dd_info("%s - <%s> - %s", PACKAGE_STRING, PACKAGE_BUGREPORT, PACKAGE_URL);
   // if no router in config or as cli, set default
-  if(router_bind == NULL)
+  if (router_bind == NULL)
     router_bind = "tcp://*:5555";
-  
+
   scope = zlist_new();
   rstrings = zlist_new();
   char *str1, *str2, *token, *subtoken;
@@ -2497,10 +2549,6 @@ int main(int argc, char **argv) {
   }
   broker_scope = &brokerscope[0];
   dd_debug("broker scope set to: %s", broker_scope);
-
-  signal(SIGSEGV, handler); // install our handler
-  signal(SIGINT, handler);  // install our handler
-  signal(SIGABRT, handler); // install our handler
 
   start_broker(router_bind, dealer_connect, keyfile, verbose);
 }
