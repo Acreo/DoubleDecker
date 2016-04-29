@@ -1,12 +1,6 @@
 language: c
 cache: ccache
 sudo: false
-dist: trusty
-addons:
-    apt:
-        packages:
-        - libjson-c-dev
-        - libjson-c2
 install:
   - wget https://github.com/zeromq/czmq/archive/v3.0.2.tar.gz
   - tar -xzvf v3.0.2.tar.gz
@@ -23,7 +17,7 @@ compiler:
   - gcc
 before_install:
   - sudo apt-get -qq update
-  - sudo apt-get install -y wget build-essential libtool automake pkg-config  libzmq3-dev
+  - sudo apt-get install -y wget build-essential libtool automake pkg-config  libzmq3-dev libjson-c2 libjson-c-dev
 script:
   - cd /home/travis/build/Acreo/DoubleDecker && ./boot.sh && ./configure && make
 
