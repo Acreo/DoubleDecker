@@ -48,20 +48,17 @@ static int match_lcl_node_sockid(struct cds_lfht_node *ht_node,
                 zframe_size(key)) == 0;
 }
 
-static int match_lcl_broker(struct cds_lfht_node *ht_node,
-                            const void *_key) {
+static int match_lcl_broker(struct cds_lfht_node *ht_node, const void *_key) {
 
   local_broker *node = caa_container_of(ht_node, local_broker, node);
-  zframe_t *key = _key;
+  zframe_t *key = (zframe_t *)_key;
 
   return memcmp(zframe_data(node->sockid), zframe_data(key),
                 zframe_size(key)) == 0;
 }
 
-static int match_dist_node(struct cds_lfht_node *ht_node,
-                           const void *_key) {
-  struct dist_node *node =
-      caa_container_of(ht_node, struct dist_node, node);
+static int match_dist_node(struct cds_lfht_node *ht_node, const void *_key) {
+  struct dist_node *node = caa_container_of(ht_node, struct dist_node, node);
   const char *key = _key;
   return (strncmp(node->name, key, strlen(key)) == 0);
 }
@@ -70,8 +67,7 @@ static int match_dist_node(struct cds_lfht_node *ht_node,
 // sockid + cookie -> data || NULL  (local_cli / registered_client)
 // "tenant.client_name" -> data || NULL (reverse_local_cli)
 // any more?
-int insert_local_client(zframe_t *sockid, ddtenant_t *ten,
-                        char *client_name) {
+int insert_local_client(zframe_t *sockid, ddtenant_t *ten, char *client_name) {
   XXH32_state_t hash1;
   char prefix_name[MAXTENANTNAME];
   struct cds_lfht_iter iter;
@@ -83,8 +79,8 @@ int insert_local_client(zframe_t *sockid, ddtenant_t *ten,
   np->tenant = ten->name;
   np->name = strdup(client_name);
 
-  int prelen = snprintf(prefix_name, MAXTENANTNAME, "%s.%s", ten->name,
-                        client_name);
+  int prelen =
+      snprintf(prefix_name, MAXTENANTNAME, "%s.%s", ten->name, client_name);
 
   dd_debug("insert_local_client: prefix_name %s", prefix_name);
   np->prefix_name = strdup(prefix_name);
@@ -101,7 +97,7 @@ int insert_local_client(zframe_t *sockid, ddtenant_t *ten,
   unsigned long int prename = XXH32_digest(&hash1);
 
   struct dist_node *dn;
-  if (dn = hashtable_has_dist_node(np->prefix_name)) {
+  if ((dn = hashtable_has_dist_node(np->prefix_name))) {
     goto cleanup;
   }
 
@@ -117,8 +113,8 @@ int insert_local_client(zframe_t *sockid, ddtenant_t *ten,
     goto cleanup;
   }
 
-  cds_lfht_lookup(rev_lcl_cli_ht, prename, match_lcl_node_prename,
-                  prefix_name, &iter);
+  cds_lfht_lookup(rev_lcl_cli_ht, prename, match_lcl_node_prename, prefix_name,
+                  &iter);
   ht_node = cds_lfht_iter_get_node(&iter);
   if (ht_node) {
     rcu_read_unlock();
@@ -206,8 +202,7 @@ void hashtable_remove_dist_node(char *prefix_name) {
     rcu_read_unlock();
   } else {
     int ret = cds_lfht_del(dist_cli_ht, ht_node);
-    struct dist_node *mp =
-        caa_container_of(ht_node, struct dist_node, node);
+    struct dist_node *mp = caa_container_of(ht_node, struct dist_node, node);
     if (ret) {
       dd_debug(" - Distant client %s deleted (concurrently)", mp->name);
       rcu_read_unlock();
@@ -239,8 +234,7 @@ struct dist_node *hashtable_has_dist_node(char *prefix_name) {
 /*
  * distant node stuff
  */
-void hashtable_insert_dist_node(char *prefix_name, zframe_t *sockid,
-                                int dist) {
+void hashtable_insert_dist_node(char *prefix_name, zframe_t *sockid, int dist) {
   // add to has table
   dist_client *mp = malloc(sizeof(dist_client));
   int hash = XXH32(prefix_name, strlen(prefix_name), XXHSEED);
@@ -267,8 +261,7 @@ local_broker *hashtable_has_local_broker(zframe_t *sockid, uint64_t cookie,
   unsigned long int sockid_cookie = XXH32_digest(&hash1);
 
   rcu_read_lock();
-  cds_lfht_lookup(lcl_br_ht, sockid_cookie, match_lcl_broker, sockid,
-                  &iter);
+  cds_lfht_lookup(lcl_br_ht, sockid_cookie, match_lcl_broker, sockid, &iter);
   struct cds_lfht_node *ht_node = cds_lfht_iter_get_node(&iter);
   rcu_read_unlock();
   if (ht_node) {
@@ -311,8 +304,8 @@ local_client *hashtable_has_rev_local_node(char *prefix_name, int update) {
   dd_debug("hashtable_has_rev_local_node\nprefix_name: %s hash: %lu",
            prefix_name, prename);
   rcu_read_lock();
-  cds_lfht_lookup(rev_lcl_cli_ht, prename, match_lcl_node_prename,
-                  prefix_name, &iter);
+  cds_lfht_lookup(rev_lcl_cli_ht, prename, match_lcl_node_prename, prefix_name,
+                  &iter);
   struct cds_lfht_node *ht_node = cds_lfht_iter_get_node(&iter);
   rcu_read_unlock();
   if (ht_node) {
@@ -362,8 +355,8 @@ void hashtable_unlink_rev_local_node(char *prefix_name) {
   dd_debug("hashtable_has_rev_local_node\nprefix_name: %s hash: %lu",
            prefix_name, prename);
   rcu_read_lock();
-  cds_lfht_lookup(rev_lcl_cli_ht, prename, match_lcl_node_prename,
-                  prefix_name, &iter);
+  cds_lfht_lookup(rev_lcl_cli_ht, prename, match_lcl_node_prename, prefix_name,
+                  &iter);
   struct cds_lfht_node *ht_node = cds_lfht_iter_get_node(&iter);
   if (!ht_node) {
     dd_debug("hashtable_unlink_rev_local_node: Local key %s not found ",
@@ -505,8 +498,8 @@ int remove_subscriptions(zframe_t *sockid) {
     char *oldtopic;
     while (topic) {
 
-      nn_trie_unsubscribe(&topics_trie, (uint8_t *)topic, strlen(topic),
-                          sockid, 1);
+      nn_trie_unsubscribe(&topics_trie, (uint8_t *)topic, strlen(topic), sockid,
+                          1);
       oldtopic = topic;
       topic = zlist_next(sn->topics);
       free(oldtopic);
@@ -622,8 +615,7 @@ char *zframe_tostr(zframe_t *self, char *buffer) {
   }
   for (char_nbr = 0; char_nbr < size; char_nbr++) {
     if (is_bin)
-      sprintf(buffer + strlen(buffer), "%02X",
-              (unsigned char)data[char_nbr]);
+      sprintf(buffer + strlen(buffer), "%02X", (unsigned char)data[char_nbr]);
     else
       sprintf(buffer + strlen(buffer), "%c", data[char_nbr]);
   }
@@ -654,8 +646,7 @@ char *zframe_tojson(zframe_t *self, char *buffer) {
   }
   for (char_nbr = 0; char_nbr < size; char_nbr++) {
     if (is_bin)
-      sprintf(buffer + strlen(buffer), "%02X",
-              (unsigned char)data[char_nbr]);
+      sprintf(buffer + strlen(buffer), "%02X", (unsigned char)data[char_nbr]);
     else
       sprintf(buffer + strlen(buffer), "%c", data[char_nbr]);
   }

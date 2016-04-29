@@ -66,8 +66,7 @@ local_client *hashtable_has_rev_local_node(char *prefix_name, int update);
 local_client *hashtable_has_local_node(zframe_t *sockid, zframe_t *cookie,
                                        int update);
 void hashtable_insert_local_broker(zframe_t *sockid, uint64_t cookie);
-void hashtable_insert_dist_node(char *prefix_name, zframe_t *sockid,
-                                int dist);
+void hashtable_insert_dist_node(char *prefix_name, zframe_t *sockid, int dist);
 void hashtable_remove_local_broker(char *source);
 void hashtable_unlink_rev_local_node(char *prefix_name);
 void hashtable_unlink_local_node(zframe_t *sockid, uint64_t cookie);

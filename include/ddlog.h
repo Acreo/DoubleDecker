@@ -10,24 +10,24 @@
 // logging
 extern int loglevel;
 
-#define dd_error(...)                                                     \
-  if (loglevel >= DD_LOG_ERROR)                                           \
+#define dd_error(...)                                                          \
+  if (loglevel >= DD_LOG_ERROR)                                                \
     zsys_error(__VA_ARGS__);
 
-#define dd_warning(...)                                                   \
-  if (loglevel >= DD_LOG_WARNING)                                         \
+#define dd_warning(...)                                                        \
+  if (loglevel >= DD_LOG_WARNING)                                              \
     zsys_warning(__VA_ARGS__);
 
-#define dd_notice(...)                                                    \
-  if (loglevel >= DD_LOG_NOTICE)                                          \
+#define dd_notice(...)                                                         \
+  if (loglevel >= DD_LOG_NOTICE)                                               \
     zsys_notice(__VA_ARGS__);
 
-#define dd_info(...)                                                      \
-  if (loglevel >= DD_LOG_INFO)                                            \
+#define dd_info(...)                                                           \
+  if (loglevel >= DD_LOG_INFO)                                                 \
     zsys_error(__VA_ARGS__);
 
-#define dd_debug(...)                                                     \
-  if (loglevel >= DD_LOG_DEBUG)                                           \
+#define dd_debug(...)                                                          \
+  if (loglevel >= DD_LOG_DEBUG)                                                \
     zsys_error(__VA_ARGS__);
 
 #endif

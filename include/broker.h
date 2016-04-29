@@ -39,22 +39,20 @@
 #include <stdint.h>
 #include "ddhtable.h"
 
-
 // particular message types
 void cmd_cb_addlcl(zframe_t *source, zmsg_t *msg);
 void cmd_cb_adddcl(zframe_t *sockid, zframe_t *cookie_frame, zmsg_t *msg);
 void cmd_cb_addbr(zframe_t *source, zmsg_t *msg);
 void cmd_cb_unreg_cli(zframe_t *source_frame, zframe_t *cookie_frame,
-                zmsg_t *msg);
+                      zmsg_t *msg);
 void cmd_cb_chall(zmsg_t *msg);
 void cmd_cb_challok(zframe_t *source, zmsg_t *msg);
 void cmd_cb_unreg_dist_cli(zframe_t *sockid, zframe_t *cookie_frame,
-                zmsg_t *msg);
+                           zmsg_t *msg);
 void cmd_cb_unreg_br(char *name, zmsg_t *msg);
 void cmd_cb_forward(zframe_t *sockid, zframe_t *cookie_frame, zmsg_t *msg);
 
 void cmd_cb_ping(zframe_t *source, zframe_t *cookie);
-//void cmd_cb_nodst(zmsg_t *msg);
 void cmd_cb_error(zmsg_t *msg);
 void cmd_cb_regok(zmsg_t *msg);
 void cmd_cb_send(zframe_t *source, zframe_t *cookie, zmsg_t *msg);
@@ -89,6 +87,6 @@ extern int verbose;
 void start_pubsub();
 int start_broker(char *, char *, char *, int);
 char *str_replace(const char *string, const char *substr,
-                const char *replacement);
+                  const char *replacement);
 
 #endif
