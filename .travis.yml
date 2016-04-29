@@ -1,6 +1,6 @@
 language: c
 cache: ccache
-sudo: required
+sudo: false
 dist: trusty
 addons:
     apt:
