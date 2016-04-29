@@ -39,7 +39,10 @@
  * <ponsko@acreo.se> Created: tis mar 10 22:31:03 2015 (+0100)
  * Last-Updated: By:
  */
+#define _GNU_SOURCE
 #include "../include/dd.h"
+#include "../include/dd_classes.h"
+#include "../include/protocol.h"
 #include "../config.h"
 #include "../include/broker.h"
 #include "../include/ddhtable.h"
@@ -53,6 +56,8 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <sys/stat.h>
+#include <string.h>
+#include <stdio.h>
 #include <time.h>
 #include <urcu.h>
 #include <zmq.h>
@@ -180,7 +185,7 @@ void cmd_cb_high_error(zmsg_t *msg) {
       char *dot = strchr(dst_string, '.');
       dest_invalid_rsock(ln->sockid, src_string, dot + 1);
 
-    } else if (dn = hashtable_has_dist_node(src_string)) {
+    } else if ((dn = hashtable_has_dist_node(src_string))) {
       dd_debug("Source of NODST is distant!");
       dest_invalid_rsock(dn->broker, src_string, dst_string);
     } else {
@@ -207,7 +212,7 @@ void cmd_cb_high_error(zmsg_t *msg) {
       free(ln->prefix_name);
       free(ln->name);
       free(ln);
-    } else if (dn = hashtable_has_dist_node(cli_name)) {
+    } else if ((dn = hashtable_has_dist_node(cli_name))) {
       dd_info(" - Removed distant client: %s", cli_name);
       remote_reg_failed(dn->broker, cli_name);
       hashtable_remove_dist_node(cli_name);
@@ -249,13 +254,13 @@ void cmd_cb_addbr(zframe_t *sockid, zmsg_t *msg) {
   unsigned char *ciphertext = dest; // dest+crypto_box_NONCEBYTES;
 
   // increment nonce
-  sodium_increment(nonce, crypto_box_NONCEBYTES);
+  sodium_increment((unsigned char *)nonce, crypto_box_NONCEBYTES);
   memcpy(dest, nonce, crypto_box_NONCEBYTES);
 
   dest += crypto_box_NONCEBYTES;
-  int retval =
-      crypto_box_easy_afternm(dest, (unsigned char *)&keys->cookie,
-                              sizeof(keys->cookie), nonce, keys->ddboxk);
+  int retval = crypto_box_easy_afternm(dest, (unsigned char *)&keys->cookie,
+                                       sizeof(keys->cookie),
+                                       (unsigned char *)nonce, keys->ddboxk);
 
   retval = zsock_send(rsock, "fbbbf", sockid, &dd_version, 4, &dd_cmd_chall, 4,
                       ciphertext, enclen, sockid);
@@ -293,12 +298,13 @@ void cmd_cb_addlcl(zframe_t *sockid, zmsg_t *msg) {
   unsigned char *ciphertext = dest; // dest+crypto_box_NONCEBYTES;
 
   // increment nonce
-  sodium_increment(nonce, crypto_box_NONCEBYTES);
+  sodium_increment((unsigned char *)nonce, crypto_box_NONCEBYTES);
   memcpy(dest, nonce, crypto_box_NONCEBYTES);
 
   dest += crypto_box_NONCEBYTES;
-  int retval = crypto_box_easy_afternm(dest, (unsigned char *)&ten->cookie,
-                                       sizeof(ten->cookie), nonce, ten->boxk);
+  int retval = crypto_box_easy_afternm(
+      dest, (unsigned char *)&ten->cookie, sizeof(ten->cookie),
+      (unsigned char *)nonce, (const unsigned char *)ten->boxk);
 
   retval = zsock_send(rsock, "fbbb", sockid, &dd_version, 4, &dd_cmd_chall, 4,
                       ciphertext, enclen);
@@ -333,7 +339,7 @@ void cmd_cb_adddcl(zframe_t *sockid, zframe_t *cookie_frame, zmsg_t *msg) {
     remote_reg_failed(sockid, name);
     free(name);
 
-  } else if (dn = hashtable_has_dist_node(name)) {
+  } else if ((dn = hashtable_has_dist_node(name))) {
     dd_info(" - Remote client '%s' already exists!", name);
     remote_reg_failed(sockid, name);
     free(name);
@@ -491,7 +497,7 @@ void cmd_cb_forward_dsock(zmsg_t *msg) {
   struct dist_node *dn;
   local_client *ln;
 
-  if (ln = hashtable_has_rev_local_node(dst, 0)) {
+  if ((ln = hashtable_has_rev_local_node(dst, 0))) {
     if ((srcpublic && !dstpublic) || (!srcpublic && dstpublic)) {
       dd_debug("Forward_dsock, not stripping tenant %s", src);
       forward_locally(ln->sockid, src, msg);
@@ -500,7 +506,7 @@ void cmd_cb_forward_dsock(zmsg_t *msg) {
       char *dot = strchr(src, '.');
       forward_locally(ln->sockid, dot + 1, msg);
     }
-  } else if (dn = hashtable_has_dist_node(dst)) {
+  } else if ((dn = hashtable_has_dist_node(dst))) {
     forward_down(src, dst, dn->broker, msg);
   } else if (state == DD_STATE_ROOT) {
     dest_invalid_dsock(src, dst);
@@ -553,7 +559,7 @@ void cmd_cb_forward_rsock(zframe_t *sockid, zframe_t *cookie_frame,
       char *dot = strchr(src_string, '.');
       forward_locally(ln->sockid, dot + 1, msg);
     }
-  } else if (dn = hashtable_has_dist_node(dst_string)) {
+  } else if ((dn = hashtable_has_dist_node(dst_string))) {
     forward_down(src_string, dst_string, dn->broker, msg);
   } else if (state == DD_STATE_ROOT) {
     dest_invalid_rsock(sockid, src_string, dst_string);
@@ -653,7 +659,8 @@ void cmd_cb_pub(zframe_t *sockid, zframe_t *cookie, zmsg_t *msg) {
     zsock_send(pubS, "ssfm", pubtopic, name, broker_id_null, msg);
   }
 
-  zlist_t *socks = nn_trie_tree(&topics_trie, pubtopic, strlen(pubtopic));
+  zlist_t *socks =
+      nn_trie_tree(&topics_trie, (const uint8_t *)pubtopic, strlen(pubtopic));
 
   if (socks != NULL) {
     zframe_t *s = zlist_first(socks);
@@ -849,7 +856,7 @@ void cmd_cb_send(zframe_t *sockid, zframe_t *cookie, zmsg_t *msg) {
     } else {
       forward_locally(ln->sockid, src_string, msg);
     }
-  } else if (dn = hashtable_has_dist_node(dst_string)) {
+  } else if ((dn = hashtable_has_dist_node(dst_string))) {
     dd_debug("calling forward down");
     forward_down(src_string, dst_string, dn->broker, msg);
   } else if (state == DD_STATE_ROOT) {
@@ -968,7 +975,8 @@ void cmd_cb_sub(zframe_t *sockid, zframe_t *cookie, zmsg_t *msg) {
 
   // Trie
   // topics_trie[newtopic(char*)] = [sockid, sockid, sockid]
-  retval = nn_trie_subscribe(&topics_trie, ntptr, strlen(ntptr), sockid, 1);
+  retval = nn_trie_subscribe(&topics_trie, (const uint8_t *)ntptr,
+                             strlen(ntptr), sockid, 1);
   // doesn't really matter
   if (retval == 0) {
     dd_info("topic %s already in trie!", ntptr);
@@ -1064,7 +1072,7 @@ void cmd_cb_unreg_dist_cli(zframe_t *sockid, zframe_t *cookie_frame,
   char *name = zmsg_popstr(msg);
   dd_debug("trying to remove distant client: %s", name);
 
-  if (dn = hashtable_has_dist_node(name)) {
+  if ((dn = hashtable_has_dist_node(name))) {
     dd_info(" - Removed distant client: %s", name);
     hashtable_remove_dist_node(name);
     del_cli_up(name);
@@ -1199,7 +1207,8 @@ int s_on_subN_msg(zloop_t *loop, zsock_t *handle, void *arg) {
 
   dd_debug("pubtopic: %s source: %s", pubtopic, name);
   // zframe_print(pathv, "pathv: ");
-  zlist_t *socks = nn_trie_tree(&topics_trie, pubtopic, strlen(pubtopic));
+  zlist_t *socks =
+      nn_trie_tree(&topics_trie, (const uint8_t *)pubtopic, strlen(pubtopic));
 
   if (socks != NULL) {
     zframe_t *s = zlist_first(socks);
@@ -1247,7 +1256,8 @@ int s_on_subS_msg(zloop_t *loop, zsock_t *handle, void *arg) {
 
   dd_debug("pubtopic: %s source: %s", pubtopic, name);
   // zframe_print(pathv, "pathv: ");
-  zlist_t *socks = nn_trie_tree(&topics_trie, pubtopic, strlen(pubtopic));
+  zlist_t *socks =
+      nn_trie_tree(&topics_trie, (const uint8_t *)pubtopic, strlen(pubtopic));
 
   if (socks != NULL) {
     zframe_t *s = zlist_first(socks);
@@ -1299,12 +1309,12 @@ int s_on_pubN_msg(zloop_t *loop, zsock_t *handle, void *arg) {
 
   if (topic[0] == 1) {
     dd_info(" + Got subscription for: %s", &topic[1]);
-    nn_trie_add_sub_north(&topics_trie, &topic[1],
+    nn_trie_add_sub_north(&topics_trie, (const uint8_t *)&topic[1],
                           zframe_size(topic_frame) - 1);
   }
   if (topic[0] == 0) {
     dd_info(" - Got unsubscription for: %s", &topic[1]);
-    nn_trie_del_sub_north(&topics_trie, &topic[1],
+    nn_trie_del_sub_north(&topics_trie, (const uint8_t *)&topic[1],
                           zframe_size(topic_frame) - 1);
   }
 
@@ -1329,12 +1339,12 @@ int s_on_pubS_msg(zloop_t *loop, zsock_t *handle, void *arg) {
 
   if (topic[0] == 1) {
     dd_info(" + Got subscription for: %s", &topic[1]);
-    nn_trie_add_sub_south(&topics_trie, &topic[1],
+    nn_trie_add_sub_south(&topics_trie, (const uint8_t *)&topic[1],
                           zframe_size(topic_frame) - 1);
   }
   if (topic[0] == 0) {
     dd_info(" - Got unsubscription for: %s", &topic[1]);
-    nn_trie_del_sub_south(&topics_trie, &topic[1],
+    nn_trie_del_sub_south(&topics_trie, (const uint8_t *)&topic[1],
                           zframe_size(topic_frame) - 1);
   }
 
@@ -1626,6 +1636,7 @@ int s_check_cli_timeout(zloop_t *loop, int timer_fd, void *arg) {
     ht_node = cds_lfht_iter_get_node(&iter);
   };
   rcu_read_unlock();
+  return 0;
 }
 
 int s_check_br_timeout(zloop_t *loop, int timer_fd, void *arg) {
@@ -1664,6 +1675,7 @@ int s_check_br_timeout(zloop_t *loop, int timer_fd, void *arg) {
     ht_node = cds_lfht_iter_get_node(&iter);
     rcu_read_unlock();
   }
+  return 0;
 }
 
 /* helper functions */
@@ -2088,11 +2100,6 @@ json_object *json_stats(int flags) {
     ht_node = cds_lfht_iter_get_node(&iter);
   }
 
-  void print_zlist_str(zlist_t * list) {
-    if (list == NULL)
-      return;
-  }
-
   // iterate through subscriptions
   subscribe_node *sn;
   json_object *jsub_dict = json_object_new_object();
@@ -2183,14 +2190,13 @@ int s_on_http(zloop_t *loop, zsock_t *handle, void *arg) {
                        "Server: DoubleDecker\r\n"
                        "Connection: close\r\n";
     json_object *jobj = json_stats(flags);
-    char *json = json_object_to_json_string(jobj);
+    const char *json = json_object_to_json_string(jobj);
     // get rid of json object
     int retval = asprintf(&http_res, "%s%s\r\n%sContent-Length: %lu\r\n\r\n%s",
                           http_ok, timebuf, http_stat, strlen(json), json);
     zsock_send(handle, "fs", id, http_res);
     zsock_send(handle, "fz", id);
     free(http_res);
-    // free(json);
     json_object_put(jobj);
   }
   zframe_destroy(&id);
@@ -2480,7 +2486,7 @@ int main(int argc, char **argv) {
       exit(EXIT_FAILURE);
     }
   }
-  if (syslog) {
+  if (syslog_enabled) {
     dd_info("Logging to syslog..");
     zsys_set_logsystem(true);
   }

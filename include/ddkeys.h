@@ -94,6 +94,5 @@ typedef struct tenantsinfo {
 
 ddkeystate_t *read_ddkeys(char *filename, char *customer);
 ddbrokerkeys_t *read_ddbrokerkeys(char *filename);
-void print_ddkeystate(ddkeystate_t *keys);
 void free_ddkeystate(ddkeystate_t *keys);
 #endif

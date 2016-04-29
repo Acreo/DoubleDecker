@@ -32,22 +32,28 @@
 #include "cparser_tree.h"
 #include "dd.h"
 
-static ddclient_t *client;
+static dd_t *client;
 
 cparser_result_t
 
 cparser_cmd_show_subscriptions(cparser_context_t *context) {
   printf("List of subscriptions:\n");
-  sublist_print(client);
+  const zlistx_t *subs = dd_get_subscriptions(client);
+  ddtopic_t *item;
+  while ((item = zlistx_next((zlistx_t*)subs))) {
+    printf("Topic: %s Scope: %s Active: %d\n", dd_sub_get_topic(item),dd_sub_get_scope(item),
+           dd_sub_get_active(item));
+  }
+
   return CPARSER_OK;
 }
 
 cparser_result_t cparser_cmd_show_status(cparser_context_t *context) {
-  if (client->state == DD_STATE_UNREG) {
+  if (dd_get_state(client) == DD_STATE_UNREG) {
     printf("DoubleDecker client: UNREGISTRED\n");
-  } else if (client->state == DD_STATE_REGISTERED) {
+  } else if (dd_get_state(client) == DD_STATE_REGISTERED) {
     printf("DoubleDecker client: REGISTRED\n");
-  } else if (client->state == DD_STATE_CHALLENGED) {
+  } else if (dd_get_state(client) == DD_STATE_CHALLENGED) {
     printf("DoubleDecker client: AUTHENTICATING\n");
   } else {
     printf("DoubleDecker client: UNKNOWN!\n");
@@ -56,30 +62,19 @@ cparser_result_t cparser_cmd_show_status(cparser_context_t *context) {
 }
 
 cparser_result_t cparser_cmd_show_keys(cparser_context_t *context) {
-  char hex[100];
-  printf("Keys read from: %s\n", client->keyfile);
+  printf("Keys read from: %s\n", dd_get_keyfile(client));
+  char *privkey = dd_get_privkey(client);
+  printf("Private key: \t%s\n", privkey);
+  free(privkey);
+  char *pubkey = dd_get_pubkey(client);
+  printf("Public key: \t%s\n", pubkey);
+  free(pubkey);
+  char *publickey = dd_get_publickey(client);
+  printf("Pub public key: \t%s\n", publickey);
+  free(pubkey);
 
-  printf("Private key: \t%s\n",
-      sodium_bin2hex(hex, 100, client->keys->privkey,
-        crypto_box_SECRETKEYBYTES));
-  printf("Public key: \t%s\n",
-      sodium_bin2hex(hex, 100, client->keys->pubkey,
-        crypto_box_PUBLICKEYBYTES));
-  printf("Pub public key: \t%s\n",
-      sodium_bin2hex(hex, 100, client->keys->publicpubkey,
-        crypto_box_PUBLICKEYBYTES));
-
-  printf("Pub shared key: \t%s\n",
-      sodium_bin2hex(hex, 100, client->keys->pubboxk,
-        crypto_box_BEFORENMBYTES));
-  printf("Broker shared key: \t%s\n",
-      sodium_bin2hex(hex, 100, client->keys->ddboxk,
-        crypto_box_BEFORENMBYTES));
-  printf("Tenant shared key: \t%s\n",
-      sodium_bin2hex(hex, 100, client->keys->custboxk,
-        crypto_box_BEFORENMBYTES));
-
-  zlist_t *precalc = zhash_keys(client->keys->clientkeys);
+  /*
+   zlist_t *precalc = zhash_keys(client->keys->clientkeys);
   unsigned char *sharedk;
   char *k = NULL;
   k = zlist_first(precalc);
@@ -91,60 +86,60 @@ cparser_result_t cparser_cmd_show_keys(cparser_context_t *context) {
     }
     k = zlist_next(precalc);
   }
-
+  */
   return CPARSER_OK;
 }
 
-cparser_result_t
-cparser_cmd_subscribe_topic_scope(cparser_context_t *context,
-    char **topic_ptr, char **scope_ptr) {
+cparser_result_t cparser_cmd_subscribe_topic_scope(cparser_context_t *context,
+                                                   char **topic_ptr,
+                                                   char **scope_ptr) {
   char *topic;
   char *scope;
   if (topic_ptr)
     topic = *topic_ptr;
   else {
     printf("error: subscribe 'topic' 'ALL/REGION/CLUSTER/NODE/NOSCOPE, "
-        "1/2/3'\n");
+           "1/2/3'\n");
     return CPARSER_NOT_OK;
   }
   if (scope_ptr)
     scope = *scope_ptr;
   else {
     printf("error: subscribe 'topic' 'ALL/REGION/CLUSTER/NODE/NOSCOPE, "
-        "1/2/3'\n");
+           "1/2/3'\n");
     return CPARSER_NOT_OK;
   }
-  client->subscribe(topic, scope, client);
+  dd_subscribe(client, topic, scope);
   return CPARSER_OK;
 }
 
 cparser_result_t
 cparser_cmd_no_subscribe_topic_scope(cparser_context_t *context,
-    char **topic_ptr, char **scope_ptr) {
+                                     char **topic_ptr, char **scope_ptr) {
   char *topic;
   char *scope;
   if (topic_ptr)
     topic = *topic_ptr;
   else {
     printf("error: no subscribe 'topic' 'ALL/REGION/CLUSTER/NODE/NOSCOPE, "
-        "1/2/3'\n");
+           "1/2/3'\n");
     return CPARSER_NOT_OK;
   }
   if (scope_ptr)
     scope = *scope_ptr;
   else {
     printf("error: no subscribe 'topic' 'ALL/REGION/CLUSTER/NODE/NOSCOPE, "
-        "1/2/3'\n");
+           "1/2/3'\n");
     return CPARSER_NOT_OK;
   }
-  client->unsubscribe(topic, scope, client);
+  dd_unsubscribe(client, topic, scope);
 
   return CPARSER_OK;
 }
 
-cparser_result_t
-cparser_cmd_publish_topic_message(cparser_context_t *context,
-    char **topic_ptr, char **message_ptr) {
+cparser_result_t cparser_cmd_publish_topic_message(cparser_context_t *context,
+                                                   char **topic_ptr,
+                                                   char **message_ptr) {
   char *topic;
   char *message;
   if (topic_ptr)
@@ -160,14 +155,12 @@ cparser_cmd_publish_topic_message(cparser_context_t *context,
     return CPARSER_NOT_OK;
   }
   // +1 for \0 in strlen
-  client->publish(topic, message, strlen(message) , client);
+  dd_publish(client, topic, message, strlen(message));
   return CPARSER_OK;
 }
 
-cparser_result_t
-cparser_cmd_notify_destination_message(cparser_context_t *context,
-    char **destination_ptr,
-    char **message_ptr) {
+cparser_result_t cparser_cmd_notify_destination_message(
+    cparser_context_t *context, char **destination_ptr, char **message_ptr) {
   char *destination;
   char *message;
   if (destination_ptr)
@@ -182,14 +175,13 @@ cparser_cmd_notify_destination_message(cparser_context_t *context,
     printf("error: notify 'destination' 'message'\n");
     return CPARSER_NOT_OK;
   }
-  // +1 for \0 in strlen
-  client->notify(destination, message, strlen(message), client);
+  dd_notify(client, destination, message, strlen(message));
 
   return CPARSER_OK;
 }
 
 cparser_result_t cparser_cmd_quit(cparser_context_t *context) {
-  client->shutdown(client);
+  dd_destroy(&client);
   cparser_quit(context->parser);
   return CPARSER_OK;
 }
@@ -201,50 +193,44 @@ cparser_result_t cparser_cmd_help(cparser_context_t *context) {
 
 // callback functions
 void on_reg(void *args) {
-  ddclient_t *dd = (ddclient_t *)args;
-  printf("\nRegistered with broker %s!\n", dd->endpoint);
+  dd_t *dd = (dd_t *)args;
+  printf("\nRegistered with broker %s!\n", dd_get_endpoint(dd));
   fflush(stdout);
 }
 
 void on_discon(void *args) {
-  ddclient_t *dd = (ddclient_t *)args;
-  printf("\nGot disconnected from broker %s!\n", dd->endpoint);
+  dd_t *dd = (dd_t *)args;
+  printf("\nGot disconnected from broker %s!\n", dd_get_endpoint(dd));
   fflush(stdout);
 }
 
 void on_pub(char *source, char *topic, unsigned char *data, int length,
-    void *args) {
-  ddclient_t *dd = (ddclient_t *)args;
+            void *args) {
+  dd_t *dd = (dd_t *)args;
   printf("\nPUB S: %s T: %s L: %d D: '%s'", source, topic, length, data);
   fflush(stdout);
 }
 
 void on_data(char *source, unsigned char *data, int length, void *args) {
-  ddclient_t *dd = (ddclient_t *)args;
+  dd_t *dd = (dd_t *)args;
   printf("\nDATA S: %s L: %d D: '%s'", source, length, data);
   fflush(stdout);
 }
 
-// void on_nodst(char *source, void *args) {
-//         ddclient_t *dd = (ddclient_t *)args;
-//         printf("\nNODST T: %s", source);
-//         fflush(stdout);
-// }
-
-void on_error(int error_code, char* error_message, void* args){
-  switch(error_code){
-    case DD_ERROR_NODST:
-      printf("Error - no destination: %s\n", error_message);
-      break;
-    case DD_ERROR_REGFAIL:
-      printf("Error - registration failed: %s\n", error_message);
-      break;
-    case DD_ERROR_VERSION:
-      printf("Error - version: %s\n", error_message);
-      break;
-    default:
-      printf("Error - unknown error!\n");
-      break;
+void on_error(int error_code, char *error_message, void *args) {
+  switch (error_code) {
+  case DD_ERROR_NODST:
+    printf("Error - no destination: %s\n", error_message);
+    break;
+  case DD_ERROR_REGFAIL:
+    printf("Error - registration failed: %s\n", error_message);
+    break;
+  case DD_ERROR_VERSION:
+    printf("Error - version: %s\n", error_message);
+    break;
+  default:
+    printf("Error - unknown error!\n");
+    break;
   }
   fflush(stdout);
 }
@@ -258,39 +244,39 @@ int main(int argc, char *argv[]) {
   char *rndstr;
   int index;
   int c;
-  char *keyfile=NULL;
-  char *connect_to=NULL;
-  char *customer=NULL;
-  char *client_name=NULL;
+  char *keyfile = NULL;
+  char *connect_to = NULL;
+  char *customer = NULL;
+  char *client_name = NULL;
 
   opterr = 0;
 
   while ((c = getopt(argc, argv, "c:d:k:n:")) != -1) {
     switch (c) {
-      case 'k':
-        keyfile = optarg;
-        break;
-      case 'd':
-        connect_to = optarg;
-        break;
-      case 'c':
-        customer = optarg;
-        break;
-      case 'n':
-        client_name = optarg;
-        break;
-      default:
-        abort();
+    case 'k':
+      keyfile = optarg;
+      break;
+    case 'd':
+      connect_to = optarg;
+      break;
+    case 'c':
+      customer = optarg;
+      break;
+    case 'n':
+      client_name = optarg;
+      break;
+    default:
+      abort();
     }
   }
   if (client_name == NULL || customer == NULL || keyfile == NULL ||
       connect_to == NULL) {
     printf("usage: client -c <customer> -k <keyfile> -n <name> -d "
-        "<tcp/ipc url>\n");
+           "<tcp/ipc url>\n");
     return 1;
   }
-  client = start_ddthread(1, client_name, customer, connect_to, keyfile,
-      on_reg, on_discon, on_data, on_pub, on_error);
+  client = dd_new(client_name, customer, connect_to, keyfile, on_reg, on_discon,
+                  on_data, on_pub, on_error);
   if (client == NULL) {
     printf("DD initialization failed!\n");
     return -1;

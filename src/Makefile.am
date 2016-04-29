@@ -2,7 +2,7 @@ AUTOMAKE_OPTIONS = subdir-objects
 AM_CPPFLAGS = -I$(top_srcdir)/include
 
 lib_LTLIBRARIES = libdd.la
-libdd_la_SOURCES = lib/protocol.c lib/client.c lib/keys.c lib/b64/cdecode.c
+libdd_la_SOURCES = lib/protocol.c lib/client.c lib/keys.c lib/b64/cdecode.c lib/sublist.c
 libdd_la_LDFLAGS = -version-info 0:3:0 -L/usr/local/lib
 
 bin_PROGRAMS = ddperf ddbroker ddclient ddbug  actor_test
