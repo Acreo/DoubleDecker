@@ -285,7 +285,7 @@ int zlist_has_sockid(zlist_t *self, zframe_t *sockid) {
   zframe_t *tmp;
   tmp = (zframe_t *)zlist_first(self);
   while (tmp) {
-    if (zframe_eq(sockid, self))
+    if (zframe_eq(sockid, tmp))
       return 1;
 
     tmp = zlist_next(self);
@@ -823,16 +823,20 @@ int nn_node_has_subscribers(struct nn_trie_node *node) {
 int nn_trie_add_sub_north(struct nn_trie *self, const uint8_t *data,
                           size_t size) {
   dd_error("TODO: nn_trie_add_sub_north\n");
+  return -1;
 }
 int nn_trie_del_sub_north(struct nn_trie *self, const uint8_t *data,
                           size_t size) {
   dd_error("TODO: nn_trie_del_sub_north\n");
+  return -1;
 }
 int nn_trie_add_sub_south(struct nn_trie *self, const uint8_t *data,
                           size_t size) {
   dd_error("TODO: nn_trie_add_sub_south\n");
+  return -1;
 }
 int nn_trie_del_sub_south(struct nn_trie *self, const uint8_t *data,
                           size_t size) {
   dd_error("TODO: nn_trie_del_sub_south\n");
+  return -1;
 }
