@@ -15,7 +15,7 @@ struct _dd_t {
   void *pipe;
   int verbose;                //  Print activity to stdout
   unsigned char *endpoint;    //  Broker binds to this endpoint
-  unsigned char *customer;    //  Our customer id
+  //  unsigned char *customer;    //  Our customer id
   unsigned char *keyfile;     // JSON file with pub/priv keys
   unsigned char *client_name; // This client name
   int timeout;                // Incremental timeout (trigger > 3)
@@ -23,7 +23,7 @@ struct _dd_t {
   int registration_loop;      // Timer ID for registration loop
   int heartbeat_loop;         // Timer ID for heartbeat loop
   uint64_t cookie;            // Cookie from authentication
-  struct ddkeystate *keys;    // Encryption keys loaded from JSON file
+  dd_keys_t *keys;    // Encryption keys loaded from JSON file
   zlistx_t *sublist;          // List of subscriptions, and if they're active
   zloop_t *loop;
   int style;
@@ -57,21 +57,21 @@ const char *dd_get_keyfile(dd_t *self) { return (const char *)self->keyfile; }
 
 char *dd_get_privkey(dd_t *self) {
   char *hex = malloc(100);
-  sodium_bin2hex(hex, 100, self->keys->privkey, crypto_box_SECRETKEYBYTES);
+  sodium_bin2hex(hex, 100, dd_keys_priv(self->keys), crypto_box_SECRETKEYBYTES);
   return hex;
 }
 char *dd_get_pubkey(dd_t *self) {
   assert(self);
   char *hex = malloc(100);
   assert(hex);
-  sodium_bin2hex(hex, 100, self->keys->pubkey, crypto_box_PUBLICKEYBYTES);
+  sodium_bin2hex(hex, 100, dd_keys_pub(self->keys), crypto_box_PUBLICKEYBYTES);
   return hex;
 }
 char *dd_get_publickey(dd_t *self) {
   assert(self);
   char *hex = malloc(100);
   assert(hex);
-  sodium_bin2hex(hex, 100, self->keys->publicpubkey, crypto_box_PUBLICKEYBYTES);
+  sodium_bin2hex(hex, 100, dd_keys_publicpub(self->keys), crypto_box_PUBLICKEYBYTES);
   return hex;
 }
 
@@ -128,7 +128,7 @@ int dd_unsubscribe(dd_t *self, char *topic, char *scope) {
 }
 
 int dd_publish(dd_t *self, char *topic, char *message, int mlen) {
-  unsigned char *precalck = NULL;
+  const unsigned char *precalck = NULL;
   int srcpublic = 0;
   int dstpublic = 0;
   int retval;
@@ -136,7 +136,7 @@ int dd_publish(dd_t *self, char *topic, char *message, int mlen) {
   // printf ("dd->publish called t: %s m: %s l: %d\n", topic, message,
   // mlen);
 
-  if (streq((const char *)self->customer, "public")) {
+  if (dd_keys_ispublic(self->keys)) {
     srcpublic = 1;
   }
   if (strncmp("public.", topic, strlen("public.")) == 0) {
@@ -146,7 +146,7 @@ int dd_publish(dd_t *self, char *topic, char *message, int mlen) {
   char *dot = strchr(topic, '.');
   if (dot && srcpublic) {
     *dot = '\0';
-    precalck = zhash_lookup(self->keys->clientkeys, topic);
+    precalck = zhash_lookup(dd_keys_clients(self->keys), topic);
     if (precalck) {
       //	printf("encrypting with tenant key: %s\n",topic);
       // TODO: This is not allowed by the broker
@@ -157,10 +157,10 @@ int dd_publish(dd_t *self, char *topic, char *message, int mlen) {
     *dot = '.';
   }
   if (!precalck && !dstpublic) {
-    precalck = self->keys->custboxk;
+    precalck = dd_keys_custboxk(self->keys);
     //      printf ("encrypting with my own key\n");
   } else if (dstpublic) {
-    precalck = self->keys->pubboxk;
+    precalck = dd_keys_pubboxk(self->keys);
     //    printf("encrypting with public key\n");
   }
 
@@ -195,13 +195,12 @@ int dd_publish(dd_t *self, char *topic, char *message, int mlen) {
   return 0;
 }
 
-// - Publish between public and other customers not working
 int dd_notify(dd_t *self, char *target, char *message, int mlen) {
   unsigned char *precalck = NULL;
   int srcpublic = 0;
   int dstpublic = 0;
 
-  if (streq((const char *)self->customer, "public")) {
+  if (dd_keys_ispublic(self->keys)) {
     srcpublic = 1;
   }
   if (strncmp("public.", target, strlen("public.")) == 0) {
@@ -216,17 +215,17 @@ int dd_notify(dd_t *self, char *target, char *message, int mlen) {
   int retval;
   if (dot && srcpublic) {
     *dot = '\0';
-    precalck = zhash_lookup(self->keys->clientkeys, target);
+    precalck = zhash_lookup(dd_keys_clients(self->keys), target);
     if (precalck) {
       /* printf("encrypting with tenant key: %s\n",target); */
     }
     *dot = '.';
   }
   if (!precalck && !dstpublic) {
-    precalck = self->keys->custboxk;
+    precalck = dd_keys_custboxk(self->keys);
     /* printf ("encrypting with my own key\n"); */
   } else if (dstpublic) {
-    precalck = self->keys->pubboxk;
+    precalck = dd_keys_pubboxk(self->keys);
     /* printf("encrypting with public key\n"); */
   }
 
@@ -328,8 +327,7 @@ static int s_ask_registration(zloop_t *loop, int timerid, void *args) {
       return -1;
     }
     zloop_reader(loop, self->socket, s_on_dealer_msg, self);
-    struct ddkeystate *k = self->keys;
-    zsock_send(self->socket, "bbs", &dd_version, 4, &dd_cmd_addlcl, 4, k->hash);
+    zsock_send(self->socket, "bbs", &dd_version, 4, &dd_cmd_addlcl, 4, (char*)dd_keys_hash(self->keys));
   }
   return 0;
 }
@@ -374,7 +372,7 @@ static void cb_chall(dd_t *self, zmsg_t *msg) {
 
   retval = crypto_box_open_easy_afternm(decrypted, data + crypto_box_NONCEBYTES,
                                         enclen - crypto_box_NONCEBYTES, data,
-                                        self->keys->ddboxk);
+                                        dd_keys_ddboxk(self->keys));
   if (retval != 0) {
     fprintf(stderr, "Unable to decrypt CHALLENGE from broker\n");
     return;
@@ -383,7 +381,7 @@ static void cb_chall(dd_t *self, zmsg_t *msg) {
   zsock_send(self->socket, "bbfss", &dd_version, 4, &dd_cmd_challok, 4,
              zframe_new(decrypted,
                         enclen - crypto_box_NONCEBYTES - crypto_box_MACBYTES),
-             self->keys->hash, self->client_name);
+             dd_keys_hash(self->keys), self->client_name);
 }
 
 static void cb_data(dd_t *self, zmsg_t *msg) {
@@ -399,7 +397,7 @@ static void cb_data(dd_t *self, zmsg_t *msg) {
   char *dot = strchr(source, '.');
   if (dot) {
     *dot = '\0';
-    precalck = zhash_lookup(self->keys->clientkeys, source);
+    precalck = zhash_lookup(dd_keys_clients(self->keys), source);
     if (precalck) {
       // printf("decrypting with tenant key:%s\n", source);
     }
@@ -408,10 +406,10 @@ static void cb_data(dd_t *self, zmsg_t *msg) {
 
   if (!precalck) {
     if (strncmp("public.", source, strlen("public.")) == 0) {
-      precalck = self->keys->pubboxk;
+      precalck = dd_keys_pubboxk(self->keys);
       //	printf("decrypting with public tenant key\n");
     } else {
-      precalck = self->keys->custboxk;
+      precalck = dd_keys_custboxk(self->keys);
       //      printf("decrypting with my own key\n");
     }
   }
@@ -440,11 +438,11 @@ static void cb_pub(dd_t *self, zmsg_t *msg) {
   int mlen = enclen - crypto_box_NONCEBYTES - crypto_box_MACBYTES;
   unsigned char *decrypted = calloc(1, mlen);
 
-  unsigned char *precalck = NULL;
+  const unsigned char *precalck = NULL;
   char *dot = strchr(source, '.');
   if (dot) {
     *dot = '\0';
-    precalck = zhash_lookup(self->keys->clientkeys, source);
+    precalck = zhash_lookup(dd_keys_clients(self->keys), source);
     if (precalck) {
       //	printf("decrypting with tenant key:%s\n", source);
     }
@@ -452,10 +450,10 @@ static void cb_pub(dd_t *self, zmsg_t *msg) {
   }
   if (!precalck) {
     if (strncmp("public.", source, strlen("public.")) == 0) {
-      precalck = self->keys->pubboxk;
+      precalck = dd_keys_pubboxk(self->keys);
       //	printf("decrypting with public tenant key\n");
     } else {
-      precalck = self->keys->custboxk;
+      precalck = dd_keys_custboxk(self->keys);
       //      printf("decrypting with my own key\n");
     }
   }
@@ -713,12 +711,14 @@ void *ddthread(void *args) {
     return NULL;
   }
 
-  self->keys = read_ddkeys((char *)self->keyfile, (char *)self->customer);
+  self->keys = dd_keys_new(self->keyfile);
   if (self->keys == NULL) {
     fprintf(stderr, "DD: Error reading keyfile!\n");
     return NULL;
   }
 
+  //  printf("Loaded keys, hash: %s\n", dd_keys_hash(self->keys));
+  
   self->sublist = zlistx_new();
   zlistx_set_destructor(self->sublist, (czmq_destructor *)sublist_free);
   zlistx_set_duplicator(self->sublist, (czmq_duplicator *)sublist_dup);
@@ -759,7 +759,7 @@ void dd_actor(zsock_t *pipe, void *args) {
     return;
   }
 
-  self->keys = read_ddkeys((char *)self->keyfile, (char *)self->customer);
+  self->keys = dd_keys_new(self->keyfile);
   if (self->keys == NULL) {
     fprintf(stderr, "DD: Error reading keyfile!\n");
     zsock_send(self->pipe, "ss", "$TERM", "Missing keyfile");
@@ -785,12 +785,11 @@ void dd_actor(zsock_t *pipe, void *args) {
   zsock_destroy(&pipe);
 }
 
-zactor_t *ddactor_new(char *client_name, char *customer, char *endpoint,
+zactor_t *ddactor_new(char *client_name, char *endpoint,
                       char *keyfile) {
   dd_t *self = malloc(sizeof(dd_t));
   self->style = DD_ACTOR;
   self->client_name = (unsigned char *)strdup(client_name);
-  self->customer = (unsigned char *)strdup(customer);
   self->endpoint = (unsigned char *)strdup(endpoint);
   self->keyfile = (unsigned char *)strdup(keyfile);
   self->timeout = 0;
@@ -815,13 +814,12 @@ zactor_t *ddactor_new(char *client_name, char *customer, char *endpoint,
   return actor;
 }
 
-dd_t *dd_new(char *client_name, char *customer, char *endpoint, char *keyfile,
+dd_t *dd_new(char *client_name,  char *endpoint, char *keyfile,
              dd_con con, dd_discon discon, dd_data data, dd_pub pub,
              dd_error error) {
   dd_t *self = malloc(sizeof(dd_t));
   self->style = DD_CALLBACK;
   self->client_name = (unsigned char *)strdup(client_name);
-  self->customer = (unsigned char *)strdup(customer);
   self->endpoint = (unsigned char *)strdup(endpoint);
   self->keyfile = (unsigned char *)strdup(keyfile);
   self->timeout = 0;
@@ -836,13 +834,13 @@ dd_t *dd_new(char *client_name, char *customer, char *endpoint, char *keyfile,
   return self;
 }
 
-static void print_ddkeystate(ddkeystate_t *keys) {
+static void dd_keys_print(dd_keys_t *keys) {
   char *hex = malloc(100);
-  printf("Hash value: \t%s", keys->hash);
-  printf("Private key: \t%s", sodium_bin2hex(hex, 100, keys->privkey, 32));
-  printf("Public key: \t%s", sodium_bin2hex(hex, 100, keys->pubkey, 32));
-  printf("DDPublic key: \t%s", sodium_bin2hex(hex, 100, keys->ddpubkey, 32));
+  printf("Hash value: \t%s", dd_keys_hash(keys));
+  printf("Private key: \t%s", sodium_bin2hex(hex, 100, dd_keys_priv(keys), 32));
+  printf("Public key: \t%s", sodium_bin2hex(hex, 100, dd_keys_pub(keys), 32));
+  printf("DDPublic key: \t%s", sodium_bin2hex(hex, 100, dd_keys_ddpub(keys), 32));
   printf("PublicPub key: \t%s",
-         sodium_bin2hex(hex, 100, keys->publicpubkey, 32));
+         sodium_bin2hex(hex, 100, dd_keys_publicpub(keys), 32));
   free(hex);
 }

@@ -85,7 +85,7 @@ void stop_program(int sig);
 void usage(void);
 extern int verbose;
 void start_pubsub();
-int start_broker(char *, char *, char *, int);
+int start_broker(char *, char *, char *);
 char *str_replace(const char *string, const char *substr,
                   const char *replacement);
 

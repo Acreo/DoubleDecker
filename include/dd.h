@@ -71,10 +71,12 @@ typedef struct _dd_t dd_t;
 // subscribed topics
 typedef struct _ddtopic_t ddtopic_t;
 
-CZMQ_EXPORT dd_t *dd_new(char *client_name, char *customer, char *endpoint,
+typedef struct _dd_keys_t dd_keys_t;
+
+  CZMQ_EXPORT dd_t *dd_new(char *client_name,  char *endpoint,
                          char *keyfile, dd_con con, dd_discon discon,
                          dd_data data, dd_pub pub, dd_error error);
-CZMQ_EXPORT zactor_t *ddactor_new(char *client_name, char *customer,
+CZMQ_EXPORT zactor_t *ddactor_new(char *client_name,
                                   char *endpoint, char *keyfile);
 
 CZMQ_EXPORT const char *dd_get_version();
@@ -99,3 +101,11 @@ CZMQ_EXPORT char dd_sub_get_active(ddtopic_t *sub);
 #ifdef __cplusplus
 }
 #endif
+
+
+
+
+
+
+
+

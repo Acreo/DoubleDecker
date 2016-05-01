@@ -46,30 +46,7 @@
 #include <sodium.h>
 #include <czmq.h>
 
-typedef struct ddkeystate {
-  // crypto_box_PUBLICKEYBYTES / crypto_box_SECRETKEYBYTES
-  // 32U arrays
-  // Public key of "public" tenant
-  unsigned char *publicpubkey;
-  // Broker public key
-  unsigned char *ddpubkey;
-  // Client private key
-  unsigned char *privkey;
-  // Client public key
-  unsigned char *pubkey;
-
-  // crypto_box_BEFORENMBYTES
-  // 32U arrays
-  // Broker symmetric key
-  unsigned char *ddboxk;
-  // Tenant symmetric key
-  unsigned char *custboxk;
-  // Tenant-Public symmetric key
-  unsigned char *pubboxk;
-
-  char *hash;
-  zhash_t *clientkeys;
-} ddkeystate_t;
+typedef struct _dd_keys_t dd_keys_t;
 
 typedef struct ddbrokerkeys {
   // list of tenant names
@@ -92,7 +69,23 @@ typedef struct tenantsinfo {
   char *boxk;
 } ddtenant_t;
 
-ddkeystate_t *read_ddkeys(char *filename, char *customer);
+dd_keys_t *dd_keys_new(const char *filename);
+void dd_keys_destroy(dd_keys_t **self);
+zhash_t *dd_keys_clients(dd_keys_t *self);
+bool dd_keys_ispublic(dd_keys_t *self);
+const unsigned char *dd_keys_custboxk(dd_keys_t *self);
+const unsigned char *dd_keys_hash(dd_keys_t *self);
+const unsigned char *dd_keys_pub(dd_keys_t *self);
+const unsigned char *dd_keys_ddboxk(dd_keys_t *self);
+const unsigned char *dd_keys_ddpub(dd_keys_t *self);
+const unsigned char *dd_keys_pubboxk(dd_keys_t *self);
+const unsigned char *dd_keys_publicpub(dd_keys_t *self);
+const unsigned char *dd_keys_priv(dd_keys_t *self);
+
 ddbrokerkeys_t *read_ddbrokerkeys(char *filename);
-void free_ddkeystate(ddkeystate_t *keys);
 #endif
+
+
+
+
+

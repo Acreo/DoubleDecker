@@ -246,12 +246,12 @@ int main(int argc, char *argv[]) {
   int c;
   char *keyfile = NULL;
   char *connect_to = NULL;
-  char *customer = NULL;
+  //  char *customer = NULL;
   char *client_name = NULL;
 
   opterr = 0;
 
-  while ((c = getopt(argc, argv, "c:d:k:n:")) != -1) {
+  while ((c = getopt(argc, argv, "d:k:n:")) != -1) {
     switch (c) {
     case 'k':
       keyfile = optarg;
@@ -259,9 +259,9 @@ int main(int argc, char *argv[]) {
     case 'd':
       connect_to = optarg;
       break;
-    case 'c':
+      /*    case 'c':
       customer = optarg;
-      break;
+      break; */
     case 'n':
       client_name = optarg;
       break;
@@ -269,13 +269,13 @@ int main(int argc, char *argv[]) {
       abort();
     }
   }
-  if (client_name == NULL || customer == NULL || keyfile == NULL ||
+  if (client_name == NULL  || keyfile == NULL ||
       connect_to == NULL) {
-    printf("usage: client -c <customer> -k <keyfile> -n <name> -d "
+    printf("usage: client -k <keyfile> -n <name> -d "
            "<tcp/ipc url>\n");
     return 1;
   }
-  client = dd_new(client_name, customer, connect_to, keyfile, on_reg, on_discon,
+  client = dd_new(client_name, connect_to, keyfile, on_reg, on_discon,
                   on_data, on_pub, on_error);
   if (client == NULL) {
     printf("DD initialization failed!\n");

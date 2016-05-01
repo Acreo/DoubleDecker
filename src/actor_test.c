@@ -5,8 +5,8 @@
 
 int main(int argc, char **argv) {
   printf("test libdd zactor model \n");
-  zactor_t *actor = ddactor_new("testactor", "a", "tcp://127.0.0.1:5555",
-                                "/etc/doubledecker/ape-keys.json");
+  zactor_t *actor = ddactor_new("testactor","tcp://127.0.0.1:5555",
+                                "/etc/doubledecker/a-keys.json");
 
   printf("actor = %p\n", actor);
 

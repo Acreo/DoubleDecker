@@ -87,7 +87,7 @@ char *logfile = NULL;
 char *syslog_enabled = NULL;
 
 char nonce[crypto_box_NONCEBYTES];
-ddbrokerkeys_t *keys;
+ddbrokerkeys_t *keys = NULL;
 mode_t rw_mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
 // timer IDs
 int br_timeout_loop, cli_timeout_loop, heartbeat_loop, reg_loop;
@@ -2219,27 +2219,19 @@ void start_httpd() {
   zloop_reader_set_tolerant(loop, http);
 }
 
-int start_broker(char *router_bind, char *dealer_connect, char *keyfile,
-                 int verbose) {
-  dd_info("Starting broker, router at %s, dealer at %s", router_bind,
-          dealer_connect);
-  keys = read_ddbrokerkeys(keyfile);
-  if (keys == NULL) {
-    exit(EXIT_FAILURE);
-  }
-
+int start_broker(char *router_bind, char *dealer_connect, char *keyfile) {
+  dd_info("Starting broker, router at %s, dealer at %s", router_bind, dealer_connect);
   broker_id = zframe_new("root", 4);
   broker_id_null = zframe_new("", 0);
 
+  keys = read_ddbrokerkeys(keyfile);
+  assert(keys);
+
   print_ddbrokerkeys(keys);
   randombytes_buf(nonce, crypto_box_NONCEBYTES);
-
-  zframe_t *f;
   // needs to be called for each thread using RCU lib
   rcu_register_thread();
-
   init_hashtables();
-
   loop = zloop_new();
   assert(loop);
   rsock = zsock_new(ZMQ_ROUTER);
@@ -2364,12 +2356,12 @@ void load_config(char *configfile) {
   zconfig_t *child = zconfig_child(root);
   while (child != NULL) {
     if (strncmp(zconfig_name(child), "dealer", strlen("dealer")) == 0) {
-      dealer_connect = zconfig_value(child);
+      dealer_connect = strdup(zconfig_value(child));
     } else if (strncmp(zconfig_name(child), "scope", strlen("scope")) == 0) {
-      scopestr = zconfig_value(child);
+      scopestr = strdup(zconfig_value(child));
     } else if (strncmp(zconfig_name(child), "router", strlen("router")) == 0) {
       if (router_bind == NULL) {
-        router_bind = zconfig_value(child);
+        router_bind = strdup(zconfig_value(child));
       } else {
         char *new_router_bind;
         asprintf(&new_router_bind, "%s,%s", router_bind, zconfig_value(child));
@@ -2379,18 +2371,18 @@ void load_config(char *configfile) {
         router_bind = new_router_bind;
       }
     } else if (strncmp(zconfig_name(child), "rest", strlen("rest")) == 0) {
-      reststr = zconfig_value(child);
+      reststr = strdup(zconfig_value(child));
     } else if (strncmp(zconfig_name(child), "loglevel", strlen("loglevel")) ==
                0) {
-      logstr = zconfig_value(child);
+      logstr = strdup(zconfig_value(child));
     } else if (strncmp(zconfig_name(child), "keyfile", strlen("keyfile")) ==
                0) {
-      keyfile = zconfig_value(child);
+      keyfile = strdup(zconfig_value(child));
     } else if (strncmp(zconfig_name(child), "logfile", strlen("logfile")) ==
                0) {
-      logfile = zconfig_value(child);
+      logfile = strdup(zconfig_value(child));
     } else if (strncmp(zconfig_name(child), "syslog", strlen("syslog")) == 0) {
-      syslog_enabled = zconfig_value(child);
+      syslog_enabled = strdup(zconfig_value(child));
     } else if (strncmp(zconfig_name(child), "daemonize", strlen("daemonize")) ==
                0) {
       daemonize = 1;
@@ -2400,6 +2392,7 @@ void load_config(char *configfile) {
     }
     child = zconfig_next(child);
   }
+  zconfig_destroy(&root);
   return;
 }
 
@@ -2408,11 +2401,12 @@ int main(int argc, char **argv) {
   char *configfile = NULL;
 
   void *ctx = zsys_init();
+  
   zsys_set_logident("DD");
   opterr = 0;
   while ((c = getopt(argc, argv, "d:r:l:k:s:vhm:f:w:D")) != -1)
     switch (c) {
-    case 'd':
+      case 'd':
       dealer_connect = optarg;
       break;
     case 'r':
@@ -2477,6 +2471,7 @@ int main(int argc, char **argv) {
   } else if (strncmp(logstr, "q", 1) == 0) {
     loglevel = DD_LOG_NONE;
   }
+
   if (logfile) {
     FILE *logfp = fopen(logfile, "w+");
     if (logfp) {
@@ -2486,6 +2481,7 @@ int main(int argc, char **argv) {
       exit(EXIT_FAILURE);
     }
   }
+
   if (syslog_enabled) {
     dd_info("Logging to syslog..");
     zsys_set_logsystem(true);
@@ -2504,6 +2500,7 @@ int main(int argc, char **argv) {
   if (daemonize == 1) {
     daemon(0, 0);
   }
+  
   nn_trie_init(&topics_trie);
   dd_info("%s - <%s> - %s", PACKAGE_STRING, PACKAGE_BUGREPORT, PACKAGE_URL);
   // if no router in config or as cli, set default
@@ -2512,8 +2509,8 @@ int main(int argc, char **argv) {
 
   scope = zlist_new();
   rstrings = zlist_new();
-  char *str1, *str2, *token, *subtoken;
-  char *saveptr1, *saveptr2;
+  char *str1, *token;
+  char *saveptr1;
   int j;
 
   char *rbind_cpy = strdup(router_bind);
@@ -2556,6 +2553,6 @@ int main(int argc, char **argv) {
   }
   broker_scope = &brokerscope[0];
   dd_debug("broker scope set to: %s", broker_scope);
-
-  start_broker(router_bind, dealer_connect, keyfile, verbose);
+  
+  start_broker(router_bind, dealer_connect, keyfile);
 }

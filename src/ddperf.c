@@ -279,7 +279,7 @@ void start_server(char *address) {
   setlocale(LC_NUMERIC, "en_US.utf-8"); /* important */
 
   dd_t *client =
-      dd_new("ddperfsrv", "public", address, keyfile, on_reg_server, on_discon,
+      dd_new("ddperfsrv", address, keyfile, on_reg_server, on_discon,
              on_data_server, on_pub, on_error); // on_nodst);
   //  int timer_id = zloop_timer (client->loop, 1000, 0,
   //  s_print_throughput, NULL);
@@ -309,7 +309,7 @@ void start_client(char *address, int message_num, int message_size) {
          message_num, message_size, address);
 
   dd_t *client =
-      dd_new("ddperfcli", "public", address, keyfile, on_reg_client, on_discon,
+      dd_new("ddperfcli",  address, keyfile, on_reg_client, on_discon,
              on_data_server, on_pub, on_error); // on_nodst);
   while (dd_get_state(client) != DD_STATE_EXIT && !zsys_interrupted) {
     sleep(1);
