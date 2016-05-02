@@ -64,6 +64,18 @@ void usage() {
          "-h [help]\n");
 }
 
+
+int s_ddactor_msg(zloop_t *loop, zsock_t *handle, void *arg){
+  zmsg_t *msg = zmsg_recv(handle);
+  printf("s_ddactor_msg message %p from dd_broker_actor!\n", msg);
+  if(msg != NULL){
+    zmsg_print(msg);
+    zmsg_destroy(&msg);
+  }
+  return 0;
+}
+
+
 int main(int argc, char **argv) {
 
   int c;
@@ -80,7 +92,7 @@ int main(int argc, char **argv) {
       dd_broker_set_dealer(broker, optarg);
       break;
     case 'r':
-      dd_broker_set_router(broker, optarg);
+      dd_broker_add_router(broker, optarg);
       break;
     case 'D':
       daemonize = 1;
@@ -118,11 +130,40 @@ int main(int argc, char **argv) {
     }
 
   if (daemonize == 1) {
-    daemon(0, 0);
+    //daemon(0, 0);
+    zsys_daemonize("/");
   }
 
-  // if no router in config or as cli, set default
+  zloop_t *loop = zloop_new();
+  zactor_t *actor = dd_broker_actor(broker);
+  int rc = zloop_reader(loop, actor, s_ddactor_msg, NULL);
+  printf("zloop_reader %d\n", rc);
+  rc = zloop_start(loop);
+  printf("ddbroker.c: zloop_start %d\n", rc);
   
-  dd_broker_start(broker);
+  while(!zsys_interrupted){
+    zmsg_t *msg = zmsg_recv(actor);
+    printf("got message %p from dd_broker_actor!\n", msg);
+    if(msg != NULL){
+      zmsg_print(msg);
+      zmsg_destroy(&msg);
+    }
+    
+  }
+  printf("Destroying actor..\n");
+  zactor_destroy(&actor);
+  printf("Done, quitting!\n");
+  return 1;
 }
+
+
+
+
+
+
+
+
+
+
+
 

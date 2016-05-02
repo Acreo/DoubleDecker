@@ -1,3 +1,4 @@
+#include "../config.h"
 #include "dd_classes.h"
 // Structure of the ddclient class
 struct _dd_t {
@@ -5,7 +6,6 @@ struct _dd_t {
   void *pipe;
   int verbose;                //  Print activity to stdout
   unsigned char *endpoint;    //  Broker binds to this endpoint
-  //  unsigned char *customer;    //  Our customer id
   unsigned char *keyfile;     // JSON file with pub/priv keys
   unsigned char *client_name; // This client name
   int timeout;                // Incremental timeout (trigger > 3)
@@ -96,7 +96,7 @@ int dd_subscribe(dd_t *self, char *topic, char *scope) {
   } else if (strcmp(scope, "noscope") == 0) {
     scopestr = "noscope";
   } else {
-    // TODO
+    // TODO: Check rexscope in broker.c
     // check that scope follows re.fullmatch("/((\d)+/)+", scope):
     scopestr = scope;
   }
@@ -122,7 +122,7 @@ int dd_unsubscribe(dd_t *self, char *topic, char *scope) {
   } else if (strcmp(scope, "noscope") == 0) {
     scopestr = "noscope";
   } else {
-    // TODO
+    // TODO: check rexscope in broker.c
     // check that scope follows re.fullmatch("/((\d)+/)+", scope):
     scopestr = scope;
   }
@@ -139,8 +139,6 @@ int dd_publish(dd_t *self, char *topic, char *message, int mlen) {
   int dstpublic = 0;
   int retval;
 
-  // printf ("dd->publish called t: %s m: %s l: %d\n", topic, message,
-  // mlen);
 
   if (dd_keys_ispublic(self->keys)) {
     srcpublic = 1;
@@ -154,7 +152,6 @@ int dd_publish(dd_t *self, char *topic, char *message, int mlen) {
     *dot = '\0';
     precalck = zhash_lookup(dd_keys_clients(self->keys), topic);
     if (precalck) {
-      //	printf("encrypting with tenant key: %s\n",topic);
       // TODO: This is not allowed by the broker
       // We should return an error if this is happening
       fprintf(stderr, "Public client cannot publish to tenants!\n");
@@ -164,15 +161,11 @@ int dd_publish(dd_t *self, char *topic, char *message, int mlen) {
   }
   if (!precalck && !dstpublic) {
     precalck = dd_keys_custboxk(self->keys);
-    //      printf ("encrypting with my own key\n");
   } else if (dstpublic) {
     precalck = dd_keys_pubboxk(self->keys);
-    //    printf("encrypting with public key\n");
   }
 
   int enclen = mlen + crypto_box_NONCEBYTES + crypto_box_MACBYTES;
-  //  printf ("encrypted message will be %d bytes\n", enclen);
-  // unsigned char ciphertext[enclen];
   unsigned char *dest = calloc(1, enclen);
   unsigned char *ciphertext = dest; // dest+crypto_box_NONCEBYTES;
 
@@ -183,10 +176,6 @@ int dd_publish(dd_t *self, char *topic, char *message, int mlen) {
   dest += crypto_box_NONCEBYTES;
   retval = crypto_box_easy_afternm(dest, (const unsigned char *)message, mlen,
                                    self->nonce, precalck);
-  //  char *hex = calloc (1, 1000);
-  //  sodium_bin2hex (hex, 1000, ciphertext, enclen);
-  //  printf ("ciphertext size %d: %s\n", enclen, hex);
-  //  free (hex);
 
   if (retval != 0) {
     fprintf(stderr, "DD: Unable to encrypt %d bytes!\n", mlen);
@@ -285,9 +274,6 @@ int dd_destroy(dd_t **self) {
 // callbacks from zloop //
 // ////////////////////////
 
-//static int s_on_dealer_msg(zloop_t *loop, zsock_t *handle, void *args);
-
-//static int s_ask_registration(zloop_t *loop, int timerid, void *args);
 
 static int s_ping(zloop_t *loop, int timerid, void *args) {
   dd_t *self = (dd_t *)args;
@@ -366,9 +352,6 @@ static void cb_pong(dd_t *self, zmsg_t *msg, zloop_t *loop) {
 
 static void cb_chall(dd_t *self, zmsg_t *msg) {
   int retval = 0;
-  //  fprintf(stderr,"cb_chall called\n");
-
-  // zmsg_print(msg);
   zframe_t *encrypted = zmsg_first(msg);
   unsigned char *data = zframe_data(encrypted);
   int enclen = zframe_size(encrypted);
@@ -403,7 +386,6 @@ static void cb_data(dd_t *self, zmsg_t *msg) {
     *dot = '\0';
     precalck = zhash_lookup(dd_keys_clients(self->keys), source);
     if (precalck) {
-      // printf("decrypting with tenant key:%s\n", source);
     }
     *dot = '.';
   }
@@ -411,10 +393,8 @@ static void cb_data(dd_t *self, zmsg_t *msg) {
   if (!precalck) {
     if (strncmp("public.", source, strlen("public.")) == 0) {
       precalck = dd_keys_pubboxk(self->keys);
-      //	printf("decrypting with public tenant key\n");
     } else {
       precalck = dd_keys_custboxk(self->keys);
-      //      printf("decrypting with my own key\n");
     }
   }
   retval = crypto_box_open_easy_afternm(decrypted, data + crypto_box_NONCEBYTES,
@@ -448,17 +428,14 @@ static void cb_pub(dd_t *self, zmsg_t *msg) {
     *dot = '\0';
     precalck = zhash_lookup(dd_keys_clients(self->keys), source);
     if (precalck) {
-      //	printf("decrypting with tenant key:%s\n", source);
     }
     *dot = '.';
   }
   if (!precalck) {
     if (strncmp("public.", source, strlen("public.")) == 0) {
       precalck = dd_keys_pubboxk(self->keys);
-      //	printf("decrypting with public tenant key\n");
     } else {
       precalck = dd_keys_custboxk(self->keys);
-      //      printf("decrypting with my own key\n");
     }
   }
 
@@ -496,15 +473,10 @@ static void cb_error(dd_t *self, zmsg_t *msg) {
   free(error_msg);
 }
 
-// static void cb_nodst(zmsg_t *msg, dd_t *self) {
-//  char *destination = zmsg_popstr(msg);
-//  self->on_nodst(destination, self);
-//}
 
 static int s_on_pipe_msg(zloop_t *loop, zsock_t *handle, void *args) {
   dd_t *self = (dd_t *)args;
   zmsg_t *msg = zmsg_recv(handle);
-  zmsg_print(msg);
   char *command = zmsg_popstr(msg);
   //  All actors must handle $TERM in this way
   // returning -1 should stop zloop_start and terminate the actor
@@ -516,14 +488,12 @@ static int s_on_pipe_msg(zloop_t *loop, zsock_t *handle, void *args) {
     char *topic = zmsg_popstr(msg);
     char *scope = zmsg_popstr(msg);
     dd_subscribe(self, topic, scope);
-    //    self->subscribe(topic, scope, dd);
     free(topic);
     free(scope);
   } else if (streq(command, "unsubscribe")) {
     char *topic = zmsg_popstr(msg);
     char *scope = zmsg_popstr(msg);
     dd_unsubscribe(self, topic, scope);
-    //    self->unsubscribe(topic, scope, dd);
     free(topic);
     free(scope);
   } else if (streq(command, "publish")) {
@@ -532,7 +502,6 @@ static int s_on_pipe_msg(zloop_t *loop, zsock_t *handle, void *args) {
     zframe_t *mlen = zmsg_pop(msg);
     uint32_t len = *((uint32_t *)zframe_data(mlen));
     dd_publish(self, topic, message, len);
-    //    self->publish(topic, message, len, dd);
     zframe_destroy(&mlen);
     free(topic);
     free(message);
@@ -556,34 +525,28 @@ static int s_on_pipe_msg(zloop_t *loop, zsock_t *handle, void *args) {
 
 void actor_con(void *args) {
   dd_t *self = (dd_t *)args;
-  fprintf(stderr, "actor Registered with broker %s!\n", self->endpoint);
   zsock_send(self->pipe, "ss", "reg", self->endpoint);
 }
 
 void actor_discon(void *args) {
   dd_t *self = (dd_t *)args;
-  fprintf(stderr, "actor Got disconnected from broker %s!\n", self->endpoint);
   zsock_send(self->pipe, "ss", "discon", self->endpoint);
 }
 
 void actor_pub(char *source, char *topic, unsigned char *data, int length,
                void *args) {
   dd_t *self = (dd_t *)args;
-  fprintf(stderr, "actor PUB S: %s T: %s L: %d D: '%s'", source, topic, length,
-          data);
   zsock_send(self->pipe, "sssbb", "pub", source, topic, &length, sizeof(length),
              data, length);
 }
 
 void actor_data(char *source, unsigned char *data, int length, void *args) {
   dd_t *self = (dd_t *)args;
-  fprintf(stderr, "actor DATA S: %s L: %d D: '%s'", source, length, data);
   zsock_send(self->pipe, "ssbb", "data", source, &length, sizeof(length), data,
              length);
 }
 void actor_error(int error_code, char *error_message, void *args) {
   dd_t *self = (dd_t *)args;
-  fprintf(stderr, "actor Error %d : %s", error_code, error_message);
   zsock_send(self->pipe, "ssb", "error", error_message, &error_code,
              sizeof(error_code));
 }
@@ -592,7 +555,6 @@ static int s_on_dealer_msg(zloop_t *loop, zsock_t *handle, void *args) {
   dd_t *self = (dd_t *)args;
   self->timeout = 0;
   zmsg_t *msg = zmsg_recv(handle);
-  // zmsg_print(msg);
 
   if (msg == NULL) {
     fprintf(stderr, "DD: zmsg_recv returned NULL\n");
@@ -707,7 +669,7 @@ void *ddthread(void *args) {
     free(self);
     return NULL;
   }
-  //  zsock_set_identity (self->socket, self->client_name);
+ 
   rc = zsock_connect(self->socket, (const char *)self->endpoint);
   if (rc != 0) {
     fprintf(stderr, "DD: Error in zmq_connect: %s\n", zmq_strerror(errno));
@@ -721,9 +683,7 @@ void *ddthread(void *args) {
     return NULL;
   }
 
-  //  printf("Loaded keys, hash: %s\n", dd_keys_hash(self->keys));
-  
-  self->sublist = zlistx_new();
+   self->sublist = zlistx_new();
   zlistx_set_destructor(self->sublist, (czmq_destructor *)sublist_free);
   zlistx_set_duplicator(self->sublist, (czmq_duplicator *)sublist_dup);
   zlistx_set_comparator(self->sublist, (czmq_comparator *)sublist_cmp);
@@ -748,18 +708,13 @@ void dd_actor(zsock_t *pipe, void *args) {
     fprintf(stderr, "DD: Error in zsock_new_dealer: %s\n", zmq_strerror(errno));
     zsock_send(self->pipe, "ss", "$TERM", "Error creating socket");
     dd_destroy(&self);
-    //    self->shutdown(dd);
-    //    free(self);
     return;
   }
-  //  zsock_set_identity (self->socket, self->client_name);
   rc = zsock_connect(self->socket, (const char *)self->endpoint);
   if (rc != 0) {
     fprintf(stderr, "DD: Error in zmq_connect: %s\n", zmq_strerror(errno));
     zsock_send(self->pipe, "ss", "$TERM", "Connection failed");
     dd_destroy(&self);
-    //    self->shutdown(dd);
-    // free(self);
     return;
   }
 
@@ -768,8 +723,6 @@ void dd_actor(zsock_t *pipe, void *args) {
     fprintf(stderr, "DD: Error reading keyfile!\n");
     zsock_send(self->pipe, "ss", "$TERM", "Missing keyfile");
     dd_destroy(&self);
-    //    self->shutdown(dd);
-    // free(self);
     return;
   }
 
@@ -809,11 +762,6 @@ zactor_t *ddactor_new(char *client_name, char *endpoint,
   self->on_data = actor_data;
   self->on_pub = actor_pub;
   self->on_error = actor_error;
-  /*  self->subscribe = subscribe;
-  self->unsubscribe = unsubscribe;
-  self->publish = publish;
-  self->notify = notify;
-  self->shutdown = ddthread_shutdown;*/
   zactor_t *actor = zactor_new(dd_actor, self);
   return actor;
 }

@@ -87,8 +87,8 @@ CZMQ_EXPORT int dd_destroy(dd_t **self);
 CZMQ_EXPORT const char *dd_get_version();
 
 CZMQ_EXPORT int dd_get_state(dd_t *self);
-CZMQ_EXPORT const char *dd_get_endpoint(dd_t *self);
-CZMQ_EXPORT const char *dd_get_keyfile(dd_t *self);
+CZMQ_EXPORT const char* dd_get_endpoint(dd_t *self);
+CZMQ_EXPORT const char* dd_get_keyfile(dd_t *self);
 CZMQ_EXPORT char *dd_get_privkey(dd_t *self);
 CZMQ_EXPORT char *dd_get_pubkey(dd_t *self);
 CZMQ_EXPORT char *dd_get_publickey(dd_t *self);
@@ -102,17 +102,18 @@ typedef struct _dd_broker_t dd_broker_t;
 typedef struct _dd_keys_t dd_keys_t;
 
 // DD broker api
-CZMQ_EXPORT int dd_broker_set_config(dd_broker_t *self, char *config_file);
-CZMQ_EXPORT int dd_broker_set_dealer(dd_broker_t *self, char *dealer_string);
-CZMQ_EXPORT int dd_broker_set_keyfile(dd_broker_t *self, char *key_file);
-CZMQ_EXPORT int dd_broker_set_router(dd_broker_t *self, char *router_string);
-CZMQ_EXPORT int dd_broker_set_scope(dd_broker_t *self, char *scope_string);
 CZMQ_EXPORT dd_broker_t *dd_broker_new();
+CZMQ_EXPORT zactor_t *dd_broker_actor(dd_broker_t *self);
 CZMQ_EXPORT int dd_broker_start(dd_broker_t *self);
+CZMQ_EXPORT int dd_broker_set_scope(dd_broker_t *self, char *scope_string);
 CZMQ_EXPORT int dd_broker_set_logfile(dd_broker_t *self, char *logfile);
 CZMQ_EXPORT int dd_broker_set_rest(dd_broker_t *self, char *reststr);
 CZMQ_EXPORT int dd_broker_set_loglevel(dd_broker_t *self, char *logstr);
-
+CZMQ_EXPORT int dd_broker_set_keyfile(dd_broker_t *self, char *key_file);
+CZMQ_EXPORT int dd_broker_set_config(dd_broker_t *self, char *config_file);
+CZMQ_EXPORT int dd_broker_set_dealer(dd_broker_t *self, char *dealer_string);
+CZMQ_EXPORT int dd_broker_add_router(dd_broker_t *self, char *router_string);
+CZMQ_EXPORT int dd_broker_del_router(dd_broker_t *self, char *router_string);
 #endif
 #ifdef __cplusplus
 }
