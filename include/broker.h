@@ -35,58 +35,99 @@
  */
 #ifndef _BROKER_H_
 #define _BROKER_H_
-#include <czmq.h>
-#include <stdint.h>
-#include "ddhtable.h"
+#include "dd_classes.h"
+#include "keys.h"
+struct _dd_broker_t {
+  // Connection strings
+  char *broker_scope;
+  char *dealer_connect;
+  char *router_bind;
+  char *reststr;
+  char *pub_bind;
+  char *pub_connect;
+  char *sub_bind;
+  char *sub_connect;
 
-// particular message types
-void cmd_cb_addlcl(zframe_t *source, zmsg_t *msg);
-void cmd_cb_adddcl(zframe_t *sockid, zframe_t *cookie_frame, zmsg_t *msg);
-void cmd_cb_addbr(zframe_t *source, zmsg_t *msg);
-void cmd_cb_unreg_cli(zframe_t *source_frame, zframe_t *cookie_frame,
-                      zmsg_t *msg);
-void cmd_cb_chall(zmsg_t *msg);
-void cmd_cb_challok(zframe_t *source, zmsg_t *msg);
-void cmd_cb_unreg_dist_cli(zframe_t *sockid, zframe_t *cookie_frame,
-                           zmsg_t *msg);
-void cmd_cb_unreg_br(char *name, zmsg_t *msg);
-void cmd_cb_forward(zframe_t *sockid, zframe_t *cookie_frame, zmsg_t *msg);
+  char *logfile;
+  char *syslog_enabled;
 
-void cmd_cb_ping(zframe_t *source, zframe_t *cookie);
-void cmd_cb_error(zmsg_t *msg);
-void cmd_cb_regok(zmsg_t *msg);
-void cmd_cb_send(zframe_t *source, zframe_t *cookie, zmsg_t *msg);
-// socket callbacks
-int s_on_subS_msg(zloop_t *loop, zsock_t *handle, void *arg);
-int s_on_router_msg(zloop_t *loop, zsock_t *handle, void *arg);
-int s_on_dealer_msg(zloop_t *loop, zsock_t *handle, void *arg);
-int s_on_pubN_msg(zloop_t *loop, zsock_t *handle, void *arg);
-int s_on_subN_msg(zloop_t *loop, zsock_t *handle, void *arg);
-int s_on_pubS_msg(zloop_t *loop, zsock_t *handle, void *arg);
 
-// timer callbacks
-int s_register(zloop_t *loop, int timer_id, void *arg);
-int s_heartbeat(zloop_t *loop, int timer_id, void *arg);
-int s_check_cli_timeout(zloop_t *loop, int timer_fd, void *arg);
-int s_check_br_timeout(zloop_t *loop, int timer_fd, void *arg);
-// other stuff
-zmsg_t *add_me(zmsg_t *msg);
-int already_passed(zmsg_t *msg);
-void add_cli_up(char *prefix_name, int distance);
-void del_cli_up(char *prefix_name);
-void forward_locally(zframe_t *dest_sockid, char *src_string, zmsg_t *msg);
-void forward_down(char *, char *, zframe_t *, zmsg_t *);
-void forward_up(char *source, char *dest, zmsg_t *msg);
-void dest_invalid(zframe_t *source, zframe_t *cookie, char *dest);
-void unreg_cli(zframe_t *source, uint64_t cookie);
-void unreg_broker(local_broker *np);
-void connect_pubsubN(char *puburl, char *suburl);
-void stop_program(int sig);
-void usage(void);
-extern int verbose;
-void start_pubsub();
-int start_broker(char *, char *, char *);
-char *str_replace(const char *string, const char *substr,
-                  const char *replacement);
+  int state, timeout;
+
+  // Timer IDs
+  int br_timeout_loop, cli_timeout_loop, heartbeat_loop, reg_loop;
+
+  // Tries
+  struct nn_trie topics_trie;
+
+  // Broker Identity, assigned by higher broker
+  zframe_t *broker_id;
+  zframe_t *broker_id_null;
+
+  // Lists
+  zlist_t *scope;
+  zlist_t *rstrings;
+  zlist_t *pub_strings, *sub_strings;
+
+  // main loop
+  zloop_t *loop;
+
+  // Sockets
+  zsock_t *pubN;
+  zsock_t *subN;
+  zsock_t *pubS;
+  zsock_t *subS;
+  zsock_t *rsock;
+  zsock_t *dsock;
+  zsock_t *http;
+
+  // Hash tables
+  // hash-table for local clients
+  struct cds_lfht *lcl_cli_ht;
+  struct cds_lfht *rev_lcl_cli_ht;
+
+  // hash-table for distant clients
+  struct cds_lfht *dist_cli_ht;
+  // hash-table for local br
+  struct cds_lfht *lcl_br_ht;
+
+  // hash-table for subscriptions
+  struct cds_lfht *subscribe_ht;
+  // hash-table for topics north
+  struct cds_lfht *top_north_ht;
+  // hash-table for topics  south
+  struct cds_lfht *top_south_ht;
+
+  // keys and crypto
+  char nonce[crypto_box_NONCEBYTES];
+  ddbrokerkeys_t *keys;
+
+  // Logging
+  FILE *logfp;
+};
+typedef struct _lcl_broker local_broker;
+typedef struct _dist_node dist_client;
+typedef struct _lcl_node local_client;
+typedef struct _subscription_node subscribe_node;
+
+void del_cli_up(dd_broker_t *self, char *prefix_name);
+void add_cli_up(dd_broker_t *self, char *prefix_name, int distancoe);
+
+void forward_locally(dd_broker_t *self, zframe_t *dest_sockid, char *src_string,
+                     zmsg_t *msg);
+
+void forward_down(dd_broker_t *self, char *src_string, char *dst_string,
+                  zframe_t *br_sockid, zmsg_t *msg);
+void forward_up(dd_broker_t *self, char *src_string, char *dst_string,
+                zmsg_t *msg);
+
+void dest_invalid_rsock(dd_broker_t *self, zframe_t *sockid, char *src_string,
+                        char *dst_string);
+void dest_invalid_dsock(dd_broker_t *self, char *src_string, char *dst_string);
+void connect_pubsubN(dd_broker_t *self);
+void unreg_cli(dd_broker_t *self, zframe_t *sockid, uint64_t cookie);
+void unreg_broker(dd_broker_t *self, local_broker *np);
+void bind_router(dd_broker_t *self);
 
 #endif
+

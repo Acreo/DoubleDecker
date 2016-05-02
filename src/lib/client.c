@@ -1,14 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <strings.h>
-#include <czmq.h>
-#include "../config.h"
-#include "../../include/dd.h"
-#include "../../include/dd_classes.h"
-#include "../../include/protocol.h"
-#include "../../include/ddkeys.h"
-
+#include "dd_classes.h"
 // Structure of the ddclient class
 struct _dd_t {
   void *socket; //  Socket for clients & workers
@@ -28,12 +18,28 @@ struct _dd_t {
   zloop_t *loop;
   int style;
   unsigned char nonce[crypto_box_NONCEBYTES];
-  dd_con(*on_reg);
-  dd_discon(*on_discon);
-  dd_data(*on_data);
-  dd_pub(*on_pub);
-  dd_error(*on_error);
+  dd_on_con(*on_reg);
+  dd_on_discon(*on_discon);
+  dd_on_data(*on_data);
+  dd_on_pub(*on_pub);
+  dd_on_error(*on_error);
 };
+
+
+static void sublist_resubscribe(dd_t *self);
+static int s_ping(zloop_t *loop, int timerid, void *args);
+static int s_heartbeat(zloop_t *loop, int timerid, void *args);
+static int s_ask_registration(zloop_t *loop, int timerid, void *args);
+static void cb_regok(dd_t *self, zmsg_t *msg, zloop_t *loop);
+static void cb_pong(dd_t *self, zmsg_t *msg, zloop_t *loop);
+static void cb_chall(dd_t *self, zmsg_t *msg);
+static void cb_data(dd_t *self, zmsg_t *msg);
+static void cb_pub(dd_t *self, zmsg_t *msg);
+static void cb_subok(dd_t *self, zmsg_t *msg);
+static void cb_error(dd_t *self, zmsg_t *msg);
+static int s_on_pipe_msg(zloop_t *loop, zsock_t *handle, void *args);
+static int s_on_dealer_msg(zloop_t *loop, zsock_t *handle, void *args);
+static void dd_keys_print(dd_keys_t *keys);
 
 static void sublist_resubscribe(dd_t *self) {
   ddtopic_t *item;
@@ -196,7 +202,7 @@ int dd_publish(dd_t *self, char *topic, char *message, int mlen) {
 }
 
 int dd_notify(dd_t *self, char *target, char *message, int mlen) {
-  unsigned char *precalck = NULL;
+  const uint8_t *precalck = NULL;
   int srcpublic = 0;
   int dstpublic = 0;
 
@@ -230,8 +236,6 @@ int dd_notify(dd_t *self, char *target, char *message, int mlen) {
   }
 
   int enclen = mlen + crypto_box_NONCEBYTES + crypto_box_MACBYTES;
-  /* printf ("encrypted message will be %d bytes\n", enclen); */
-  // unsigned char ciphertext[enclen];
   unsigned char *dest = calloc(1, enclen);
   unsigned char *ciphertext = dest; // dest+crypto_box_NONCEBYTES;
 
@@ -281,9 +285,9 @@ int dd_destroy(dd_t **self) {
 // callbacks from zloop //
 // ////////////////////////
 
-static int s_on_dealer_msg(zloop_t *loop, zsock_t *handle, void *args);
+//static int s_on_dealer_msg(zloop_t *loop, zsock_t *handle, void *args);
 
-static int s_ask_registration(zloop_t *loop, int timerid, void *args);
+//static int s_ask_registration(zloop_t *loop, int timerid, void *args);
 
 static int s_ping(zloop_t *loop, int timerid, void *args) {
   dd_t *self = (dd_t *)args;
@@ -393,7 +397,7 @@ static void cb_data(dd_t *self, zmsg_t *msg) {
   int enclen = zframe_size(encrypted);
   unsigned char *decrypted =
       calloc(1, enclen - crypto_box_NONCEBYTES - crypto_box_MACBYTES);
-  unsigned char *precalck = NULL;
+  const uint8_t *precalck = NULL;
   char *dot = strchr(source, '.');
   if (dot) {
     *dot = '\0';
@@ -815,8 +819,8 @@ zactor_t *ddactor_new(char *client_name, char *endpoint,
 }
 
 dd_t *dd_new(char *client_name,  char *endpoint, char *keyfile,
-             dd_con con, dd_discon discon, dd_data data, dd_pub pub,
-             dd_error error) {
+             dd_on_con con, dd_on_discon discon, dd_on_data data, dd_on_pub pub,
+             dd_on_error error) {
   dd_t *self = malloc(sizeof(dd_t));
   self->style = DD_CALLBACK;
   self->client_name = (unsigned char *)strdup(client_name);

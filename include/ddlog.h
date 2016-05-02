@@ -1,3 +1,7 @@
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef _DDLOG_H_
 #define _DDLOG_H_
 
@@ -30,4 +34,8 @@ extern int loglevel;
   if (loglevel >= DD_LOG_DEBUG)                                                \
     zsys_error(__VA_ARGS__);
 
+#endif
+
+#ifdef __cplusplus
+}
 #endif

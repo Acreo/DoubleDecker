@@ -1,15 +1,60 @@
+// Internal header, not for exporting!
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 #ifndef _DD_CLASSES_H_
 #define _DD_CLASSES_H_
+#include "../config.h"
+#include <czmq.h>
+#include <czmq.h>
+#include <err.h>
+#include <execinfo.h>
+#include <fcntl.h>
+#include <signal.h>
+#include <sodium.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdlib.h>
+#include <string.h>
+#include <string.h>
+#include <strings.h>
+#include <sys/stat.h>
+#include <time.h>
+#include <urcu.h>
+#include <urcu.h>
+#include <urcu/rculfhash.h>
+#include <zmq.h>
 
-#include "ddkeys.h"
+#ifdef HAVE_JSON_C_JSON_H
+#include <json-c/json.h>
+#elif HAVE_JSON_H
+#include <json.h>
+#elif HAVE_JSON_JSON_H
+#include <json/json.h>
+#endif
+
+  
+#include "cdecode.h"
+#include "dd.h"
+#include "ddlog.h"
+#include "ddlog.h"
+#include "keys.h"
+#include "trie.h"
+#include "broker.h"
+#include "htable.h"
+#include "murmurhash.h"
+#include "protocol.h"
+#include "sublist.h"
+#include "xxhash.h"
+
+
 
 // styles
 #define DD_ACTOR 1
 #define DD_CALLBACK 2
 
+// preallocated data variables
 extern const uint32_t dd_cmd_send;
 extern const uint32_t dd_cmd_forward;
 extern const uint32_t dd_cmd_ping;
@@ -34,22 +79,10 @@ extern const uint32_t dd_cmd_sendpt;
 extern const uint32_t dd_cmd_forwardpt;
 extern const uint32_t dd_cmd_datapt;
 extern const uint32_t dd_cmd_subok;
-
 extern const uint32_t dd_version;
-
 extern const uint32_t dd_error_regfail;
 extern const uint32_t dd_error_nodst;
 extern const uint32_t dd_error_version;
-
-int sublist_cmp(const void *item1, const void *item2);
-void sublist_free(void **item);
-void *sublist_dup(const void *item);
-void sublist_add(char *topic, char *scope, char active, dd_t *self);
-void sublist_delete_topic(char *topic, dd_t *self);
-void sublist_delete(char *topic, char *scope, dd_t *self);
-void sublist_activate(char *topic, char *scope, dd_t *self);
-void sublist_deactivate_all(dd_t *self);
-void sublist_print(dd_t *self);
 
 #endif
 #ifdef __cplusplus

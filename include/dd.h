@@ -23,7 +23,7 @@
    GNU Lesser General Public License along with this program.  If not,
    see <http://www.gnu.org/licenses/>.
    */
-/* dd.h ---
+/* dd.h --- Public API definition
  *
  * Filename: dd.h
  * Description:
@@ -56,15 +56,15 @@ extern "C" {
 #define DD_ERROR_VERSION 3
 
 // On connection
-typedef void(dd_con)(void *);
+typedef void(dd_on_con)(void *);
 // On disconnection
-typedef void(dd_discon)(void *);
+typedef void(dd_on_discon)(void *);
 // On recieve DATA
-typedef void(dd_data)(char *, unsigned char *, int, void *);
+typedef void(dd_on_data)(char *, unsigned char *, int, void *);
 // On recieve PUB
-typedef void(dd_pub)(char *, char *, unsigned char *, int, void *);
+typedef void(dd_on_pub)(char *, char *, unsigned char *, int, void *);
 // On receive ERROR
-typedef void(dd_error)(int, char *, void *);
+typedef void(dd_on_error)(int, char *, void *);
 
 // class definition for a DoubleDecker client
 typedef struct _dd_t dd_t;
@@ -73,39 +73,47 @@ typedef struct _ddtopic_t ddtopic_t;
 
 typedef struct _dd_keys_t dd_keys_t;
 
-  CZMQ_EXPORT dd_t *dd_new(char *client_name,  char *endpoint,
-                         char *keyfile, dd_con con, dd_discon discon,
-                         dd_data data, dd_pub pub, dd_error error);
-CZMQ_EXPORT zactor_t *ddactor_new(char *client_name,
-                                  char *endpoint, char *keyfile);
-
+// DD Client functions
+CZMQ_EXPORT dd_t *dd_new(char *client_name, char *endpoint, char *keyfile,
+                         dd_on_con con, dd_on_discon discon, dd_on_data data,
+                         dd_on_pub pub, dd_on_error error);
+CZMQ_EXPORT zactor_t *ddactor_new(char *client_name, char *endpoint,
+                                  char *keyfile);
+CZMQ_EXPORT int dd_subscribe(dd_t *self, char *topic, char *scope);
+CZMQ_EXPORT int dd_unsubscribe(dd_t *self, char *topic, char *scope);
+CZMQ_EXPORT int dd_publish(dd_t *self, char *topic, char *message, int mlen);
+CZMQ_EXPORT int dd_notify(dd_t *self, char *target, char *message, int mlen);
+CZMQ_EXPORT int dd_destroy(dd_t **self);
 CZMQ_EXPORT const char *dd_get_version();
+
 CZMQ_EXPORT int dd_get_state(dd_t *self);
 CZMQ_EXPORT const char *dd_get_endpoint(dd_t *self);
 CZMQ_EXPORT const char *dd_get_keyfile(dd_t *self);
 CZMQ_EXPORT char *dd_get_privkey(dd_t *self);
 CZMQ_EXPORT char *dd_get_pubkey(dd_t *self);
 CZMQ_EXPORT char *dd_get_publickey(dd_t *self);
-CZMQ_EXPORT int dd_subscribe(dd_t *self, char *topic, char *scope);
-CZMQ_EXPORT int dd_unsubscribe(dd_t *self, char *topic, char *scope);
-CZMQ_EXPORT int dd_publish(dd_t *self, char *topic, char *message, int mlen);
-CZMQ_EXPORT int dd_notify(dd_t *self, char *target, char *message, int mlen);
-CZMQ_EXPORT int dd_destroy(dd_t **self);
-
 CZMQ_EXPORT const zlistx_t *dd_get_subscriptions(dd_t *self);
-CZMQ_EXPORT const char* dd_sub_get_topic(ddtopic_t *sub);
-CZMQ_EXPORT const char* dd_sub_get_scope(ddtopic_t *sub);
+CZMQ_EXPORT const char *dd_sub_get_topic(ddtopic_t *sub);
+CZMQ_EXPORT const char *dd_sub_get_scope(ddtopic_t *sub);
 CZMQ_EXPORT char dd_sub_get_active(ddtopic_t *sub);
+
+// class definitio1n for a DoubleDecker broker
+typedef struct _dd_broker_t dd_broker_t;
+typedef struct _dd_keys_t dd_keys_t;
+
+// DD broker api
+CZMQ_EXPORT int dd_broker_set_config(dd_broker_t *self, char *config_file);
+CZMQ_EXPORT int dd_broker_set_dealer(dd_broker_t *self, char *dealer_string);
+CZMQ_EXPORT int dd_broker_set_keyfile(dd_broker_t *self, char *key_file);
+CZMQ_EXPORT int dd_broker_set_router(dd_broker_t *self, char *router_string);
+CZMQ_EXPORT int dd_broker_set_scope(dd_broker_t *self, char *scope_string);
+CZMQ_EXPORT dd_broker_t *dd_broker_new();
+CZMQ_EXPORT int dd_broker_start(dd_broker_t *self);
+CZMQ_EXPORT int dd_broker_set_logfile(dd_broker_t *self, char *logfile);
+CZMQ_EXPORT int dd_broker_set_rest(dd_broker_t *self, char *reststr);
+CZMQ_EXPORT int dd_broker_set_loglevel(dd_broker_t *self, char *logstr);
 
 #endif
 #ifdef __cplusplus
 }
 #endif
-
-
-
-
-
-
-
-

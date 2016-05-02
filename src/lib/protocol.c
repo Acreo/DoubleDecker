@@ -1,3 +1,4 @@
+#include <czmq.h>
 #include "dd.h"
 #include "protocol.h"
 const uint32_t dd_cmd_send = DD_CMD_SEND;

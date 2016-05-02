@@ -3,7 +3,6 @@ extern "C" {
 #endif
 #ifndef _DD_PROTOCOL_H_
 #define _DD_PROTOCOL_H_
-
 // Commands and version
 #define DD_VERSION 0x0d0d0003
 #define DD_CMD_SEND 0
@@ -34,3 +33,6 @@ extern "C" {
 #ifdef __cplusplus
 }
 #endif
+
+
+
