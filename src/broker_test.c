@@ -54,14 +54,14 @@ int s_ddclient_msg(zloop_t *loop, zsock_t *handle, void *arg) {
     zframe_t *mlen = zmsg_pop(msg);
     zframe_t *message = zmsg_pop(msg);
     uint64_t stop = zclock_usecs();
-   
 
     uint64_t *start = zframe_data(message);
     // printf("%s - Got publication from %s on %s\n", cliname, source, topic);
     // printf("time: %d microsec\n", stop - *start);
     char *test_str;
 
-    asprintf(&test_str, "%s - %s:publish(%s) %d", cliname, source, topic, stop-*start);
+    asprintf(&test_str, "%s - %s:publish(%s) %d", cliname, source, topic,
+             stop - *start);
     zlist_append(test_list, test_str);
     free(event);
     free(topic);
@@ -72,13 +72,12 @@ int s_ddclient_msg(zloop_t *loop, zsock_t *handle, void *arg) {
     zframe_t *mlen = zmsg_pop(msg);
     zframe_t *message = zmsg_pop(msg);
     uint64_t stop = zclock_usecs();
-   
 
     uint64_t *start = zframe_data(message);
     //    printf("%s - Got notification from %s \n", cliname, source);
     //  printf("time: %d microsec\n", stop - *start);
     char *test_str;
-    asprintf(&test_str, "%s - %s:notify() %d", cliname, source, stop- *start);
+    asprintf(&test_str, "%s - %s:notify() %d", cliname, source, stop - *start);
     zlist_append(test_list, test_str);
 
     free(event);
@@ -87,10 +86,11 @@ int s_ddclient_msg(zloop_t *loop, zsock_t *handle, void *arg) {
   } else if (streq("$TERM", event)) {
     char *error = zmsg_popstr(msg);
     printf("Terminating DD client %s\n", cliname);
+    free(error);
+    zmsg_destroy(&msg);
     zactor_destroy(&self);
-    return EXIT_FAILURE;
   }
-
+  zmsg_destroy(&msg);
   return 0;
 }
 
@@ -181,6 +181,14 @@ int s_do_action_actor(zloop_t *loop, int timer, void *arg) {
     zsock_send(cli3_act, "ssbb", "notify", "cli3", &clock, sizeof(clock), &len,
                sizeof(len));
   }
+  if (arg == 7) {
+    printf("######################\n");
+    printf(" test seven, dead root broker\n");
+    printf("######################\n");
+    zactor_destroy(&actor_1);
+    zactor_destroy(&cli1_act);
+  }
+
   if (arg == 99) {
     printf("######################\n");
     printf("     TEST OVER     \n");
@@ -205,6 +213,7 @@ int main(int argc, char **argv) {
 
   zloop_t *loop = zloop_new();
   test_list = zlist_new();
+  zlist_autofree(test_list);
   cli1_act = ddactor_new("cli1", "tcp://127.0.0.1:5555",
                          "/etc/doubledecker/a-keys.json");
   cli2_act = ddactor_new("cli2", "tcp://127.0.0.1:5566",
@@ -214,66 +223,66 @@ int main(int argc, char **argv) {
                          "/etc/doubledecker/a-keys.json");
 
   rc = zloop_reader(loop, cli1_act, s_ddclient_msg, cli1_act);
-  rc = zloop_reader(loop, cli2_act, s_ddclient_msg, cli2_act);
-  rc = zloop_reader(loop, cli3_act, s_ddclient_msg, cli3_act);
+  /* rc = zloop_reader(loop, cli2_act, s_ddclient_msg, cli2_act); */
+  /* rc = zloop_reader(loop, cli3_act, s_ddclient_msg, cli3_act); */
   rootbr = dd_broker_new();
   dd_broker_add_router(rootbr, "tcp://*:5555");
   dd_broker_set_keyfile(rootbr, "/etc/doubledecker/broker-keys.json");
   dd_broker_set_scope(rootbr, "0/0/0");
-  dd_broker_set_loglevel(rootbr, "q");
-  dd_broker_set_logfile(rootbr, "test.log");
+  //  dd_broker_set_loglevel(rootbr, "d");
+  // dd_broker_set_logfile(rootbr, "test.log");
 
   actor_1 = dd_broker_actor(rootbr);
   rc = zloop_reader(loop, actor_1, s_ddbroker_msg, rootbr);
 
-  br_1 = dd_broker_new();
-  dd_broker_add_router(br_1, "tcp://*:5566");
-  dd_broker_set_dealer(br_1, "tcp://127.0.0.1:5555");
-  dd_broker_set_keyfile(br_1, "/etc/doubledecker/broker-keys.json");
-  dd_broker_set_scope(br_1, "0/1/0");
-  //  dd_broker_set_loglevel(br_1, "d");
-  actor_2 = dd_broker_actor(br_1);
-  rc = zloop_reader(loop, actor_2, s_ddbroker_msg, br_1);
+  /* br_1 = dd_broker_new(); */
+  /* dd_broker_add_router(br_1, "tcp://\*:5566"); */
+  /* dd_broker_set_dealer(br_1, "tcp://127.0.0.1:5555"); */
+  /* dd_broker_set_keyfile(br_1, "/etc/doubledecker/broker-keys.json"); */
+  /* dd_broker_set_scope(br_1, "0/1/0"); */
+  /* //  dd_broker_set_loglevel(br_1, "d"); */
+  /* actor_2 = dd_broker_actor(br_1); */
+  /* rc = zloop_reader(loop, actor_2, s_ddbroker_msg, br_1); */
 
-  br_2 = dd_broker_new();
-  dd_broker_add_router(br_2, "tcp://*:5577");
-  dd_broker_set_dealer(br_2, "tcp://127.0.0.1:5555");
-  dd_broker_set_keyfile(br_2, "/etc/doubledecker/broker-keys.json");
-  dd_broker_set_scope(br_2, "0/1/0");
-  //  dd_broker_set_loglevel(rootbr, "d");
+  /* br_2 = dd_broker_new(); */
+  /* dd_broker_add_router(br_2, "tcp://\*:5577"); */
+  /* dd_broker_set_dealer(br_2, "tcp://127.0.0.1:5555"); */
+  /* dd_broker_set_keyfile(br_2, "/etc/doubledecker/broker-keys.json"); */
+  /* dd_broker_set_scope(br_2, "0/1/0"); */
+  /* //  dd_broker_set_loglevel(rootbr, "d"); */
 
-  actor_3 = dd_broker_actor(br_2);
-  rc = zloop_reader(loop, actor_3, s_ddbroker_msg, br_2);
+  /* actor_3 = dd_broker_actor(br_2); */
+  /* rc = zloop_reader(loop, actor_3, s_ddbroker_msg, br_2); */
 
-  rc = zloop_timer(loop, 5000, 1, s_do_action_actor, 1);
-  rc = zloop_timer(loop, 6000, 1, s_do_action_actor, 2);
-  rc = zloop_timer(loop, 7000, 1, s_do_action_actor, 3);
-  rc = zloop_timer(loop, 8000, 1, s_do_action_actor, 4);
-  rc = zloop_timer(loop, 9000, 1, s_do_action_actor, 5);
-  rc = zloop_timer(loop, 10000, 1, s_do_action_actor, 6);
+  /* rc = zloop_timer(loop, 5000, 1, s_do_action_actor, 1); */
+  /* rc = zloop_timer(loop, 6000, 1, s_do_action_actor, 2); */
+  /* rc = zloop_timer(loop, 7000, 1, s_do_action_actor, 3); */
+  /* rc = zloop_timer(loop, 8000, 1, s_do_action_actor, 4); */
+  /* rc = zloop_timer(loop, 9000, 1, s_do_action_actor, 5); */
+  /* rc = zloop_timer(loop, 10000, 1, s_do_action_actor, 6); */
+  /* rc = zloop_timer(loop, 11000, 1, s_do_action_actor, 7); */
+  /* rc = zloop_timer(loop, 12000, 1, s_do_action_actor, 1); */
+  /* rc = zloop_timer(loop, 13000, 1, s_do_action_actor, 2); */
+  /* rc = zloop_timer(loop, 14000, 1, s_do_action_actor, 3); */
+  /* rc = zloop_timer(loop, 15000, 1, s_do_action_actor, 4); */
+  /* rc = zloop_timer(loop, 16000, 1, s_do_action_actor, 5); */
 
-  rc = zloop_timer(loop, 15000, 1, s_do_action_actor, 99);
+  rc = zloop_timer(loop, 5000, 1, s_do_action_actor, 7);
+  rc = zloop_timer(loop, 7000, 1, s_do_action_actor, 99);
 
   rc = zloop_start(loop);
   printf("ddbroker.c: zloop_start %d\n", rc);
-
-  while (!zsys_interrupted) {
-    zmsg_t *msg = zmsg_recv(actor_1);
-    printf("got message %p from actor_1\n", msg);
-    if (msg != NULL) {
-      zmsg_print(msg);
-      zmsg_destroy(&msg);
-    }
-  }
+  zloop_destroy(&loop);
 
   printf("Destroying actor..\n");
-  zactor_destroy(&actor_1);
-  zactor_destroy(&actor_2);
-  zactor_destroy(&actor_3);
-  zactor_destroy(&cli1_act);
-  zactor_destroy(&cli2_act);
-  zactor_destroy(&cli3_act);
+  //  zactor_destroy(&actor_1);
+  /* zactor_destroy(&actor_2); */
+  /* zactor_destroy(&actor_3); */
+  /* zactor_destroy(&cli1_act); */
+  /* zactor_destroy(&cli2_act); */
+  /* zactor_destroy(&cli3_act); */
   printf("Done, quitting!\n");
+  zlist_destroy(&test_list);
   return 1;
 }
 

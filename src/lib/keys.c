@@ -84,7 +84,7 @@ dd_keys_t *dd_keys_new(const char *filename) {
     assert(retval);
     return NULL;
   }
-  char *data = (char *)malloc(stats.st_size + 1);
+  char *data = (char *)calloc(1,stats.st_size + 1);
   if (data == NULL) {
     printf("Error allocating memory\n");
     fclose(fp);
@@ -99,6 +99,7 @@ dd_keys_t *dd_keys_new(const char *filename) {
   }
   struct json_object *parse_result = json_tokener_parse((char *)data);
   free(data);
+  fclose(fp);
   //  const char *unjson = json_object_get_string(parse_result);
 
   base64_decodestate state_in;
@@ -268,6 +269,37 @@ dd_keys_t *dd_keys_new(const char *filename) {
   return ddkeys;
 }
 
+void dd_broker_keys_destroy(ddbrokerkeys_t **self_p){
+  ddbrokerkeys_t *self = *self_p;
+  assert(self_p);
+  if(*self_p) {
+    if(self->privkey)
+      free(self->privkey);
+    if(self->pubkey)
+      free(self->pubkey);
+    if(self->ddboxk)
+      free(self->ddboxk);
+    if(self->hash)
+      free(self->hash);
+
+    ddtenant_t *ten = zhash_first (self->tenantkeys);
+    while(ten){
+      printf("dd_broker_keys_destroy, freeing %s\n",ten->name);
+      free(ten->boxk);
+      free(ten->name);
+      free(ten);
+      ten = zhash_next(self->tenantkeys);
+    }
+    zhash_destroy(&self->tenantkeys);
+
+    
+
+    zlist_destroy(&self->tenants);
+    free(self);
+    *self_p = NULL;
+  }
+}
+
 ddbrokerkeys_t *read_ddbrokerkeys(char *filename) {
   FILE *fp;
   int retval;
@@ -286,7 +318,7 @@ ddbrokerkeys_t *read_ddbrokerkeys(char *filename) {
     fclose(fp);
     return NULL;
   }
-  char *data = (char *)malloc(stats.st_size + 1);
+  char *data = (char *)calloc(1,stats.st_size + 1);
   if (data == NULL) {
     fprintf(stderr, "Error allocating memory\n");
     fclose(fp);
@@ -353,7 +385,7 @@ ddbrokerkeys_t *read_ddbrokerkeys(char *filename) {
       char pubkey[33];
       unsigned long long int *cookie =
           (long long unsigned int *)malloc(sizeof(unsigned long long int));
-      hash = strdup(key3);
+      hash = key3;
       json_object_object_foreach(val3, key4, val4) {
         enum json_type o_type2 = json_object_get_type(val4);
         if (strcmp(key4, "pubkey") == 0) {
@@ -391,7 +423,13 @@ ddbrokerkeys_t *read_ddbrokerkeys(char *filename) {
       zhash_insert(ddkeys->tenantkeys, hash, ten);
     }
   }
-  //  json_object_put(parse_result);
+  fclose(fp);
+  json_object_put(parse_result);
   return ddkeys;
 }
+
+
+
+
+
 

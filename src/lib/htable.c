@@ -69,7 +69,7 @@ int insert_local_client(dd_broker_t *self, zframe_t *sockid, ddtenant_t *ten,
   unsigned long int prename = XXH32_digest(&hash1);
 
   dist_client *dn;
-  if ((dn = hashtable_has_dist_node(self,np->prefix_name))) {
+  if ((dn = hashtable_has_dist_node(self, np->prefix_name))) {
     goto cleanup;
   }
 
@@ -110,7 +110,6 @@ cleanup:
   return -1;
 }
 
-
 void hashtable_remove_dist_node(dd_broker_t *self, char *prefix_name) {
   struct cds_lfht_iter iter;
   int hash = XXH32(prefix_name, strlen(prefix_name), XXHSEED);
@@ -122,20 +121,18 @@ void hashtable_remove_dist_node(dd_broker_t *self, char *prefix_name) {
     rcu_read_unlock();
   } else {
     int ret = cds_lfht_del(self->dist_cli_ht, ht_node);
-    dist_client  *mp = caa_container_of(ht_node, dist_client, node);
+    dist_client *mp = caa_container_of(ht_node, dist_client, node);
     if (ret) {
       dd_debug(" - Distant client %s deleted (concurrently)", mp->name);
       rcu_read_unlock();
     } else {
       rcu_read_unlock();
-      synchronize_rcu();
       dd_debug(" - Dist client %s deleted", mp->name);
       free(mp);
     }
   }
 }
-dist_client *hashtable_has_dist_node(dd_broker_t *self,
-                                          char *prefix_name) {
+dist_client *hashtable_has_dist_node(dd_broker_t *self, char *prefix_name) {
   /*
    * hash lookup to see if local
    */
@@ -193,8 +190,8 @@ void delete_dist_clients(dd_broker_t *self, local_broker *br) {
   }
 }
 
-local_broker *hashtable_has_local_broker(dd_broker_t *self, zframe_t *sockid, uint64_t cookie,
-                                         int update) {
+local_broker *hashtable_has_local_broker(dd_broker_t *self, zframe_t *sockid,
+                                         uint64_t cookie, int update) {
   /*
    * hash lookup to see if local
    */
@@ -405,8 +402,8 @@ int remove_subscriptions(dd_broker_t *self, zframe_t *sockid) {
     char *oldtopic;
     while (topic) {
 
-      nn_trie_unsubscribe(&self->topics_trie, (uint8_t *)topic, strlen(topic), sockid,
-                          1);
+      nn_trie_unsubscribe(&self->topics_trie, (uint8_t *)topic, strlen(topic),
+                          sockid, 1);
       oldtopic = topic;
       topic = zlist_next(sn->topics);
       free(oldtopic);
@@ -499,6 +496,66 @@ int insert_subscription(dd_broker_t *self, zframe_t *sockid, char *topic) {
   cds_lfht_add(self->subscribe_ht, hash, &sn->node);
   rcu_read_unlock();
   return 2;
+}
+
+void hashtable_subscribe_destroy(struct cds_lfht **self_p) {
+  if (self_p) {
+    struct cds_lfht *self = *self_p;
+    subscribe_node *sn;
+    struct cds_lfht_iter iter;
+
+    rcu_read_lock();
+    cds_lfht_first(self, &iter);
+    struct cds_lfht_node *ht_node = cds_lfht_iter_get_node(&iter);
+    while (ht_node) {
+      sn = (subscribe_node *)caa_container_of(ht_node, subscribe_node, node);
+
+      zframe_destroy(&sn->sockid);
+      if (sn->topics) {
+        zlist_autofree(sn->topics);
+        zlist_destroy(&sn->topics);
+      }
+      free(sn);
+
+      cds_lfht_del(self, ht_node);
+      cds_lfht_next(self, &iter);
+      ht_node = cds_lfht_iter_get_node(&iter);
+    }
+    rcu_read_unlock();
+    *self_p = NULL;
+  }
+}
+void hashtable_local_client_destroy(struct cds_lfht **self_p) {
+  dd_error("hashtable_local_client_destroy called");
+  if (self_p) {
+    struct cds_lfht *self = *self_p;
+    local_client *lc;
+    struct cds_lfht_iter iter;
+
+    rcu_read_lock();
+    cds_lfht_first(self, &iter);
+    struct cds_lfht_node *ht_node = cds_lfht_iter_get_node(&iter);
+    while (ht_node) {
+      lc = (local_client *)caa_container_of(ht_node, local_client, lcl_node);
+      zframe_destroy(&lc->sockid);
+
+      if (lc->name) {
+        fprintf(stderr, "hashtable_local_client_destroy(%s)\n", lc->name);
+        free(lc->name);
+        lc->name = NULL;
+      }
+      if (lc->prefix_name) {
+        free(lc->prefix_name);
+        lc->prefix_name = NULL;
+      }
+      free(lc);
+      cds_lfht_del(self, ht_node);
+      cds_lfht_next(self, &iter);
+      ht_node = cds_lfht_iter_get_node(&iter);
+    }
+    rcu_read_unlock();
+    *self_p = NULL;
+  }
 }
 
 int zlist_contains_str(zlist_t *list, char *string) {

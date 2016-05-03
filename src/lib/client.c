@@ -2,7 +2,7 @@
 #include "dd_classes.h"
 // Structure of the ddclient class
 struct _dd_t {
-  void *socket; //  Socket for clients & workers
+  zsock_t *socket; //  Socket for clients & workers
   void *pipe;
   int verbose;                //  Print activity to stdout
   unsigned char *endpoint;    //  Broker binds to this endpoint
@@ -13,7 +13,7 @@ struct _dd_t {
   int registration_loop;      // Timer ID for registration loop
   int heartbeat_loop;         // Timer ID for heartbeat loop
   uint64_t cookie;            // Cookie from authentication
-  dd_keys_t *keys;    // Encryption keys loaded from JSON file
+  dd_keys_t *keys;            // Encryption keys loaded from JSON file
   zlistx_t *sublist;          // List of subscriptions, and if they're active
   zloop_t *loop;
   int style;
@@ -24,7 +24,6 @@ struct _dd_t {
   dd_on_pub(*on_pub);
   dd_on_error(*on_error);
 };
-
 
 static void sublist_resubscribe(dd_t *self);
 static int s_ping(zloop_t *loop, int timerid, void *args);
@@ -77,11 +76,14 @@ char *dd_get_publickey(dd_t *self) {
   assert(self);
   char *hex = malloc(100);
   assert(hex);
-  sodium_bin2hex(hex, 100, dd_keys_publicpub(self->keys), crypto_box_PUBLICKEYBYTES);
+  sodium_bin2hex(hex, 100, dd_keys_publicpub(self->keys),
+                 crypto_box_PUBLICKEYBYTES);
   return hex;
 }
 
-const zlistx_t *dd_get_subscriptions(dd_t *self) { return self->sublist; }
+const zlistx_t *dd_get_subscriptions(dd_t *self) {
+  return self->sublist;
+}
 
 int dd_subscribe(dd_t *self, char *topic, char *scope) {
   char *scopestr;
@@ -138,7 +140,6 @@ int dd_publish(dd_t *self, char *topic, char *message, int mlen) {
   int srcpublic = 0;
   int dstpublic = 0;
   int retval;
-
 
   if (dd_keys_ispublic(self->keys)) {
     srcpublic = 1;
@@ -254,26 +255,9 @@ int dd_notify(dd_t *self, char *target, char *message, int mlen) {
   return 0;
 }
 
-int dd_destroy(dd_t **self) {
-  printf("DD: Shutting down ddthread..\n");
-  if ((*self)->state == DD_STATE_REGISTERED) {
-    zsock_send((*self)->socket, "bbb", &dd_version, 4, &dd_cmd_unreg, 4,
-               &(*self)->cookie, sizeof((*self)->cookie));
-  }
-  if ((*self)->sublist)
-    zlistx_destroy(&(*self)->sublist);
-  if ((*self)->loop)
-    zloop_destroy(&(*self)->loop);
-  if ((*self)->socket)
-    zsock_destroy((zsock_t **)&(*self)->socket);
-  (*self)->state = DD_STATE_EXIT;
-  return 0;
-}
-
 // ////////////////////////
 // callbacks from zloop //
 // ////////////////////////
-
 
 static int s_ping(zloop_t *loop, int timerid, void *args) {
   dd_t *self = (dd_t *)args;
@@ -317,7 +301,8 @@ static int s_ask_registration(zloop_t *loop, int timerid, void *args) {
       return -1;
     }
     zloop_reader(loop, self->socket, s_on_dealer_msg, self);
-    zsock_send(self->socket, "bbs", &dd_version, 4, &dd_cmd_addlcl, 4, (char*)dd_keys_hash(self->keys));
+    zsock_send(self->socket, "bbs", &dd_version, 4, &dd_cmd_addlcl, 4,
+               (char *)dd_keys_hash(self->keys));
   }
   return 0;
 }
@@ -365,11 +350,14 @@ static void cb_chall(dd_t *self, zmsg_t *msg) {
     return;
   }
 
+  zframe_t *temp_frame = zframe_new(decrypted, enclen - crypto_box_NONCEBYTES -
+                                                   crypto_box_MACBYTES);
   zsock_send(self->socket, "bbfss", &dd_version, 4, &dd_cmd_challok, 4,
-             zframe_new(decrypted,
-                        enclen - crypto_box_NONCEBYTES - crypto_box_MACBYTES),
-             dd_keys_hash(self->keys), self->client_name);
+             temp_frame, dd_keys_hash(self->keys), self->client_name);
+  zframe_destroy(&temp_frame);
+  free(decrypted);
 }
+
 
 static void cb_data(dd_t *self, zmsg_t *msg) {
   int retval;
@@ -456,6 +444,8 @@ static void cb_subok(dd_t *self, zmsg_t *msg) {
   char *topic = zmsg_popstr(msg);
   char *scope = zmsg_popstr(msg);
   sublist_activate(topic, scope, self);
+  free(topic);
+  free(scope);
 }
 
 static void cb_error(dd_t *self, zmsg_t *msg) {
@@ -473,7 +463,6 @@ static void cb_error(dd_t *self, zmsg_t *msg) {
   free(error_msg);
 }
 
-
 static int s_on_pipe_msg(zloop_t *loop, zsock_t *handle, void *args) {
   dd_t *self = (dd_t *)args;
   zmsg_t *msg = zmsg_recv(handle);
@@ -482,20 +471,26 @@ static int s_on_pipe_msg(zloop_t *loop, zsock_t *handle, void *args) {
   // returning -1 should stop zloop_start and terminate the actor
   if (streq(command, "$TERM")) {
     fprintf(stderr, "s_on_pipe_msg, got $TERM, quitting\n");
-
+    free(command);
+    zmsg_destroy(&msg);
     return -1;
+    
   } else if (streq(command, "subscribe")) {
     char *topic = zmsg_popstr(msg);
     char *scope = zmsg_popstr(msg);
     dd_subscribe(self, topic, scope);
     free(topic);
     free(scope);
+    free(command);
+    zmsg_destroy(&msg);
   } else if (streq(command, "unsubscribe")) {
     char *topic = zmsg_popstr(msg);
     char *scope = zmsg_popstr(msg);
     dd_unsubscribe(self, topic, scope);
     free(topic);
     free(scope);
+    free(command);
+    zmsg_destroy(&msg);
   } else if (streq(command, "publish")) {
     char *topic = zmsg_popstr(msg);
     char *message = zmsg_popstr(msg);
@@ -505,6 +500,8 @@ static int s_on_pipe_msg(zloop_t *loop, zsock_t *handle, void *args) {
     zframe_destroy(&mlen);
     free(topic);
     free(message);
+    free(command);
+    zmsg_destroy(&msg);
 
   } else if (streq(command, "notify")) {
     char *target = zmsg_popstr(msg);
@@ -515,11 +512,14 @@ static int s_on_pipe_msg(zloop_t *loop, zsock_t *handle, void *args) {
     zframe_destroy(&mlen);
     free(target);
     free(message);
+    free(command);
+    zmsg_destroy(&msg);
   } else {
     fprintf(stderr, "s_on_pipe_msg, got unknown command: %s\n", command);
+    free(command);
+    zmsg_destroy(&msg);
+
   }
-  zmsg_destroy(&msg);
-  free(command);
   return 0;
 }
 
@@ -572,11 +572,11 @@ static int s_on_dealer_msg(zloop_t *loop, zsock_t *handle, void *args) {
     fprintf(stderr, "DD: Wrong version, expected 0x%x, got 0x%x\n", DD_VERSION,
             *zframe_data(proto_frame));
     zframe_destroy(&proto_frame);
+    zmsg_destroy(&msg);
     return 0;
   }
   zframe_t *cmd_frame = zmsg_pop(msg);
   uint32_t cmd = *((uint32_t *)zframe_data(cmd_frame));
-  zframe_destroy(&cmd_frame);
   switch (cmd) {
   case DD_CMD_SEND:
     fprintf(stderr, "DD: Got command DD_CMD_SEND\n");
@@ -654,6 +654,8 @@ static int s_on_dealer_msg(zloop_t *loop, zsock_t *handle, void *args) {
     fprintf(stderr, "DD: Unknown command, value: 0x%x\n", cmd);
     break;
   }
+  zframe_destroy(&proto_frame);
+  zframe_destroy(&cmd_frame);
   zmsg_destroy(&msg);
   return 0;
 }
@@ -669,7 +671,7 @@ void *ddthread(void *args) {
     free(self);
     return NULL;
   }
- 
+
   rc = zsock_connect(self->socket, (const char *)self->endpoint);
   if (rc != 0) {
     fprintf(stderr, "DD: Error in zmq_connect: %s\n", zmq_strerror(errno));
@@ -683,7 +685,7 @@ void *ddthread(void *args) {
     return NULL;
   }
 
-   self->sublist = zlistx_new();
+  self->sublist = zlistx_new();
   zlistx_set_destructor(self->sublist, (czmq_destructor *)sublist_free);
   zlistx_set_duplicator(self->sublist, (czmq_duplicator *)sublist_dup);
   zlistx_set_comparator(self->sublist, (czmq_comparator *)sublist_cmp);
@@ -698,6 +700,42 @@ void *ddthread(void *args) {
   return self;
 }
 
+void dd_destroy(dd_t **self_p) {
+  assert(self_p);
+  printf("DD: Shutting down ddthread..\n");
+  if (*self_p) {
+    dd_t *self = *self_p;
+
+    printf("DD: Shutting down ddthread..\n");
+    if (self->state == DD_STATE_REGISTERED) {
+      zsock_send(self->socket, "bbb", &dd_version, 4, &dd_cmd_unreg, 4,
+                 &self->cookie, sizeof(self->cookie));
+    }
+
+    zsock_destroy(&self->socket);
+    if (self->endpoint) {
+      free(self->endpoint);
+      self->endpoint = NULL;
+    }
+    if (self->keyfile) {
+      free(self->keyfile);
+      self->keyfile = NULL;
+    }
+    if (self->client_name) {
+      free(self->client_name);
+      self->client_name = NULL;
+    }
+
+    dd_keys_destroy(&self->keys);
+
+    zlistx_destroy(&self->sublist);
+
+    zloop_destroy(&self->loop);
+
+    free(self);
+    *self_p = NULL;
+  }
+}
 void dd_actor(zsock_t *pipe, void *args) {
   dd_t *self = (dd_t *)args;
   int rc;
@@ -718,7 +756,7 @@ void dd_actor(zsock_t *pipe, void *args) {
     return;
   }
 
-  self->keys = dd_keys_new(self->keyfile);
+  self->keys = dd_keys_new((const char*) self->keyfile);
   if (self->keys == NULL) {
     fprintf(stderr, "DD: Error reading keyfile!\n");
     zsock_send(self->pipe, "ss", "$TERM", "Missing keyfile");
@@ -738,12 +776,11 @@ void dd_actor(zsock_t *pipe, void *args) {
   rc = zloop_reader(self->loop, self->socket, s_on_dealer_msg, self);
   rc = zloop_reader(self->loop, pipe, s_on_pipe_msg, self);
   zloop_start(self->loop);
-  zloop_destroy(&self->loop);
-  zsock_destroy(&pipe);
+
+  dd_destroy(&self);
 }
 
-zactor_t *ddactor_new(char *client_name, char *endpoint,
-                      char *keyfile) {
+zactor_t *ddactor_new(char *client_name, char *endpoint, char *keyfile) {
   dd_t *self = malloc(sizeof(dd_t));
   self->style = DD_ACTOR;
   self->client_name = (unsigned char *)strdup(client_name);
@@ -766,8 +803,8 @@ zactor_t *ddactor_new(char *client_name, char *endpoint,
   return actor;
 }
 
-dd_t *dd_new(char *client_name,  char *endpoint, char *keyfile,
-             dd_on_con con, dd_on_discon discon, dd_on_data data, dd_on_pub pub,
+dd_t *dd_new(char *client_name, char *endpoint, char *keyfile, dd_on_con con,
+             dd_on_discon discon, dd_on_data data, dd_on_pub pub,
              dd_on_error error) {
   dd_t *self = malloc(sizeof(dd_t));
   self->style = DD_CALLBACK;
@@ -791,7 +828,8 @@ static void dd_keys_print(dd_keys_t *keys) {
   printf("Hash value: \t%s", dd_keys_hash(keys));
   printf("Private key: \t%s", sodium_bin2hex(hex, 100, dd_keys_priv(keys), 32));
   printf("Public key: \t%s", sodium_bin2hex(hex, 100, dd_keys_pub(keys), 32));
-  printf("DDPublic key: \t%s", sodium_bin2hex(hex, 100, dd_keys_ddpub(keys), 32));
+  printf("DDPublic key: \t%s",
+         sodium_bin2hex(hex, 100, dd_keys_ddpub(keys), 32));
   printf("PublicPub key: \t%s",
          sodium_bin2hex(hex, 100, dd_keys_publicpub(keys), 32));
   free(hex);

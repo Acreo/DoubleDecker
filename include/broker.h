@@ -48,8 +48,8 @@ struct _dd_broker_t {
   char *sub_bind;
   char *sub_connect;
 
-  char *logfile;
-  char *syslog_enabled;
+  /* char *logfile; */
+  /* char *syslog_enabled; */
 
 
   int state, timeout;
@@ -102,8 +102,6 @@ struct _dd_broker_t {
   char nonce[crypto_box_NONCEBYTES];
   ddbrokerkeys_t *keys;
 
-  // Logging
-  FILE *logfp;
 };
 typedef struct _lcl_broker local_broker;
 typedef struct _dist_node dist_client;

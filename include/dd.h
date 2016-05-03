@@ -83,7 +83,7 @@ CZMQ_EXPORT int dd_subscribe(dd_t *self, char *topic, char *scope);
 CZMQ_EXPORT int dd_unsubscribe(dd_t *self, char *topic, char *scope);
 CZMQ_EXPORT int dd_publish(dd_t *self, char *topic, char *message, int mlen);
 CZMQ_EXPORT int dd_notify(dd_t *self, char *target, char *message, int mlen);
-CZMQ_EXPORT int dd_destroy(dd_t **self);
+CZMQ_EXPORT void dd_destroy(dd_t **self_p);
 CZMQ_EXPORT const char *dd_get_version();
 
 CZMQ_EXPORT int dd_get_state(dd_t *self);

@@ -197,6 +197,10 @@ void nn_node_term(struct nn_trie_node *self) {
     nn_node_term(*nn_node_child(self, i));
 
   /*  Deallocate this node. */
+  if(self->sockids){
+    zlist_autofree(self->sockids);
+    zlist_destroy(&self->sockids);
+  }
   free(self);
 }
 

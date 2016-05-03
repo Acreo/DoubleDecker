@@ -391,7 +391,6 @@ static void s_cb_challok(dd_broker_t *self, zframe_t *sockid, zmsg_t *msg) {
     // TODO: send error message
     dd_error("Client trying to use reserved name 'public'!");
     goto cleanup;
-    return;
   }
 
   retval = insert_local_client(self, sockid, ten, client_name);
@@ -400,7 +399,6 @@ static void s_cb_challok(dd_broker_t *self, zframe_t *sockid, zmsg_t *msg) {
     remote_reg_failed(self, sockid, "local");
     dd_error("DD_CMD_CHALLOK: Couldn't insert local client!");
     goto cleanup;
-    return;
   }
   zsock_send(self->rsock, "fbbb", sockid, &dd_version, 4, &dd_cmd_regok, 4,
              &ten->cookie, sizeof(ten->cookie));
@@ -658,8 +656,7 @@ static void s_cb_regok(dd_broker_t *self, zmsg_t *msg) {
 
   // stop trying to register
   zloop_timer_end(self->loop, self->reg_loop);
-  self->heartbeat_loop =
-      zloop_timer(self->loop, 1000, 0, s_heartbeat, self);
+  self->heartbeat_loop = zloop_timer(self->loop, 1000, 0, s_heartbeat, self);
 
   // iterate through local clients and add_cli_up to transmit to next
   // broker
@@ -1823,6 +1820,7 @@ void print_ddbrokerkeys(ddbrokerkeys_t *keys) {
     dd_debug("\t name: %s \tcookie: %llu", ten->name, ten->cookie);
     k = zlist_next(precalc);
   }
+  zlist_destroy(&precalc);
   //  free(hex);
 }
 
@@ -1870,10 +1868,10 @@ void start_pubsub(dd_broker_t *self) {
       rexipc = zrex_new(IPC_REGEX);
     } else if (zrex_matches(rextcp, t)) {
       int port = atoi(zrex_hit(rextcp, 2));
-      char *sub_tcp = malloc(strlen(t) + 1);
-      char *pub_tcp = malloc(strlen(t) + 1);
-      sprintf(pub_tcp, "%s%d", zrex_hit(rextcp, 1), port + 1);
-      sprintf(sub_tcp, "%s%d", zrex_hit(rextcp, 1), port + 2);
+      char *sub_tcp; // = malloc(strlen(t) + 1);
+      char *pub_tcp; // = malloc(strlen(t) + 1);
+      asprintf(&pub_tcp, "%s%d", zrex_hit(rextcp, 1), port + 1);
+      asprintf(&sub_tcp, "%s%d", zrex_hit(rextcp, 1), port + 2);
       zlist_append(self->sub_strings, sub_tcp);
       zlist_append(self->pub_strings, pub_tcp);
       // Should not be necessary, but weird results otherwise..
@@ -2070,7 +2068,7 @@ int s_on_http(zloop_t *loop, zsock_t *handle, void *arg) {
   zframe_t *data = zmsg_pop(msg);
   // replace with  regexp
   // httprex = zrex_new("^\\s*(\\S+)\\s+(\\S+)\\s+HTTP/(\\d)\\.(\\d)");
- 
+
   char *http_request = (char *)zframe_data(data);
   char *http_all = "GET / HTTP/1.1\r\n";
   char *http_dist = "GET /distant HTTP/1.1\r\n";
@@ -2162,6 +2160,8 @@ static int s_on_pipe_msg(zloop_t *loop, zsock_t *handle, void *args) {
   // returning -1 should stop zloop_start and terminate the actor
   if (streq(command, "$TERM")) {
     dd_info("s_on_pipe_msg, got $TERM, quitting\n");
+    free(command);
+    zmsg_destroy(&msg);
     return -1;
   } else {
     fprintf(stderr, "s_on_pipe_msg, got unknown command: %s\n", command);
@@ -2170,9 +2170,158 @@ static int s_on_pipe_msg(zloop_t *loop, zsock_t *handle, void *args) {
   free(command);
   return 0;
 }
+static void s_self_destroy(dd_broker_t **self_p) {
+  dd_error("s_self_destroy called!");
+  assert(self_p);
+  if (*self_p) {
+    dd_broker_t *self = *self_p;
+
+    if (self->broker_scope) {
+      free(self->broker_scope);
+      self->broker_scope = NULL;
+    }
+    if (self->router_bind) {
+      free(self->router_bind);
+      self->router_bind = NULL;
+    }
+    if (self->dealer_connect) {
+      free(self->dealer_connect);
+      self->dealer_connect = NULL;
+    }
+    if (self->reststr) {
+      free(self->reststr);
+      self->reststr = NULL;
+    }
+    if (self->pub_bind) {
+      free(self->pub_bind);
+      self->pub_bind = NULL;
+    }
+    if (self->pub_connect) {
+      free(self->pub_connect);
+      self->pub_connect = NULL;
+    }
+    if (self->sub_bind) {
+      free(self->sub_bind);
+      self->sub_bind = NULL;
+    }
+    if (self->sub_connect) {
+      free(self->sub_connect);
+      self->sub_connect = NULL;
+    }
+
+    // clean up the trie first
+
+    nn_trie_term(&self->topics_trie);
+
+    zframe_destroy(&self->broker_id);
+    zframe_destroy(&self->broker_id_null);
+
+    if (self->scope) {
+      char *t = zlist_first(self->scope);
+      while (t) {
+        free(t);
+        t = zlist_next(self->scope);
+      }
+      zlist_destroy(&self->scope);
+      self->scope = NULL;
+    }
+
+    if (self->rstrings) {
+      char *t = zlist_first(self->rstrings);
+      while (t) {
+        free(t);
+        t = zlist_next(self->rstrings);
+      }
+      zlist_destroy(&self->rstrings);
+      self->rstrings = NULL;
+    }
+    if (self->pub_strings) {
+      char *t = zlist_first(self->pub_strings);
+      while (t) {
+        free(t);
+        t = zlist_next(self->pub_strings);
+      }
+      zlist_destroy(&self->pub_strings);
+      self->pub_strings = NULL;
+    }
+    if (self->sub_strings) {
+      char *t = zlist_first(self->sub_strings);
+      while (t) {
+        free(t);
+        t = zlist_next(self->sub_strings);
+      }
+      zlist_destroy(&self->sub_strings);
+      self->sub_strings = NULL;
+    }
+
+    zloop_destroy(&self->loop);
+
+    if (self->http)
+      zsock_set_linger(self->http, 0);
+    if (self->pubS)
+      zsock_set_linger(self->pubS, 0);
+    if (self->pubN)
+      zsock_set_linger(self->pubN, 0);
+    if (self->subS)
+      zsock_set_linger(self->subS, 0);
+    if (self->subN)
+      zsock_set_linger(self->subN, 0);
+    if (self->dsock)
+      zsock_set_linger(self->dsock, 0);
+    if (self->rsock)
+      zsock_set_linger(self->rsock, 0);
+
+    zsock_destroy(&self->http);
+    zsock_destroy(&self->pubS);
+    zsock_destroy(&self->pubN);
+    zsock_destroy(&self->subS);
+    zsock_destroy(&self->subN);
+    zsock_destroy(&self->dsock);
+    zsock_destroy(&self->rsock);
+
+    if (self->lcl_cli_ht) {
+      hashtable_local_client_destroy(&self->lcl_cli_ht);
+      self->lcl_cli_ht = NULL;
+    }
+
+    if (self->rev_lcl_cli_ht) {
+      cds_lfht_destroy(self->rev_lcl_cli_ht, NULL);
+      self->rev_lcl_cli_ht = NULL;
+    }
+    if (self->dist_cli_ht) {
+      cds_lfht_destroy(self->dist_cli_ht, NULL);
+      self->dist_cli_ht = NULL;
+    }
+    if (self->lcl_br_ht) {
+      cds_lfht_destroy(self->lcl_br_ht, NULL);
+      self->lcl_br_ht = NULL;
+    }
+    if (self->subscribe_ht) {
+      hashtable_subscribe_destroy(&self->subscribe_ht);
+      self->subscribe_ht = NULL;
+    }
+
+    if (self->top_north_ht) {
+      cds_lfht_destroy(self->top_north_ht, NULL);
+      self->top_north_ht = NULL;
+    }
+    if (self->top_south_ht) {
+      cds_lfht_destroy(self->top_south_ht, NULL);
+      self->top_south_ht = NULL;
+    }
+
+    dd_broker_keys_destroy(&self->keys);
+
+    free(self);
+    *self_p = NULL;
+  }
+}
 
 void broker_actor(zsock_t *pipe, void *args) {
   dd_broker_t *self = args;
+  assert(self);
+
+  // signal sucessfull initialization
   zsock_signal(pipe, 0);
 
   dd_info("%s - <%s> - %s", PACKAGE_STRING, PACKAGE_BUGREPORT, PACKAGE_URL);
@@ -2211,33 +2360,12 @@ void broker_actor(zsock_t *pipe, void *args) {
 
   if (self->reststr)
     start_httpd(self);
-  
-  rc = zloop_start(self->loop);
-  dd_info("broker.c: zloop_start returned %d\n",rc);
-  zloop_destroy(&self->loop);
-  if (self->http)
-    zsock_set_linger(self->http, 0);
-  if (self->pubS)
-    zsock_set_linger(self->pubS, 0);
-  if (self->pubN)
-    zsock_set_linger(self->pubN, 0);
-  if (self->subS)
-    zsock_set_linger(self->subS, 0);
-  if (self->subN)
-    zsock_set_linger(self->subN, 0);
-  if (self->dsock)
-    zsock_set_linger(self->dsock, 0);
-  if (self->rsock)
-    zsock_set_linger(self->rsock, 0);
 
-  zsock_destroy(&self->http);
-  zsock_destroy(&self->pubS);
-  zsock_destroy(&self->pubN);
-  zsock_destroy(&self->subS);
-  zsock_destroy(&self->subN);
-  zsock_destroy(&self->dsock);
-  zsock_destroy(&self->rsock);
-  dd_info("Destroyed all open sockets, waiting a second..");
+  rc = zloop_start(self->loop);
+
+  dd_info("broker.c: zloop_start returned %d\n", rc);
+  s_self_destroy(&self);
+
   // TODO:
   // Weird bug here, if run in interactive mode and killed with ctrl-c
   // All IPC unix domain socket files seems to be removed just fine
@@ -2348,9 +2476,13 @@ int dd_broker_set_config(dd_broker_t *self, char *conffile) {
       dd_broker_set_loglevel(self, zconfig_value(child));
     } else if (streq(zconfig_name(child), "keyfile")) {
       dd_broker_set_keyfile(self, zconfig_value(child));
-    } else if (streq(zconfig_name(child), "logfile")) {
+    }
+    /* Think through how to handle logfiles etc
+      else if (streq(zconfig_name(child), "logfile")) {
       dd_broker_set_logfile(self, zconfig_value(child));
-    } else if (streq(zconfig_name(child), "syslog")) {
+      }
+    */
+    else if (streq(zconfig_name(child), "syslog")) {
       zsys_set_logsystem(true);
     } else {
       dd_error("Unknown key in configuration file, \"%s\"",
@@ -2397,19 +2529,19 @@ int dd_broker_add_router(dd_broker_t *self, char *routerstr) {
   } else {
     char *new_router_bind;
     asprintf(&new_router_bind, "%s,%s", self->router_bind, routerstr);
+    free(self->router_bind);
     self->router_bind = new_router_bind;
   }
   return 0;
 }
-int dd_broker_del_router(dd_broker_t *self, char *routerstr){
+int dd_broker_del_router(dd_broker_t *self, char *routerstr) {
   dd_info("Unbinding router %s", routerstr);
   dd_error("Not implemented!");
   return -1;
 }
-const char *dd_broker_get_router(dd_broker_t *self){ 
+const char *dd_broker_get_router(dd_broker_t *self) {
   return self->router_bind;
 }
-
 
 void bind_router(dd_broker_t *self) {
   char *str1, *token;
@@ -2471,13 +2603,13 @@ void bind_router(dd_broker_t *self) {
 }
 
 int dd_broker_set_scope(dd_broker_t *self, char *scopestr) {
-  
+
   zrex_t *rexscope = zrex_new("^/*(\\d+)/(\\d+)/(\\d+)/*$");
   int i = 0;
   assert(zrex_valid(rexscope));
   if (zrex_matches(rexscope, scopestr)) {
-    for (i = 1; i < zrex_hits(rexscope);i++){
-      zlist_append(self->scope, strdup(zrex_hit(rexscope,i)));
+    for (i = 1; i < zrex_hits(rexscope); i++) {
+      zlist_append(self->scope, strdup(zrex_hit(rexscope, i)));
     }
     zrex_destroy(&rexscope);
   } else {
@@ -2546,8 +2678,6 @@ dd_broker_t *dd_broker_new() {
   self->pub_connect = NULL;
   self->sub_bind = NULL;
   self->sub_connect = NULL;
-  self->logfile = NULL;
-  self->syslog_enabled = NULL;
   self->keys = NULL;
 
   // timer IDs
@@ -2592,20 +2722,19 @@ dd_broker_t *dd_broker_new() {
   self->top_south_ht = cds_lfht_new(1, 1, 0, CDS_LFHT_AUTO_RESIZE, NULL);
 
   // Logfile
-  self->logfp = NULL;
   dd_info("Initialized new ddbroker_t!");
   return self;
 }
-int dd_broker_set_logfile(dd_broker_t *self, char *logfile) {
-  // TODO check if already open and close
-  self->logfp = fopen(logfile, "w+");
-  if (self->logfp) {
-    zsys_set_logstream(self->logfp);
-  } else {
-    dd_error("Couldn't open logfile %s", logfile);
-    exit(EXIT_FAILURE);
-  }
-}
+/* int dd_broker_set_logfile(dd_broker_t *self, char *logfile) { */
+/*   // TODO check if already open and close */
+/*   self->logfp = fopen(logfile, "w+"); */
+/*   if (self->logfp) { */
+/*     zsys_set_logstream(self->logfp); */
+/*   } else { */
+/*     dd_error("Couldn't open logfile %s", logfile); */
+/*     exit(EXIT_FAILURE); */
+/*   } */
+/* } */
 int dd_broker_set_rest(dd_broker_t *self, char *reststr) {
   self->reststr = strdup(reststr);
 }

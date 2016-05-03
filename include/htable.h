@@ -69,6 +69,8 @@ void hashtable_insert_local_node(dd_broker_t *self, zframe_t *sockid,
 int remove_subscriptions(dd_broker_t *self, zframe_t *sockid);
 int remove_subscription(dd_broker_t *self, zframe_t *sockid, char *topic);
 int insert_subscription(dd_broker_t *self, zframe_t *sockid, char *topic);
+void hashtable_subscribe_destroy(struct cds_lfht **self_p);
+void hashtable_local_client_destroy(struct cds_lfht **self_p);
 int zlist_contains_str(zlist_t *list, char *string);
 void print_zlist_str(zlist_t *list);
 void print_sub_ht(dd_broker_t *self);
