@@ -513,15 +513,19 @@ void hashtable_subscribe_destroy(struct cds_lfht **self_p) {
       zframe_destroy(&sn->sockid);
       if (sn->topics) {
         zlist_autofree(sn->topics);
+        dd_error("destroying sn->topics list");
         zlist_destroy(&sn->topics);
       }
-      free(sn);
+      //      free(sn);
 
-      cds_lfht_del(self, ht_node);
+      //cds_lfht_del(self, ht_node);
       cds_lfht_next(self, &iter);
       ht_node = cds_lfht_iter_get_node(&iter);
     }
     rcu_read_unlock();
+    int rc = cds_lfht_destroy(self, NULL);
+    dd_error("hashtable_subscribe_destroy, cds_lfht_destroy(self) -> %d", rc);
+
     *self_p = NULL;
   }
 }
@@ -548,12 +552,15 @@ void hashtable_local_client_destroy(struct cds_lfht **self_p) {
         free(lc->prefix_name);
         lc->prefix_name = NULL;
       }
-      free(lc);
-      cds_lfht_del(self, ht_node);
+      //free(lc);
+      //cds_lfht_del(self, ht_node);
       cds_lfht_next(self, &iter);
       ht_node = cds_lfht_iter_get_node(&iter);
     }
     rcu_read_unlock();
+
+    int rc = cds_lfht_destroy(self, NULL);
+    dd_error("hashtable_local_client_destroy, cds_lfht_destroy(self) -> %d", rc);
     *self_p = NULL;
   }
 }

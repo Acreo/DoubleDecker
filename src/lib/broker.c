@@ -83,7 +83,7 @@ static void s_cb_unreg_dist_cli(dd_broker_t *self, zframe_t *sockid,
                                 zframe_t *cookie_frame, zmsg_t *msg);
 static void s_cb_unsub(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie,
                        zmsg_t *msg);
-
+static void s_self_destroy(dd_broker_t **self_p);
 void print_ddbrokerkeys(ddbrokerkeys_t *keys);
 void dest_invalid_rsock(dd_broker_t *self, zframe_t *sockid, char *src_string,
                         char *dst_string);
@@ -185,12 +185,15 @@ static void s_cb_addbr(dd_broker_t *self, zframe_t *sockid, zmsg_t *msg) {
   char *hash = zmsg_popstr(msg);
   if (hash == NULL) {
     dd_error("Error, got ADDBR without hash!");
+    zmsg_destroy(&msg);
     return;
   }
   //  printf("comparing hash %s with keys->hash %s\n", hash, keys->hash);
   if (strcmp(hash, self->keys->hash) != 0) {
     // TODO send error
     dd_error("Error, got ADDBR with wrong hash!");
+    free(hash);
+    zmsg_destroy(&msg);
     return;
   }
 
@@ -212,6 +215,12 @@ static void s_cb_addbr(dd_broker_t *self, zframe_t *sockid, zmsg_t *msg) {
   if (retval != 0) {
     dd_error("Error sending challenge!");
   }
+
+cleanup:
+  if (hash)
+    free(hash);
+  if (ciphertext)
+    free(ciphertext);
 }
 
 static void s_cb_addlcl(dd_broker_t *self, zframe_t *sockid, zmsg_t *msg) {
@@ -320,13 +329,12 @@ static void s_cb_chall(dd_broker_t *self, zmsg_t *msg) {
     dd_error("Unable to decrypt CHALLENGE from broker");
     goto cleanup;
   }
-
+  zframe_t *temp_frame = zframe_new(decrypted, enclen - crypto_box_NONCEBYTES -
+                                                   crypto_box_MACBYTES);
   zsock_send(self->dsock, "bbfss", &dd_version, 4, &dd_cmd_challok, 4,
-             zframe_new(decrypted,
-                        enclen - crypto_box_NONCEBYTES - crypto_box_MACBYTES),
-             self->keys->hash, "broker");
+             temp_frame, self->keys->hash, "broker");
 cleanup:
-
+  zframe_destroy(&temp_frame);
   zframe_destroy(&encrypted);
   free(decrypted);
 }
@@ -1503,6 +1511,7 @@ static int s_on_dealer_msg(zloop_t *loop, zsock_t *handle, void *arg) {
     dd_error("Wrong version, expected 0x%x, got 0x%x", DD_VERSION,
              *zframe_data(proto_frame));
     zframe_destroy(&proto_frame);
+    zmsg_destroy(&msg);
     return 0;
   }
   zframe_t *cmd_frame = zmsg_pop(msg);
@@ -1528,6 +1537,7 @@ static int s_on_dealer_msg(zloop_t *loop, zsock_t *handle, void *arg) {
     break;
   }
   zmsg_destroy(&msg);
+  zframe_destroy(&proto_frame);
   return 0;
 }
 
@@ -2170,152 +2180,6 @@ static int s_on_pipe_msg(zloop_t *loop, zsock_t *handle, void *args) {
   free(command);
   return 0;
 }
-static void s_self_destroy(dd_broker_t **self_p) {
-  dd_error("s_self_destroy called!");
-  assert(self_p);
-  if (*self_p) {
-    dd_broker_t *self = *self_p;
-
-    if (self->broker_scope) {
-      free(self->broker_scope);
-      self->broker_scope = NULL;
-    }
-    if (self->router_bind) {
-      free(self->router_bind);
-      self->router_bind = NULL;
-    }
-    if (self->dealer_connect) {
-      free(self->dealer_connect);
-      self->dealer_connect = NULL;
-    }
-    if (self->reststr) {
-      free(self->reststr);
-      self->reststr = NULL;
-    }
-    if (self->pub_bind) {
-      free(self->pub_bind);
-      self->pub_bind = NULL;
-    }
-    if (self->pub_connect) {
-      free(self->pub_connect);
-      self->pub_connect = NULL;
-    }
-    if (self->sub_bind) {
-      free(self->sub_bind);
-      self->sub_bind = NULL;
-    }
-    if (self->sub_connect) {
-      free(self->sub_connect);
-      self->sub_connect = NULL;
-    }
-
-    // clean up the trie first
-
-    nn_trie_term(&self->topics_trie);
-
-    zframe_destroy(&self->broker_id);
-    zframe_destroy(&self->broker_id_null);
-
-    if (self->scope) {
-      char *t = zlist_first(self->scope);
-      while (t) {
-        free(t);
-        t = zlist_next(self->scope);
-      }
-      zlist_destroy(&self->scope);
-      self->scope = NULL;
-    }
-
-    if (self->rstrings) {
-      char *t = zlist_first(self->rstrings);
-      while (t) {
-        free(t);
-        t = zlist_next(self->rstrings);
-      }
-      zlist_destroy(&self->rstrings);
-      self->rstrings = NULL;
-    }
-    if (self->pub_strings) {
-      char *t = zlist_first(self->pub_strings);
-      while (t) {
-        free(t);
-        t = zlist_next(self->pub_strings);
-      }
-      zlist_destroy(&self->pub_strings);
-      self->pub_strings = NULL;
-    }
-    if (self->sub_strings) {
-      char *t = zlist_first(self->sub_strings);
-      while (t) {
-        free(t);
-        t = zlist_next(self->sub_strings);
-      }
-      zlist_destroy(&self->sub_strings);
-      self->sub_strings = NULL;
-    }
-
-    zloop_destroy(&self->loop);
-
-    if (self->http)
-      zsock_set_linger(self->http, 0);
-    if (self->pubS)
-      zsock_set_linger(self->pubS, 0);
-    if (self->pubN)
-      zsock_set_linger(self->pubN, 0);
-    if (self->subS)
-      zsock_set_linger(self->subS, 0);
-    if (self->subN)
-      zsock_set_linger(self->subN, 0);
-    if (self->dsock)
-      zsock_set_linger(self->dsock, 0);
-    if (self->rsock)
-      zsock_set_linger(self->rsock, 0);
-
-    zsock_destroy(&self->http);
-    zsock_destroy(&self->pubS);
-    zsock_destroy(&self->pubN);
-    zsock_destroy(&self->subS);
-    zsock_destroy(&self->subN);
-    zsock_destroy(&self->dsock);
-    zsock_destroy(&self->rsock);
-
-    if (self->lcl_cli_ht) {
-      hashtable_local_client_destroy(&self->lcl_cli_ht);
-      self->lcl_cli_ht = NULL;
-    }
-
-    if (self->rev_lcl_cli_ht) {
-      cds_lfht_destroy(self->rev_lcl_cli_ht, NULL);
-      self->rev_lcl_cli_ht = NULL;
-    }
-    if (self->dist_cli_ht) {
-      cds_lfht_destroy(self->dist_cli_ht, NULL);
-      self->dist_cli_ht = NULL;
-    }
-    if (self->lcl_br_ht) {
-      cds_lfht_destroy(self->lcl_br_ht, NULL);
-      self->lcl_br_ht = NULL;
-    }
-    if (self->subscribe_ht) {
-      hashtable_subscribe_destroy(&self->subscribe_ht);
-      self->subscribe_ht = NULL;
-    }
-
-    if (self->top_north_ht) {
-      cds_lfht_destroy(self->top_north_ht, NULL);
-      self->top_north_ht = NULL;
-    }
-    if (self->top_south_ht) {
-      cds_lfht_destroy(self->top_south_ht, NULL);
-      self->top_south_ht = NULL;
-    }
-
-    dd_broker_keys_destroy(&self->keys);
-
-    free(self);
-    *self_p = NULL;
-  }
-}
 
 void broker_actor(zsock_t *pipe, void *args) {
   dd_broker_t *self = args;
@@ -2360,6 +2224,21 @@ void broker_actor(zsock_t *pipe, void *args) {
 
   if (self->reststr)
     start_httpd(self);
+
+  if (self->http)
+    zsock_set_linger(self->http, 0);
+  if (self->pubS)
+    zsock_set_linger(self->pubS, 0);
+  if (self->pubN)
+    zsock_set_linger(self->pubN, 0);
+  if (self->subS)
+    zsock_set_linger(self->subS, 0);
+  if (self->subN)
+    zsock_set_linger(self->subN, 0);
+  if (self->dsock)
+    zsock_set_linger(self->dsock, 0);
+  if (self->rsock)
+    zsock_set_linger(self->rsock, 0);
 
   rc = zloop_start(self->loop);
 
@@ -2650,6 +2529,10 @@ int dd_broker_set_scope(dd_broker_t *self, char *scopestr) {
   dd_info("broker scope set to: %s", self->broker_scope);
   return 0;
 }
+int dd_broker_set_rest(dd_broker_t *self, char *reststr) {
+  self->reststr = strdup(reststr);
+}
+
 int dd_broker_set_loglevel(dd_broker_t *self, char *logstr) {
   int i;
   if (streq(logstr, "e"))
@@ -2712,6 +2595,7 @@ dd_broker_t *dd_broker_new() {
   self->http = NULL;
 
   // client and broker tables
+  // not cleaned up properly
   self->lcl_cli_ht = cds_lfht_new(1, 1, 0, CDS_LFHT_AUTO_RESIZE, NULL);
   self->rev_lcl_cli_ht = cds_lfht_new(1, 1, 0, CDS_LFHT_AUTO_RESIZE, NULL);
   self->dist_cli_ht = cds_lfht_new(1, 1, 0, CDS_LFHT_AUTO_RESIZE, NULL);
@@ -2725,16 +2609,138 @@ dd_broker_t *dd_broker_new() {
   dd_info("Initialized new ddbroker_t!");
   return self;
 }
-/* int dd_broker_set_logfile(dd_broker_t *self, char *logfile) { */
-/*   // TODO check if already open and close */
-/*   self->logfp = fopen(logfile, "w+"); */
-/*   if (self->logfp) { */
-/*     zsys_set_logstream(self->logfp); */
-/*   } else { */
-/*     dd_error("Couldn't open logfile %s", logfile); */
-/*     exit(EXIT_FAILURE); */
-/*   } */
-/* } */
-int dd_broker_set_rest(dd_broker_t *self, char *reststr) {
-  self->reststr = strdup(reststr);
+
+static void s_self_destroy(dd_broker_t **self_p) {
+  dd_error("s_self_destroy called!");
+  assert(self_p);
+  if (*self_p) {
+    dd_broker_t *self = *self_p;
+
+    if (self->broker_scope) {
+      free(self->broker_scope);
+      self->broker_scope = NULL;
+    }
+    if (self->router_bind) {
+      free(self->router_bind);
+      self->router_bind = NULL;
+    }
+    if (self->dealer_connect) {
+      free(self->dealer_connect);
+      self->dealer_connect = NULL;
+    }
+    if (self->reststr) {
+      free(self->reststr);
+      self->reststr = NULL;
+    }
+    if (self->pub_bind) {
+      free(self->pub_bind);
+      self->pub_bind = NULL;
+    }
+    if (self->pub_connect) {
+      free(self->pub_connect);
+      self->pub_connect = NULL;
+    }
+    if (self->sub_bind) {
+      free(self->sub_bind);
+      self->sub_bind = NULL;
+    }
+    if (self->sub_connect) {
+      free(self->sub_connect);
+      self->sub_connect = NULL;
+    }
+
+    // clean up the trie first
+
+    nn_trie_term(&self->topics_trie);
+
+    zframe_destroy(&self->broker_id);
+    zframe_destroy(&self->broker_id_null);
+
+    if (self->scope) {
+      char *t = zlist_first(self->scope);
+      while (t) {
+        free(t);
+        t = zlist_next(self->scope);
+      }
+      zlist_destroy(&self->scope);
+      self->scope = NULL;
+    }
+
+    if (self->rstrings) {
+      char *t = zlist_first(self->rstrings);
+      while (t) {
+        free(t);
+        t = zlist_next(self->rstrings);
+      }
+      zlist_destroy(&self->rstrings);
+      self->rstrings = NULL;
+    }
+    if (self->pub_strings) {
+      char *t = zlist_first(self->pub_strings);
+      while (t) {
+        free(t);
+        t = zlist_next(self->pub_strings);
+      }
+      zlist_destroy(&self->pub_strings);
+      self->pub_strings = NULL;
+    }
+    if (self->sub_strings) {
+      char *t = zlist_first(self->sub_strings);
+      while (t) {
+        free(t);
+        t = zlist_next(self->sub_strings);
+      }
+      zlist_destroy(&self->sub_strings);
+      self->sub_strings = NULL;
+    }
+
+    zloop_destroy(&self->loop);
+
+    zsock_destroy(&self->http);
+    zsock_destroy(&self->pubS);
+    zsock_destroy(&self->pubN);
+    zsock_destroy(&self->subS);
+    zsock_destroy(&self->subN);
+    zsock_destroy(&self->dsock);
+    zsock_destroy(&self->rsock);
+
+    if (self->lcl_cli_ht) {
+      hashtable_local_client_destroy(&self->lcl_cli_ht);
+    }
+    if (self->rev_lcl_cli_ht) {
+      int rc = cds_lfht_destroy(self->rev_lcl_cli_ht, NULL);
+      dd_error("s_self_destroy, cds_lfht_destroy(self->rev_lcl_cli_ht) -> %d",
+               rc);
+      self->lcl_cli_ht = NULL;
+    }
+
+    if (self->dist_cli_ht) {
+      int rc = cds_lfht_destroy(self->dist_cli_ht, NULL);
+      dd_error("s_self_destroy, cds_lfht_destroy(self->dist_cli_ht) -> %d", rc);
+      self->dist_cli_ht = NULL;
+    }
+    if (self->lcl_br_ht) {
+      int rc = cds_lfht_destroy(self->lcl_br_ht, NULL);
+      dd_error("s_self_destroy, cds_lfht_destroy(self->lcl_br_ht) -> %d", rc);
+      self->lcl_br_ht = NULL;
+    }
+
+    if (self->subscribe_ht) {
+      hashtable_subscribe_destroy(&self->subscribe_ht);
+    }
+
+    if (self->top_north_ht) {
+      cds_lfht_destroy(self->top_north_ht, NULL);
+      self->top_north_ht = NULL;
+    }
+    if (self->top_south_ht) {
+      cds_lfht_destroy(self->top_south_ht, NULL);
+      self->top_south_ht = NULL;
+    }
+
+    dd_broker_keys_destroy(&self->keys);
+
+    free(self);
+    *self_p = NULL;
+  }
 }

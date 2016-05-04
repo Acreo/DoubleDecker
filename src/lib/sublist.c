@@ -1,5 +1,5 @@
-#include "../../include/dd.h"
 #include "../../include/sublist.h"
+#include "../../include/dd.h"
 // ///////////////////
 // ///SUBLIST stuff //
 // //////////////////
@@ -19,7 +19,7 @@ char dd_sub_get_active(ddtopic_t *sub) { return sub->active; }
 
 // - compare two items, for sorting
 // typedef int (czmq_comparator) (const void *item1, const void *item2);
-int sublist_cmp(const void *item1, const void *item2) {
+static int s_sublist_cmp(const void *item1, const void *item2) {
   ddtopic_t *i1, *i2;
   i1 = (ddtopic_t *)item1;
   i2 = (ddtopic_t *)item2;
@@ -28,19 +28,19 @@ int sublist_cmp(const void *item1, const void *item2) {
 
 // -- destroy an item
 // typedef void (czmq_destructor) (void **item);
-void sublist_free(void **item) {
+static void s_sublist_free(void **item) {
   ddtopic_t *i;
-  i = *item;
-  printf("sublist_free called t: %s s: %s\n",i->topic, i->scope);
-  
+  i = (ddtopic_t*) *item;
+  printf("s_sublist_free called p: %p t: %p s: %p \n", i, i->topic, i->scope);
   free(i->topic);
   free(i->scope);
   free(i);
+  i = NULL;
 }
 
 // -- duplicate an item
 // typedef void *(czmq_duplicator) (const void *item);
-void *sublist_dup(const void *item) {
+static void *s_sublist_dup(const void *item) {
   ddtopic_t *new, *old;
   old = (ddtopic_t *)item;
   new = malloc(sizeof(ddtopic_t));
@@ -50,15 +50,26 @@ void *sublist_dup(const void *item) {
   return new;
 }
 
+zlistx_t *sublist_new() {
+  zlistx_t *n = zlistx_new();
+  zlistx_set_destructor(n, (czmq_destructor *)s_sublist_free);
+  zlistx_set_duplicator(n, (czmq_duplicator *)s_sublist_dup);
+  zlistx_set_comparator(n, (czmq_comparator *)s_sublist_cmp);
+  return n;
+}
+void sublist_destroy(zlistx_t **self_p) {
+  zlistx_destroy(self_p);
+  *self_p = NULL;
+}
 // update or add topic/scope/active to list
-void sublist_add(char *topic, char *scope, char active, dd_t *self) {
-  ddtopic_t *item; // = zlistx_first(dd->sublist);
+void sublist_add(dd_t *self, char *topic, char *scope, char active) {
+  ddtopic_t *item;
   int found = 0;
   // Check if already there, if so update
   // printf("after _first item = %p\n",item);
 
   while ((item = zlistx_next((zlistx_t *)dd_get_subscriptions(self)))) {
-    if (strcmp(item->topic, topic) == 0 && strcmp(item->scope, scope) == 0) {
+    if (streq(item->topic, topic) && streq(item->scope, scope)) {
       item->active = active;
       found = 1;
     }
@@ -67,6 +78,9 @@ void sublist_add(char *topic, char *scope, char active, dd_t *self) {
   // Otherwise, add new
   if (!found) {
     ddtopic_t *new = malloc(sizeof(ddtopic_t));
+    printf("sublist_add, new %p (%d) t: %p s %p \n", new, sizeof(ddtopic_t),
+           topic, scope);
+
     new->topic = topic;
     new->scope = scope;
     new->active = active;
@@ -74,25 +88,26 @@ void sublist_add(char *topic, char *scope, char active, dd_t *self) {
   }
 }
 
-void sublist_delete_topic(char *topic, dd_t *self) {
+void sublist_delete_topic(dd_t *self, char *topic) {
   ddtopic_t *item = zlistx_first((zlistx_t *)dd_get_subscriptions(self));
   do {
-    if (strcmp(item->topic, topic) == 0) {
+    if (streq(item->topic, topic)) {
       zlistx_delete((zlistx_t *)dd_get_subscriptions(self), item);
     }
   } while ((item = zlistx_next((zlistx_t *)dd_get_subscriptions(self))));
 }
 
-void sublist_delete(char *topic, char *scope, dd_t *self) {
+int sublist_delete(dd_t *self, char *topic, char *scope) {
   ddtopic_t del;
   del.topic = topic;
   del.scope = scope;
   ddtopic_t *item = zlistx_find((zlistx_t *)dd_get_subscriptions(self), &del);
   if (item)
-    zlistx_delete((zlistx_t *)dd_get_subscriptions(self), item);
+    return zlistx_delete((zlistx_t *)dd_get_subscriptions(self), item);
+  return -1;
 }
 
-void sublist_activate(char *topic, char *scope, dd_t *self) {
+void sublist_activate(dd_t *self, char *topic, char *scope) {
   ddtopic_t *item;
   while ((item = zlistx_next((zlistx_t *)dd_get_subscriptions(self)))) {
     if (strcmp(item->topic, topic) == 0 && strcmp(item->scope, scope) == 0) {

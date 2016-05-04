@@ -28,13 +28,13 @@
     IN THE SOFTWARE.
 */
 
-#include <string.h>
+#include "../include/trie.h"
 #include <assert.h>
+#include <czmq.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
-#include <czmq.h>
-#include "../include/trie.h"
+#include <string.h>
 //#include "../../utils/alloc.h"
 //#include "../../utils/fast.h"
 //#include "../../utils/err.h"
@@ -197,8 +197,12 @@ void nn_node_term(struct nn_trie_node *self) {
     nn_node_term(*nn_node_child(self, i));
 
   /*  Deallocate this node. */
-  if(self->sockids){
-    zlist_autofree(self->sockids);
+  if (self->sockids) {
+    zframe_t *f = zlist_pop(self->sockids);
+    while (f) {
+      zframe_destroy(&f);
+      f = zlist_pop(self->sockids);
+    }
     zlist_destroy(&self->sockids);
   }
   free(self);
@@ -296,11 +300,12 @@ int zlist_has_sockid(zlist_t *self, zframe_t *sockid) {
 // Very naive approach here, will not behave nicely with many subscriptions
 // Implement as heap/tree/something?
 // returns 0 if nothing was inserted, 1 if it was
-int zlist_append_unique(zlist_t *list, void *item) {
+int zlist_append_unique(zlist_t *list, zframe_t *item) {
   zframe_t *t = zlist_first(list);
   while (t) {
-    if (zframe_eq(t, (zframe_t *)item))
+    if (zframe_eq(t, item)){
       return 0;
+    }
     t = zlist_next(list);
   }
   zlist_append(list, item);
@@ -517,9 +522,12 @@ step5:
   // check if sockid already there
   // TODO, instead of duplicating zframe here we could find the pointer
   // to the sockid already in subscriber_ht
-  if (zlist_append_unique((*node)->sockids, zframe_dup(sockid))) {
+  zframe_t *newf =  zframe_dup(sockid);
+  if (zlist_append_unique((*node)->sockids, newf) == 1) {
     ++(*node)->refcount;
     return 2;
+  } else {
+    zframe_destroy(&newf);
   }
 
   // keep refcount south/north here
@@ -815,21 +823,21 @@ int nn_node_has_subscribers(struct nn_trie_node *node) {
 
 int nn_trie_add_sub_north(struct nn_trie *self, const uint8_t *data,
                           size_t size) {
-  dd_error("TODO: nn_trie_add_sub_north\n");
+  //  dd_error("TODO: nn_trie_add_sub_north\n");
   return -1;
 }
 int nn_trie_del_sub_north(struct nn_trie *self, const uint8_t *data,
                           size_t size) {
-  dd_error("TODO: nn_trie_del_sub_north\n");
+  //dd_error("TODO: nn_trie_del_sub_north\n");
   return -1;
 }
 int nn_trie_add_sub_south(struct nn_trie *self, const uint8_t *data,
                           size_t size) {
-  dd_error("TODO: nn_trie_add_sub_south\n");
+  //dd_error("TODO: nn_trie_add_sub_south\n");
   return -1;
 }
 int nn_trie_del_sub_south(struct nn_trie *self, const uint8_t *data,
                           size_t size) {
-  dd_error("TODO: nn_trie_del_sub_south\n");
+  //dd_error("TODO: nn_trie_del_sub_south\n");
   return -1;
 }
