@@ -116,3 +116,6 @@ target/
 /src/ddperf
 /src/rcu_check.txt
 /stamp-h1
+/src/broker_test
+/src/ddactor_test
+/src/ddbroker_test

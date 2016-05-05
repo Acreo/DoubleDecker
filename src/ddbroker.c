@@ -67,8 +67,12 @@ void usage() {
       "       Open a REST socket, eg tcp://*:8080\n"
       "-f [FILE]\n"
       "       Read configuration file\n"
+      "-L [FILE]\n"
+      "       Log to file\n"
       "-D\n"
-      "       Daemonize\n");
+      "       Daemonize\n"
+      "-S\n"
+      "       Log to system log\n");
 }
 
 int s_ddactor_msg(zloop_t *loop, zsock_t *handle, void *arg) {

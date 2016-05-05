@@ -668,7 +668,7 @@ static void s_cb_ping(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie) {
     return;
   }
   dd_warning("Ping from unregistered client/broker: ");
-  zframe_print(sockid, NULL);
+  zframe_print(sockid, "sockid");
 }
 
 static void s_cb_regok(dd_broker_t *self, zmsg_t *msg) {
@@ -1018,7 +1018,9 @@ static void s_cb_unreg_cli(dd_broker_t *self, zframe_t *sockid,
     free(ln->prefix_name);
     free(ln->name);
     free(ln);
+#ifdef DEBUG
     print_local_ht(self);
+#endif 
   } else {
     dd_warning("Request to remove unknown client");
   }
@@ -2143,12 +2145,10 @@ int s_on_http(zloop_t *loop, zsock_t *handle, void *arg) {
   json_object *jobj = NULL;
 
   bool rc = zrex_matches(rexhttp, http_request);
-  dd_info("Incoming http request: %s - %s", zrex_hit(rexhttp, 1),
-          zrex_hit(rexhttp, 2));
 
   if (rc) {
-    char *method = zrex_hit(rexhttp, 1);
-    char *route = zrex_hit(rexhttp, 2);
+    const char *method = zrex_hit(rexhttp, 1);
+    const char *route = zrex_hit(rexhttp, 2);
     if (streq(method, "GET")) {
       if (streq(route, "/") || streq(route, "/stats")) {
         jobj = json_get_stats(self);
@@ -2333,7 +2333,7 @@ void broker_actor(zsock_t *pipe, void *args) {
     zloop_reader_set_tolerant(self->loop, self->dsock);
     self->reg_loop = zloop_timer(self->loop, 1000, 0, s_register, self);
   } else {
-    dd_info("No dealer defined, the broker will act as the root");
+    dd_info("Will act as ROOT broker");
     self->state = DD_STATE_ROOT;
   }
 
@@ -2382,6 +2382,7 @@ void broker_actor(zsock_t *pipe, void *args) {
   // unix socket files are sometimes left. sleeping a second here seems
   // to fix it.. some background threads that dont have time to finish properly?
   zclock_sleep(1000);
+  dd_notice("Terminating broker thread");
 }
 
 zactor_t *dd_broker_actor(dd_broker_t *self) {

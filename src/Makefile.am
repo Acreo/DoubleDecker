@@ -5,15 +5,15 @@ lib_LTLIBRARIES = libdd.la
 libdd_la_SOURCES = lib/protocol.c lib/client.c lib/keys.c lib/cdecode.c lib/sublist.c hash/xxhash.c hash/murmurhash.c lib/htable.c lib/trie.c lib/broker.c
 libdd_la_LDFLAGS = -version-info 0:3:0 -L/usr/local/lib
 
-bin_PROGRAMS = ddperf ddbroker ddclient ddbug  actor_test broker_test
+bin_PROGRAMS = ddperf ddbroker ddclient ddbug  ddactor_test ddbroker_test
 
 ddebug = ddbug.c
 ddperf_SOURCES = ddperf.c
-actor_test_SOURCES = actor_test.c
+ddactor_test_SOURCES = actor_test.c
 ddbroker_SOURCES = ddbroker.c 
-broker_test_SOURCES = broker_test.c 
+ddbroker_test_SOURCES = broker_test.c 
 
-ddclient_SOURCES =  ddcli.c cli_parser/cparser_tree.c  cli_parser/cparser.c\
+ddclient_SOURCES =  ddclient.c cli_parser/cparser_tree.c  cli_parser/cparser.c\
 		  cli_parser/cparser_fsm.c  cli_parser/cparser_io_unix.c\
 		  cli_parser/cparser_line.c  cli_parser/cparser_token.c\
                   cli_parser/cparser_token_tbl.c
@@ -21,13 +21,13 @@ ddclient_SOURCES =  ddcli.c cli_parser/cparser_tree.c  cli_parser/cparser.c\
 ddperf_LDFLAGS = -L/usr/local/lib
 ddbroker_LDFLAGS = -L/usr/local/lib
 ddclient_LDFLAGS = -L/usr/local/lib
-actor_test_LDFLAGS = -L/usr/local/lib
+ddactor_test_LDFLAGS = -L/usr/local/lib
 
-actor_test_LDADD = libdd.la
+ddactor_test_LDADD = libdd.la
 ddperf_LDADD = libdd.la
 ddbroker_LDADD = libdd.la
 ddclient_LDADD = libdd.la
-broker_test_LDADD = libdd.la
+ddbroker_test_LDADD = libdd.la
 
 
 

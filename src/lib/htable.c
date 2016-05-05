@@ -81,7 +81,7 @@ int insert_local_client(dd_broker_t *self, zframe_t *sockid, ddtenant_t *ten,
   if (ht_node) {
     rcu_read_unlock();
     dd_warning("Found duplicate node SOCKID+cookie");
-    zframe_print(sockid, NULL);
+    //    zframe_print(sockid, NULL);
     goto cleanup;
   }
 
@@ -583,8 +583,7 @@ void print_sub_ht(dd_broker_t *self) {
   dd_debug("Hashtable: subscribe_ht");
   while (ht_node != NULL) {
     mp = caa_container_of(ht_node, subscribe_node, node);
-    dd_debug("\tsockid: ");
-    zframe_print(mp->sockid, NULL);
+    zframe_print(mp->sockid, "mp->sockid");
     print_zlist_str(mp->topics);
     cds_lfht_next(self->lcl_cli_ht, &iter);
     ht_node = cds_lfht_iter_get_node(&iter);
@@ -598,7 +597,7 @@ void print_local_ht(dd_broker_t *self) {
   dd_debug("Local clients: SOCKID");
   while (ht_node != NULL) {
     mp = caa_container_of(ht_node, local_client, lcl_node);
-    zframe_print(mp->sockid, NULL);
+    zframe_print(mp->sockid, "mp->sockid");
     cds_lfht_next(self->lcl_cli_ht, &iter);
     ht_node = cds_lfht_iter_get_node(&iter);
   }
