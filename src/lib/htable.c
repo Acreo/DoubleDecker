@@ -54,7 +54,7 @@ int insert_local_client(dd_broker_t *self, zframe_t *sockid, ddtenant_t *ten,
   int prelen =
       snprintf(prefix_name, MAXTENANTNAME, "%s.%s", ten->name, client_name);
 
-  dd_debug("insert_local_client: prefix_name %s", prefix_name);
+  /* dd_debug("insert_local_client: prefix_name %s", prefix_name); */
   np->prefix_name = strdup(prefix_name);
 
   // Calculate the sockid_cookie hash
@@ -171,7 +171,7 @@ void delete_dist_clients(dd_broker_t *self, local_broker *br) {
 
   cds_lfht_first(self->dist_cli_ht, &iter);
   struct cds_lfht_node *ht_node = cds_lfht_iter_get_node(&iter);
-  dd_debug("delete_dist_clients:");
+  /* dd_debug("delete_dist_clients:"); */
   //  zframe_print(br->sockid, "broker");
   while (ht_node != NULL) {
     mp = caa_container_of(ht_node, dist_client, node);
@@ -513,24 +513,18 @@ void hashtable_subscribe_destroy(struct cds_lfht **self_p) {
       zframe_destroy(&sn->sockid);
       if (sn->topics) {
         zlist_autofree(sn->topics);
-        dd_error("destroying sn->topics list");
         zlist_destroy(&sn->topics);
       }
-      //      free(sn);
-
-      //cds_lfht_del(self, ht_node);
       cds_lfht_next(self, &iter);
       ht_node = cds_lfht_iter_get_node(&iter);
     }
     rcu_read_unlock();
     int rc = cds_lfht_destroy(self, NULL);
-    dd_error("hashtable_subscribe_destroy, cds_lfht_destroy(self) -> %d", rc);
 
     *self_p = NULL;
   }
 }
 void hashtable_local_client_destroy(struct cds_lfht **self_p) {
-  dd_error("hashtable_local_client_destroy called");
   if (self_p) {
     struct cds_lfht *self = *self_p;
     local_client *lc;
@@ -544,7 +538,6 @@ void hashtable_local_client_destroy(struct cds_lfht **self_p) {
       zframe_destroy(&lc->sockid);
 
       if (lc->name) {
-        fprintf(stderr, "hashtable_local_client_destroy(%s)\n", lc->name);
         free(lc->name);
         lc->name = NULL;
       }
@@ -552,15 +545,12 @@ void hashtable_local_client_destroy(struct cds_lfht **self_p) {
         free(lc->prefix_name);
         lc->prefix_name = NULL;
       }
-      //free(lc);
-      //cds_lfht_del(self, ht_node);
       cds_lfht_next(self, &iter);
       ht_node = cds_lfht_iter_get_node(&iter);
     }
     rcu_read_unlock();
 
     int rc = cds_lfht_destroy(self, NULL);
-    dd_error("hashtable_local_client_destroy, cds_lfht_destroy(self) -> %d", rc);
     *self_p = NULL;
   }
 }

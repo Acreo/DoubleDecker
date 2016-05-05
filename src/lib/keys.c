@@ -284,7 +284,6 @@ void dd_broker_keys_destroy(ddbrokerkeys_t **self_p){
 
     ddtenant_t *ten = zhash_first (self->tenantkeys);
     while(ten){
-      printf("dd_broker_keys_destroy, freeing %s\n",ten->name);
       free(ten->boxk);
       free(ten->name);
       free(ten);

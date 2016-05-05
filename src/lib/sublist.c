@@ -29,9 +29,13 @@ static int s_sublist_cmp(const void *item1, const void *item2) {
 // -- destroy an item
 // typedef void (czmq_destructor) (void **item);
 static void s_sublist_free(void **item) {
+    // TODO
+    // There's a bug lurking here.. the new_top pointer is not the same
+    // as the the one passed to s_sublist_free..
+  
   ddtopic_t *i;
-  i = (ddtopic_t*) *item;
-  printf("s_sublist_free called p: %p t: %p s: %p \n", i, i->topic, i->scope);
+  i = (ddtopic_t *)*item;
+  //printf("s_sublist_free called p: %p t: %p s: %p \n", i, i->topic, i->scope);
   free(i->topic);
   free(i->scope);
   free(i);
@@ -65,8 +69,6 @@ void sublist_destroy(zlistx_t **self_p) {
 void sublist_add(dd_t *self, char *topic, char *scope, char active) {
   ddtopic_t *item;
   int found = 0;
-  // Check if already there, if so update
-  // printf("after _first item = %p\n",item);
 
   while ((item = zlistx_next((zlistx_t *)dd_get_subscriptions(self)))) {
     if (streq(item->topic, topic) && streq(item->scope, scope)) {
@@ -77,14 +79,19 @@ void sublist_add(dd_t *self, char *topic, char *scope, char active) {
 
   // Otherwise, add new
   if (!found) {
-    ddtopic_t *new = malloc(sizeof(ddtopic_t));
-    printf("sublist_add, new %p (%d) t: %p s %p \n", new, sizeof(ddtopic_t),
-           topic, scope);
+    ddtopic_t *new_top = malloc(sizeof(ddtopic_t));
 
-    new->topic = topic;
-    new->scope = scope;
-    new->active = active;
-    zlistx_add_start((zlistx_t *)dd_get_subscriptions(self), new);
+    // TODO
+    // There's a bug lurking here.. the new_top pointer is not the same
+    // as the the one passed to s_sublist_free..
+    /* printf("sublist_add, new %p (%d) t: %p s %p \n", new_top,
+     * sizeof(ddtopic_t), */
+    /*        topic, scope); */
+
+    new_top->topic = topic;
+    new_top->scope = scope;
+    new_top->active = active;
+    zlistx_add_start((zlistx_t *)dd_get_subscriptions(self), new_top);
   }
 }
 
