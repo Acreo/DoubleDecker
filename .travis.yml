@@ -1,23 +1,29 @@
 language: c
 cache: ccache
-sudo: false
+sudo: required
+dist: trusty
+addons:
+    apt:
+        packages:
+        - libjson-c-dev
+        - libjson-c2
 install:
   - wget https://github.com/zeromq/czmq/archive/v3.0.2.tar.gz
   - tar -xzvf v3.0.2.tar.gz
-  - cd czmq-3.0.2 && ./autogen.sh && ./configure --prefix=/usr && make &&  make install
+  - cd czmq-3.0.2 && ./autogen.sh && ./configure --prefix=/usr && make && sudo make install
   - cd /home/travis/build/Acreo/DoubleDecker
   - wget http://www.lttng.org/files/urcu/userspace-rcu-0.9.1.tar.bz2
   - tar -xjvf userspace-rcu-0.9.1.tar.bz2
-  - cd userspace-rcu-0.9.1 && ./configure --prefix=/usr && make &&  make install
+  - cd userspace-rcu-0.9.1 && ./configure --prefix=/usr && make && sudo make install
   - cd /home/travis/build/Acreo/DoubleDecker
   - wget https://download.libsodium.org/libsodium/releases/libsodium-1.0.7.tar.gz
   - tar -xvzf libsodium-1.0.7.tar.gz
-  - cd libsodium-1.0.7 && ./configure &&  make install
+  - cd libsodium-1.0.7 && ./configure && sudo make install
 compiler:
   - gcc
 before_install:
-  -  apt-get -qq update
-  -  apt-get install -y wget build-essential libtool automake pkg-config  libzmq3-dev libjson-c2 libjson-c-dev
+  - sudo apt-get -qq update
+  - sudo apt-get install -y wget build-essential libtool automake pkg-config  libzmq3-dev
 script:
   - cd /home/travis/build/Acreo/DoubleDecker && ./boot.sh && ./configure && make
 
