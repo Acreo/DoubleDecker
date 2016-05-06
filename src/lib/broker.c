@@ -1020,7 +1020,7 @@ static void s_cb_unreg_cli(dd_broker_t *self, zframe_t *sockid,
     free(ln);
 #ifdef DEBUG
     print_local_ht(self);
-#endif 
+#endif
   } else {
     dd_warning("Request to remove unknown client");
   }

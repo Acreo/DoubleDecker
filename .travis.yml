@@ -7,17 +7,15 @@ addons:
         packages:
         - libjson-c-dev
         - libjson-c2
-        - liburcu4
-        - liburcu-dev
 
 install:
   - wget https://github.com/zeromq/czmq/archive/v3.0.2.tar.gz
   - tar -xzvf v3.0.2.tar.gz
   - cd czmq-3.0.2 && ./autogen.sh && ./configure --prefix=/usr && make && sudo make install
-#  - cd /home/travis/build/Acreo/DoubleDecker
-#  - wget http://www.lttng.org/files/urcu/userspace-rcu-0.9.1.tar.bz2
-#  - tar -xjvf userspace-rcu-0.9.1.tar.bz2
-#  - cd userspace-rcu-0.9.1 && ./configure --prefix=/usr && make && sudo make install
+  - cd /home/travis/build/Acreo/DoubleDecker
+  - wget http://www.lttng.org/files/urcu/userspace-rcu-0.9.1.tar.bz2
+  - tar -xjvf userspace-rcu-0.9.1.tar.bz2
+  - cd userspace-rcu-0.9.1 && ./configure --prefix=/usr && make && sudo make install
   - cd /home/travis/build/Acreo/DoubleDecker
   - wget https://download.libsodium.org/libsodium/releases/libsodium-1.0.7.tar.gz
   - tar -xvzf libsodium-1.0.7.tar.gz

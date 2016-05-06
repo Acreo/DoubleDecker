@@ -1,11 +1,11 @@
 /*
- * cdecoder.c - c source to a base64 decoding algorithm implementation
- *
- * This is part of the libb64 project, and has been placed in the public
- * domain. For details, see http://sourceforge.net/projects/libb64
- */
+cdecoder.c - c source to a base64 decoding algorithm implementation
 
-#include "cdecode.h"
+This is part of the libb64 project, and has been placed in the public domain.
+For details, see http://sourceforge.net/projects/libb64
+*/
+
+#include "../../include/cdecode.h"
 
 int base64_decode_value(char value_in) {
   static const char decoding[] = {
@@ -27,8 +27,7 @@ void base64_init_decodestate(base64_decodestate *state_in) {
 }
 
 int base64_decode_block(const char *code_in, const int length_in,
-                        char *plaintext_out,
-                        base64_decodestate *state_in) {
+                        char *plaintext_out, base64_decodestate *state_in) {
   const char *codechar = code_in;
   char *plainchar = plaintext_out;
   char fragment;
@@ -37,52 +36,50 @@ int base64_decode_block(const char *code_in, const int length_in,
 
   switch (state_in->step) {
     while (1) {
-      case step_a:
-        do {
-          if (codechar == code_in + length_in) {
-            state_in->step = step_a;
-            state_in->plainchar = *plainchar;
-            return plainchar - plaintext_out;
-          }
-          fragment = (char)base64_decode_value(*codechar++);
-        } while (fragment < 0);
-        *plainchar = (fragment & 0x03f) << 2;
-      case step_b:
-        do {
-          if (codechar == code_in + length_in) {
-            state_in->step = step_b;
-            state_in->plainchar = *plainchar;
-            return plainchar - plaintext_out;
-          }
-          fragment = (char)base64_decode_value(*codechar++);
-        } while (fragment < 0);
-        *plainchar++ |= (fragment & 0x030) >> 4;
-        *plainchar = (fragment & 0x00f) << 4;
-      case step_c:
-        do {
-          if (codechar == code_in + length_in) {
-            state_in->step = step_c;
-            state_in->plainchar = *plainchar;
-            return plainchar - plaintext_out;
-          }
-          fragment = (char)base64_decode_value(*codechar++);
-        } while (fragment < 0);
-        *plainchar++ |= (fragment & 0x03c) >> 2;
-        *plainchar = (fragment & 0x003) << 6;
-      case step_d:
-        do {
-          if (codechar == code_in + length_in) {
-            state_in->step = step_d;
-            state_in->plainchar = *plainchar;
-            return plainchar - plaintext_out;
-          }
-          fragment = (char)base64_decode_value(*codechar++);
-        } while (fragment < 0);
-        *plainchar++ |= (fragment & 0x03f);
+    case step_a:
+      do {
+        if (codechar == code_in + length_in) {
+          state_in->step = step_a;
+          state_in->plainchar = *plainchar;
+          return plainchar - plaintext_out;
+        }
+        fragment = (char)base64_decode_value(*codechar++);
+      } while (fragment < 0);
+      *plainchar = (fragment & 0x03f) << 2;
+    case step_b:
+      do {
+        if (codechar == code_in + length_in) {
+          state_in->step = step_b;
+          state_in->plainchar = *plainchar;
+          return plainchar - plaintext_out;
+        }
+        fragment = (char)base64_decode_value(*codechar++);
+      } while (fragment < 0);
+      *plainchar++ |= (fragment & 0x030) >> 4;
+      *plainchar = (fragment & 0x00f) << 4;
+    case step_c:
+      do {
+        if (codechar == code_in + length_in) {
+          state_in->step = step_c;
+          state_in->plainchar = *plainchar;
+          return plainchar - plaintext_out;
+        }
+        fragment = (char)base64_decode_value(*codechar++);
+      } while (fragment < 0);
+      *plainchar++ |= (fragment & 0x03c) >> 2;
+      *plainchar = (fragment & 0x003) << 6;
+    case step_d:
+      do {
+        if (codechar == code_in + length_in) {
+          state_in->step = step_d;
+          state_in->plainchar = *plainchar;
+          return plainchar - plaintext_out;
+        }
+        fragment = (char)base64_decode_value(*codechar++);
+      } while (fragment < 0);
+      *plainchar++ |= (fragment & 0x03f);
     }
   }
-  /*
-   * control should not reach here
-   */
+  /* control should not reach here */
   return plainchar - plaintext_out;
 }
