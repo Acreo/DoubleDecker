@@ -3,7 +3,7 @@ AM_CPPFLAGS = -I$(top_srcdir)/include
 
 lib_LTLIBRARIES = libdd.la
 libdd_la_SOURCES = lib/protocol.c lib/client.c lib/keys.c lib/b64/cdecode.c
-libdd_la_LDFLAGS = -version-info 0:3:0 -L/usr/local/lib
+libdd_la_LDFLAGS = -version-info 0:3:0 
 
 bin_PROGRAMS = ddperf ddbroker ddclient ddbug  actor_test
 
@@ -16,10 +16,10 @@ ddclient_SOURCES =  ddcli.c cli_parser/cparser_tree.c  cli_parser/cparser.c\
 		  cli_parser/cparser_line.c  cli_parser/cparser_token.c\
                   cli_parser/cparser_token_tbl.c
  
-ddperf_LDFLAGS = -L/usr/local/lib
-ddbroker_LDFLAGS = -L/usr/local/lib
-ddclient_LDFLAGS = -L/usr/local/lib
-actor_test_LDFLAGS = -L/usr/local/lib
+#ddperf_LDFLAGS = -L/usr/local/lib
+#ddbroker_LDFLAGS = -L/usr/local/lib
+#ddclient_LDFLAGS = -L/usr/local/lib
+#actor_test_LDFLAGS = -L/usr/local/lib
 actor_test_LDADD = libdd.la
 ddperf_LDADD = libdd.la
 ddbroker_LDADD = libdd.la
