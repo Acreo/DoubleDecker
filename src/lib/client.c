@@ -774,6 +774,9 @@ void dd_actor(zsock_t *pipe, void *args) {
 }
 
 zactor_t *ddactor_new(char *client_name, char *endpoint, char *keyfile) {
+  // Make sure that ZMQ doesn't affect main process signal handling
+  zsys_init();
+  zsys_handler_reset(); 
   dd_t *self = malloc(sizeof(dd_t));
   self->style = DD_ACTOR;
   self->client_name = (unsigned char *)strdup(client_name);
@@ -799,6 +802,9 @@ zactor_t *ddactor_new(char *client_name, char *endpoint, char *keyfile) {
 dd_t *dd_new(char *client_name, char *endpoint, char *keyfile, dd_on_con con,
              dd_on_discon discon, dd_on_data data, dd_on_pub pub,
              dd_on_error error) {
+  // Make sure that ZMQ doesn't affect main process signal handling
+  zsys_init();
+  zsys_handler_reset(); 
   dd_t *self = malloc(sizeof(dd_t));
   self->style = DD_CALLBACK;
   self->client_name = (unsigned char *)strdup(client_name);

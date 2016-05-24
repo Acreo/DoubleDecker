@@ -66,7 +66,7 @@ int s_ddclient_msg(zloop_t *loop, zsock_t *handle, void *arg) {
     // printf("time: %d microsec\n", stop - *start);
     char *test_str;
 
-    asprintf(&test_str, "tc: %d %s - %s:publish(%s) %d", test_case, cliname,
+    asprintf(&test_str, "tc: %d %s - %s:publish(%s) %lu", test_case, cliname,
              source, topic, stop - *start);
     zlist_append(test_list, test_str);
     free(test_str);
@@ -85,7 +85,7 @@ int s_ddclient_msg(zloop_t *loop, zsock_t *handle, void *arg) {
     //    printf("%s - Got notification from %s \n", cliname, source);
     //  printf("time: %d microsec\n", stop - *start);
     char *test_str;
-    asprintf(&test_str, "tc: %d %s - %s:notify() %d", test_case, cliname,
+    asprintf(&test_str, "tc: %d %s - %s:notify() %lu", test_case, cliname,
              source, stop - *start);
     zlist_append(test_list, test_str);
     free(test_str);

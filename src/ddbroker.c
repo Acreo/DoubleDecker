@@ -110,11 +110,15 @@ int get_config(dd_broker_t *self, char *conffile) {
     } else if (streq(zconfig_name(child), "daemonize")) {
       daemonize = 1;
     } else if (streq(zconfig_name(child), "logfile")) {
-      logfp = fopen(optarg, "w");
-      if (logfp == NULL) {
-        fprintf(stderr, "Cannot open logfile %s\n", optarg);
-        perror(errno);
-        exit(EXIT_FAILURE);
+      if (streq(zconfig_value(child), "off")) {
+        logfp = NULL;
+      } else {
+        logfp = fopen(zconfig_value(child), "w");
+        if (logfp == NULL) {
+          fprintf(stderr, "Cannot open logfile %s\n", zconfig_value(child));
+          perror(errno);
+          exit(EXIT_FAILURE);
+        }
       }
       zsys_set_logstream(logfp);
     } else {

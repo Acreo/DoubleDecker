@@ -2459,13 +2459,13 @@ int dd_broker_start(dd_broker_t *self) {
   zsock_destroy(&self->rsock);
   dd_info("Destroyed all open sockets, waiting a second..");
   // TODO:
-  // Weird bug here, if run in interactive mode and killed with ctrl-c
+  // Weird bug here, if run in interactive mode and killed with ctrl-c (SIGINT)
   // All IPC unix domain socket files seems to be removed just fine
-  // However, running in daemonized mode and killed with killall (sigterm)
+  // However, running in daemonized mode and killed with killall (SIGTERM)
   // unix socket files are sometimes left. sleeping a second here seems
   // to fix it.. some background threads that dont have time to finish properly?
-  sleep(1);
   zsys_shutdown();
+  sleep(1);
   return 1;
 }
 
