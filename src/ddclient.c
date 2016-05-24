@@ -271,7 +271,7 @@ int main(int argc, char *argv[]) {
   }
   if (client_name == NULL  || keyfile == NULL ||
       connect_to == NULL) {
-    printf("usage: client -k <keyfile> -n <name> -d "
+    printf("usage: ddclient -k <keyfile> -n <name> -d "
            "<tcp/ipc url>\n");
     return 1;
   }
