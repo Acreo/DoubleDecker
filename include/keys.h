@@ -27,49 +27,7 @@
 #ifndef _DDKEYS_H_
 #define _DDKEYS_H_
 
-#include <stdio.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include "../config.h"
-#ifdef HAVE_JSON_C_JSON_H
-#include <json-c/json.h>
-#elif HAVE_JSON_H
-#include <json.h>
-#elif HAVE_JSON_JSON_H
-#include <json/json.h>
-#endif
-#include "cdecode.h"
-#include <sodium.h>
-#include <string.h>
-#include <sodium.h>
-#include <czmq.h>
-
-typedef struct ddkeystate {
-  // crypto_box_PUBLICKEYBYTES / crypto_box_SECRETKEYBYTES
-  // 32U arrays
-  // Public key of "public" tenant
-  unsigned char *publicpubkey;
-  // Broker public key
-  unsigned char *ddpubkey;
-  // Client private key
-  unsigned char *privkey;
-  // Client public key
-  unsigned char *pubkey;
-
-  // crypto_box_BEFORENMBYTES
-  // 32U arrays
-  // Broker symmetric key
-  unsigned char *ddboxk;
-  // Tenant symmetric key
-  unsigned char *custboxk;
-  // Tenant-Public symmetric key
-  unsigned char *pubboxk;
-
-  char *hash;
-  zhash_t *clientkeys;
-} ddkeystate_t;
+#include "dd.h"
 
 typedef struct ddbrokerkeys {
   // list of tenant names
@@ -92,8 +50,19 @@ typedef struct tenantsinfo {
   char *boxk;
 } ddtenant_t;
 
-ddkeystate_t *read_ddkeys(char *filename, char *customer);
+dd_keys_t *dd_keys_new(const char *filename);
+void dd_keys_destroy(dd_keys_t **self);
+zhash_t *dd_keys_clients(dd_keys_t *self);
+bool dd_keys_ispublic(dd_keys_t *self);
+const uint8_t *dd_keys_custboxk(dd_keys_t *self);
+const char *dd_keys_hash(dd_keys_t *self);
+const uint8_t *dd_keys_pub(dd_keys_t *self);
+const uint8_t *dd_keys_ddboxk(dd_keys_t *self);
+const uint8_t *dd_keys_ddpub(dd_keys_t *self);
+const uint8_t *dd_keys_pubboxk(dd_keys_t *self);
+const uint8_t *dd_keys_publicpub(dd_keys_t *self);
+const uint8_t *dd_keys_priv(dd_keys_t *self);
+
 ddbrokerkeys_t *read_ddbrokerkeys(char *filename);
-void print_ddkeystate(ddkeystate_t *keys);
-void free_ddkeystate(ddkeystate_t *keys);
+void dd_broker_keys_destroy(ddbrokerkeys_t **);
 #endif

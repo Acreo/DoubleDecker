@@ -23,7 +23,7 @@
    GNU Lesser General Public License along with this program.  If not,
    see <http://www.gnu.org/licenses/>.
    */
-/* dd.h ---
+/* dd.h --- Public API definition
  *
  * Filename: dd.h
  * Description:
@@ -42,7 +42,7 @@ extern "C" {
 
 #include <czmq.h>
 #include <sodium.h>
-#include "ddkeys.h"
+
 // state definitions
 #define DD_STATE_UNREG 1
 #define DD_STATE_ROOT 2
@@ -50,118 +50,71 @@ extern "C" {
 #define DD_STATE_CHALLENGED 4
 #define DD_STATE_REGISTERED 5
 
-// Commands and version
-#define DD_VERSION 0x0d0d0003
-#define DD_CMD_SEND 0
-#define DD_CMD_FORWARD 1
-#define DD_CMD_PING 2
-#define DD_CMD_ADDLCL 3
-#define DD_CMD_ADDDCL 4
-#define DD_CMD_ADDBR 5
-#define DD_CMD_UNREG 6
-#define DD_CMD_UNREGDCLI 7
-#define DD_CMD_UNREGBR 8
-#define DD_CMD_DATA 9
-#define DD_CMD_ERROR 10
-#define DD_CMD_REGOK 11
-#define DD_CMD_PONG 12
-#define DD_CMD_CHALL 13
-#define DD_CMD_CHALLOK 14
-#define DD_CMD_PUB 15
-#define DD_CMD_SUB 16
-#define DD_CMD_UNSUB 17
-#define DD_CMD_SENDPUBLIC 18
-#define DD_CMD_PUBPUBLIC 19
-#define DD_CMD_SENDPT 20
-#define DD_CMD_FORWARDPT 21
-#define DD_CMD_DATAPT 22
-#define DD_CMD_SUBOK 23
-
 // Error codes
 #define DD_ERROR_REGFAIL 1
 #define DD_ERROR_NODST 2
 #define DD_ERROR_VERSION 3
 
-#define DD_CALLBACK 1
-#define DD_ACTOR 2
-extern const uint32_t dd_cmd_send;
-extern const uint32_t dd_cmd_forward;
-extern const uint32_t dd_cmd_ping;
-extern const uint32_t dd_cmd_addlcl;
-extern const uint32_t dd_cmd_adddcl;
-extern const uint32_t dd_cmd_addbr;
-extern const uint32_t dd_cmd_unreg;
-extern const uint32_t dd_cmd_unregdcli;
-extern const uint32_t dd_cmd_unregbr;
-extern const uint32_t dd_cmd_data;
-extern const uint32_t dd_cmd_error;
-extern const uint32_t dd_cmd_regok;
-extern const uint32_t dd_cmd_pong;
-extern const uint32_t dd_cmd_chall;
-extern const uint32_t dd_cmd_challok;
-extern const uint32_t dd_cmd_pub;
-extern const uint32_t dd_cmd_sub;
-extern const uint32_t dd_cmd_unsub;
-extern const uint32_t dd_cmd_sendpublic;
-extern const uint32_t dd_cmd_pubpublic;
-extern const uint32_t dd_cmd_sendpt;
-extern const uint32_t dd_cmd_forwardpt;
-extern const uint32_t dd_cmd_datapt;
-extern const uint32_t dd_cmd_subok;
-
-extern const uint32_t dd_version;
-
-extern const uint32_t dd_error_regfail;
-extern const uint32_t dd_error_nodst;
-extern const uint32_t dd_error_version;
-
 // On connection
-typedef void(dd_con)(void *);
+typedef void(dd_on_con)(void *);
 // On disconnection
-typedef void(dd_discon)(void *);
+typedef void(dd_on_discon)(void *);
 // On recieve DATA
-typedef void(dd_data)(char *, unsigned char *, int, void *);
+typedef void(dd_on_data)(char *, unsigned char *, int, void *);
 // On recieve PUB
-typedef void(dd_pub)(char *, char *, unsigned char *, int, void *);
+typedef void(dd_on_pub)(char *, char *, unsigned char *, int, void *);
 // On receive ERROR
-typedef void(dd_error)(int, char*, void *);
+typedef void(dd_on_error)(int, char *, void *);
 
-typedef struct ddclient {
-        void *socket;               //  Socket for clients & workers
-        void *pipe; 
-        int verbose;                //  Print activity to stdout
-        unsigned char *endpoint;    //  Broker binds to this endpoint
-        unsigned char *customer;    //  Our customer id
-        unsigned char *keyfile;     // JSON file with pub/priv keys
-        unsigned char *client_name; // This client name
-        int timeout;                // Incremental timeout (trigger > 3)
-        int state;                  // Internal state
-        int registration_loop;      // Timer ID for registration loop
-        int heartbeat_loop;         // Timer ID for heartbeat loop
-        uint64_t cookie;            // Cookie from authentication
-        struct ddkeystate *keys;    // Encryption keys loaded from JSON file
-        zlistx_t *sublist; // List of subscriptions, and if they're active
-        zloop_t *loop;
-        int style; 
-        unsigned char nonce[crypto_box_NONCEBYTES];
-        dd_con(*on_reg);
-        dd_discon(*on_discon);
-        dd_data(*on_data);
-        dd_pub(*on_pub);
-        dd_error(*on_error);
-        void (*subscribe)(char *, char *, struct ddclient *);
-        void (*unsubscribe)(char *, char *, struct ddclient *);
-        void (*publish)(char *, char *, int, struct ddclient *);
-        void (*notify)(char *, char *, int, struct ddclient *);
-        void (*shutdown)(void *);
-} ddclient_t;
+// class definition for a DoubleDecker client
+typedef struct _dd_t dd_t;
+// subscribed topics
+typedef struct _ddtopic_t ddtopic_t;
 
-ddclient_t *start_ddthread(int, char *, char *, char *, char *, dd_con,
-                dd_discon, dd_data, dd_pub, dd_error);
-zactor_t * start_ddactor(int, char *, char *, char *, char *);
+typedef struct _dd_keys_t dd_keys_t;
 
+// DD Client functions
+CZMQ_EXPORT dd_t *dd_new(char *client_name, char *endpoint, char *keyfile,
+                         dd_on_con con, dd_on_discon discon, dd_on_data data,
+                         dd_on_pub pub, dd_on_error error);
+CZMQ_EXPORT zactor_t *ddactor_new(char *client_name, char *endpoint,
+                                  char *keyfile);
+CZMQ_EXPORT int dd_subscribe(dd_t *self, char *topic, char *scope);
+CZMQ_EXPORT int dd_unsubscribe(dd_t *self, char *topic, char *scope);
+CZMQ_EXPORT int dd_publish(dd_t *self, char *topic, char *message, int mlen);
+CZMQ_EXPORT int dd_notify(dd_t *self, char *target, char *message, int mlen);
+CZMQ_EXPORT void dd_destroy(dd_t **self_p);
+CZMQ_EXPORT const char *dd_get_version();
 
+CZMQ_EXPORT int dd_get_state(dd_t *self);
+CZMQ_EXPORT const char* dd_get_endpoint(dd_t *self);
+CZMQ_EXPORT const char* dd_get_keyfile(dd_t *self);
+CZMQ_EXPORT char *dd_get_privkey(dd_t *self);
+CZMQ_EXPORT char *dd_get_pubkey(dd_t *self);
+CZMQ_EXPORT char *dd_get_publickey(dd_t *self);
+CZMQ_EXPORT const zlistx_t *dd_get_subscriptions(dd_t *self);
+CZMQ_EXPORT const char *dd_sub_get_topic(ddtopic_t *sub);
+CZMQ_EXPORT const char *dd_sub_get_scope(ddtopic_t *sub);
+CZMQ_EXPORT char dd_sub_get_active(ddtopic_t *sub);
+
+// class definitio1n for a DoubleDecker broker
+typedef struct _dd_broker_t dd_broker_t;
+typedef struct _dd_keys_t dd_keys_t;
+
+// DD broker api
+CZMQ_EXPORT dd_broker_t *dd_broker_new();
+CZMQ_EXPORT zactor_t *dd_broker_actor(dd_broker_t *self);
+CZMQ_EXPORT int dd_broker_start(dd_broker_t *self);
+CZMQ_EXPORT int dd_broker_set_scope(dd_broker_t *self, char *scope_string);
+CZMQ_EXPORT int dd_broker_set_logfile(dd_broker_t *self, char *logfile);
+CZMQ_EXPORT int dd_broker_set_rest(dd_broker_t *self, char *reststr);
+CZMQ_EXPORT int dd_broker_set_loglevel(dd_broker_t *self, char *logstr);
+CZMQ_EXPORT int dd_broker_set_keyfile(dd_broker_t *self, char *key_file);
+CZMQ_EXPORT int dd_broker_set_config(dd_broker_t *self, char *config_file);
+CZMQ_EXPORT int dd_broker_set_dealer(dd_broker_t *self, char *dealer_string);
+CZMQ_EXPORT int dd_broker_add_router(dd_broker_t *self, char *router_string);
+CZMQ_EXPORT int dd_broker_del_router(dd_broker_t *self, char *router_string);
 #endif
 #ifdef __cplusplus
- }
+}
 #endif
