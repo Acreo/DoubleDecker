@@ -801,20 +801,25 @@ static void s_cb_send(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie,
       src_string = ln->prefix_name;
       snprintf(dest_buf, MAXTENANTNAME, "%s.%s", ln->tenant, dest);
       dst_string = dest_buf;
+      dstpublic = 1;
     } else {
       dst_string = dest;
       src_string = ln->prefix_name;
     }
+#ifdef DEBUG
     dd_debug("s:1 d:0, s: %s d: %s", src_string, dst_string);
+#endif
   } else {
     src_string = ln->prefix_name;
     snprintf(dest_buf, MAXTENANTNAME, "%s.%s", ln->tenant, dest);
     dst_string = dest_buf;
+#ifdef DEBUG
     dd_debug("s:0 d:0, s: %s d: %s", src_string, dst_string);
+#endif
   }
-
+#ifdef DEBUG
   dd_debug("s_cb_send: src \"%s\", dst \"%s\"", src_string, dst_string);
-
+#endif
   dist_client *dn;
   if ((ln = hashtable_has_rev_local_node(self, dst_string, 0))) {
     if ((!srcpublic && !dstpublic) || (srcpublic && dstpublic)) {
@@ -824,7 +829,9 @@ static void s_cb_send(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie,
       forward_locally(self, ln->sockid, src_string, msg);
     }
   } else if ((dn = hashtable_has_dist_node(self, dst_string))) {
+#ifdef DEBUG
     dd_debug("calling forward down");
+#endif
     forward_down(self, src_string, dst_string, dn->broker, msg);
   } else if (self->state == DD_STATE_ROOT) {
     if ((!srcpublic && !dstpublic) || (srcpublic && dstpublic)) {
@@ -2244,7 +2251,7 @@ static int s_on_pipe_msg(zloop_t *loop, zsock_t *handle, void *args) {
 
   zmsg_print(msg);
   zframe_t *command = zmsg_pop(msg);
-  printf("s_on_pipemsg = %s", command);
+  dd_info("s_on_pipemsg = %s", command);
   //  All actors must handle $TERM in this way
   // returning -1 should stop zloop_start and terminate the actor
   if (streq(zframe_data(command), "$TERM")) {
@@ -2281,6 +2288,7 @@ static int s_gc_pipe_msg(zloop_t *loop, zsock_t *handle, void *args) {
   return 0;
 }
 
+// separate actor for handling timeouts and REST API
 void broker_gc_rest(zsock_t *pipe, void *args) {
   dd_broker_t *self = args;
   assert(self);
@@ -2341,14 +2349,6 @@ void broker_actor(zsock_t *pipe, void *args) {
 
   rc = zloop_reader(self->loop, act, s_on_pipe_msg, self);
 
-  /* self->cli_timeout_loop = */
-  /*     zloop_timer(self->loop, 3000, 0, s_check_cli_timeout, self); */
-  /* self->br_timeout_loop = */
-  /*     zloop_timer(self->loop, 1000, 0, s_check_br_timeout, self); */
-
-  /* if (self->reststr) */
-  /*   start_httpd(self); */
-
   // create and attach the pubsub southbound sockets
   start_pubsub(self);
 
@@ -2368,10 +2368,8 @@ void broker_actor(zsock_t *pipe, void *args) {
     zsock_set_linger(self->rsock, 0);
 
   rc = zloop_start(self->loop);
-
-  zactor_destroy(&act);
-
   //  dd_info("broker.c: zloop_start returned %d\n", rc);
+  zactor_destroy(&act);
   s_self_destroy(&self);
   /* if(pipe) */
   /*   zsock_send(pipe, "s","$TERM"); */
