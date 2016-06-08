@@ -65,6 +65,7 @@ void usage() {
   printf("  -s <address> - Act as server\n");
   printf("  -m <int>     - Number of messages to send (client only)\n");
   printf("  -n <int>     - Size of messages sent (client only)\n");
+  printf("  -k <file>    - File containing public/private keys\n");
   printf("  -l           - Enable latency measurements (server and client "
          "on same machine!)\n");
   printf("  -v           - Verbose\n");
@@ -182,7 +183,7 @@ void s_sendmsg(dd_t *dd) {
     clock_gettime(CLOCK_MONOTONIC, &sendt);
     if (verbose)
       printf("sending clock: s:%ld ns:%ld ", sendt.tv_sec, sendt.tv_nsec);
-
+      
     dd_notify(dd, "ddperfsrv", (char *)&sendt, sizeof(struct timespec));
   } else {
     if (verbose)
@@ -278,9 +279,8 @@ void on_error(int error_code, char *error_message, void *args) {
 void start_server(char *address) {
   setlocale(LC_NUMERIC, "en_US.utf-8"); /* important */
 
-  dd_t *client =
-      dd_new("ddperfsrv", address, keyfile, on_reg_server, on_discon,
-             on_data_server, on_pub, on_error); // on_nodst);
+  dd_t *client = dd_new("ddperfsrv", address, keyfile, on_reg_server, on_discon,
+                        on_data_server, on_pub, on_error); // on_nodst);
   //  int timer_id = zloop_timer (client->loop, 1000, 0,
   //  s_print_throughput, NULL);
   //  int timer_id2 = zloop_timer (client->loop, 10000, 0, s_print_stat,
@@ -307,10 +307,13 @@ void start_client(char *address, int message_num, int message_size) {
 
   printf("Starting ddperf client (num=%d, size=%d), registering at %s..\n",
          message_num, message_size, address);
+srand(time(NULL));
+int r = rand();
 
-  dd_t *client =
-      dd_new("ddperfcli",  address, keyfile, on_reg_client, on_discon,
-             on_data_server, on_pub, on_error); // on_nodst);
+  char *cliname;
+  asprintf(&cliname, "ddperfcli%d", r);
+  dd_t *client = dd_new(cliname, address, keyfile, on_reg_client, on_discon,
+                        on_data_server, on_pub, on_error); // on_nodst);
   while (dd_get_state(client) != DD_STATE_EXIT && !zsys_interrupted) {
     sleep(1);
   }
@@ -356,6 +359,9 @@ int main(int argc, char **argv) {
       }
       address = optarg;
       role = SERVER;
+      break;
+    case 'k':
+      keyfile = optarg;
       break;
     case 'v':
       verbose = 1;

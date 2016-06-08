@@ -54,9 +54,7 @@ const uint8_t *dd_keys_pub(dd_keys_t *self) { return self->pubkey; }
 const uint8_t *dd_keys_ddboxk(dd_keys_t *self) { return self->ddboxk; }
 const uint8_t *dd_keys_ddpub(dd_keys_t *self) { return self->ddpubkey; }
 const uint8_t *dd_keys_pubboxk(dd_keys_t *self) { return self->pubboxk; }
-const uint8_t *dd_keys_publicpub(dd_keys_t *self) {
-  return self->publicpubkey;
-}
+const uint8_t *dd_keys_publicpub(dd_keys_t *self) { return self->publicpubkey; }
 const unsigned char *dd_keys_priv(dd_keys_t *self) { return self->privkey; }
 
 // Read the Doubledecker keys from JSON file, for customer
@@ -84,7 +82,7 @@ dd_keys_t *dd_keys_new(const char *filename) {
     assert(retval);
     return NULL;
   }
-  char *data = (char *)calloc(1,stats.st_size + 1);
+  char *data = (char *)calloc(1, stats.st_size + 1);
   if (data == NULL) {
     printf("Error allocating memory\n");
     fclose(fp);
@@ -269,29 +267,27 @@ dd_keys_t *dd_keys_new(const char *filename) {
   return ddkeys;
 }
 
-void dd_broker_keys_destroy(ddbrokerkeys_t **self_p){
+void dd_broker_keys_destroy(ddbrokerkeys_t **self_p) {
   ddbrokerkeys_t *self = *self_p;
   assert(self_p);
-  if(*self_p) {
-    if(self->privkey)
+  if (*self_p) {
+    if (self->privkey)
       free(self->privkey);
-    if(self->pubkey)
+    if (self->pubkey)
       free(self->pubkey);
-    if(self->ddboxk)
+    if (self->ddboxk)
       free(self->ddboxk);
-    if(self->hash)
+    if (self->hash)
       free(self->hash);
 
-    ddtenant_t *ten = zhash_first (self->tenantkeys);
-    while(ten){
+    ddtenant_t *ten = zhash_first(self->tenantkeys);
+    while (ten) {
       free(ten->boxk);
       free(ten->name);
       free(ten);
       ten = zhash_next(self->tenantkeys);
     }
     zhash_destroy(&self->tenantkeys);
-
-    
 
     zlist_destroy(&self->tenants);
     free(self);
@@ -317,7 +313,7 @@ ddbrokerkeys_t *read_ddbrokerkeys(char *filename) {
     fclose(fp);
     return NULL;
   }
-  char *data = (char *)calloc(1,stats.st_size + 1);
+  char *data = (char *)calloc(1, stats.st_size + 1);
   if (data == NULL) {
     fprintf(stderr, "Error allocating memory\n");
     fclose(fp);
@@ -427,8 +423,45 @@ ddbrokerkeys_t *read_ddbrokerkeys(char *filename) {
   return ddkeys;
 }
 
+void nonce_increment(unsigned char *n, const size_t nlen) {
+  size_t i = 0U;
+  uint_fast16_t c = 1U;
 
+#ifdef HAVE_AMD64_ASM
+  uint64_t t64, t64_2;
+  uint32_t t32;
 
-
-
-
+  if (nlen == 12U) {
+    __asm__ __volatile__("xorq %[t64], %[t64] \n"
+                         "xorl %[t32], %[t32] \n"
+                         "stc \n"
+                         "adcq %[t64], (%[out]) \n"
+                         "adcl %[t32], 8(%[out]) \n"
+                         : [t64] "=&r"(t64), [t32] "=&r"(t32)
+                         : [out] "D"(n)
+                         : "memory", "flags", "cc");
+    return;
+  } else if (nlen == 24U) {
+    __asm__ __volatile__("movq $1, %[t64] \n"
+                         "xorq %[t64_2], %[t64_2] \n"
+                         "addq %[t64], (%[out]) \n"
+                         "adcq %[t64_2], 8(%[out]) \n"
+                         "adcq %[t64_2], 16(%[out]) \n"
+                         : [t64] "=&r"(t64), [t64_2] "=&r"(t64_2)
+                         : [out] "D"(n)
+                         : "memory", "flags", "cc");
+    return;
+  } else if (nlen == 8U) {
+    __asm__ __volatile__("incq (%[out]) \n"
+                         :
+                         : [out] "D"(n)
+                         : "memory", "flags", "cc");
+    return;
+  }
+#endif
+  for (; i < nlen; i++) {
+    c += (uint_fast16_t)n[i];
+    n[i] = (unsigned char)c;
+    c >>= 8;
+  }
+}

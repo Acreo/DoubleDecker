@@ -169,7 +169,7 @@ int dd_publish(dd_t *self, char *topic, char *message, int mlen) {
   unsigned char *ciphertext = dest; // dest+crypto_box_NONCEBYTES;
 
   // increment nonce
-  sodium_increment(self->nonce, crypto_box_NONCEBYTES);
+  nonce_increment(self->nonce, crypto_box_NONCEBYTES);
   memcpy(dest, self->nonce, crypto_box_NONCEBYTES);
 
   dest += crypto_box_NONCEBYTES;
@@ -228,7 +228,7 @@ int dd_notify(dd_t *self, char *target, char *message, int mlen) {
   unsigned char *ciphertext = dest; // dest+crypto_box_NONCEBYTES;
 
   // increment nonce
-  sodium_increment(self->nonce, crypto_box_NONCEBYTES);
+  nonce_increment(self->nonce, crypto_box_NONCEBYTES);
   memcpy(dest, self->nonce, crypto_box_NONCEBYTES);
 
   dest += crypto_box_NONCEBYTES;

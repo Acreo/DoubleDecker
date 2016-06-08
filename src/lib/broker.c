@@ -219,7 +219,7 @@ static void s_cb_addbr(dd_broker_t *self, zframe_t *sockid, zmsg_t *msg) {
   unsigned char *ciphertext = dest; // dest+crypto_box_NONCEBYTES;
 
   // increment nonce
-  sodium_increment((unsigned char *)self->nonce, crypto_box_NONCEBYTES);
+  nonce_increment((unsigned char *)self->nonce, crypto_box_NONCEBYTES);
   memcpy(dest, self->nonce, crypto_box_NONCEBYTES);
 
   dest += crypto_box_NONCEBYTES;
@@ -269,7 +269,7 @@ static void s_cb_addlcl(dd_broker_t *self, zframe_t *sockid, zmsg_t *msg) {
   unsigned char *ciphertext = dest; // dest+crypto_box_NONCEBYTES;
 
   // increment nonce
-  sodium_increment((unsigned char *)self->nonce, crypto_box_NONCEBYTES);
+  nonce_increment((unsigned char *)self->nonce, crypto_box_NONCEBYTES);
   memcpy(dest, self->nonce, crypto_box_NONCEBYTES);
 
   dest += crypto_box_NONCEBYTES;

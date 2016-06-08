@@ -50,6 +50,35 @@ AM_CONDITIONAL([HAVE_JSON_JSON_H],[test "$ac_cv_header_json_json_h" = 'yes'])
 AM_CONDITIONAL([HAVE_JSON_C_JSON_H],[test "$ac_cv_header_json_c_json_h" = 'yes'])
 AM_CONDITIONAL([HAVE_JSON_H],[test "$ac_cv_header_json_h" = 'yes'])
 
+HAVE_AMD64_ASM_V=0
+AS_IF([test "$enable_asm" != "no"],[
+  AC_MSG_CHECKING(whether we can use x86_64 asm code)
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+  ]], [[
+#if defined(__amd64) || defined(__amd64__) || defined(__x86_64__)
+# if defined(__CYGWIN__) || defined(__MINGW32__) || defined(__MINGW64__) || defined(_WIN32) || defined(_WIN64)
+#  error Windows x86_64 calling conventions are not supported yet
+# endif
+/* neat */
+#else
+# error !x86_64
+#endif
+unsigned char i = 0, o = 0, t;
+__asm__ __volatile__ ("pxor %%xmm12, %%xmm6 \n"
+                      "movb (%[i]), %[t] \n"   
+                      "addb %[t], (%[o]) \n"   
+                      : [t] "=&r"(t)
+                      : [o] "D"(&o), [i] "S"(&i)
+                      : "memory", "flags", "cc");
+]])],
+  [AC_MSG_RESULT(yes)
+   AC_DEFINE([HAVE_AMD64_ASM], [1], [x86_64 asm code can be used])
+   HAVE_AMD64_ASM_V=1],
+  [AC_MSG_RESULT(no)]) 
+])
+AM_CONDITIONAL([HAVE_AMD64_ASM], [test $HAVE_AMD64_ASM_V = 1])
+AC_SUBST(HAVE_AMD64_ASM_V)
+
 CFLAGS="$CFLAGS -Wno-format-security -rdynamic"
 
 AC_ENABLE_SHARED

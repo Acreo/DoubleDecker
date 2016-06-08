@@ -65,4 +65,5 @@ const uint8_t *dd_keys_priv(dd_keys_t *self);
 
 ddbrokerkeys_t *read_ddbrokerkeys(char *filename);
 void dd_broker_keys_destroy(ddbrokerkeys_t **);
+void nonce_increment(unsigned char *n, const size_t nlen);
 #endif
