@@ -1,65 +1,52 @@
-FROM ubuntu:latest
-MAINTAINER Bertrand Pechenot berpec@acreo.se
-RUN apt-get update 
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -yq apt-utils wget build-essential libtool
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -yq automake pkg-config libjson0-dev libzmq3-dev
+FROM ubuntu:xenial
+MAINTAINER Pontus Skoldstrom ponsko@acreo.se
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -yq apt-utils wget\
+	 build-essential libtool  automake pkg-config libjson0-dev libczmq-dev \ 
+	 liburcu-dev libsodium-dev git 	
 
-# Broker default port 
-EXPOSE 5555 
 
 # start in /bus
 WORKDIR /bus
+ARG CACHEBUST=1
+RUN git clone https://github.com/Acreo/DoubleDecker.git
+WORKDIR /bus/DoubleDecker
+RUN mkdir -pv m4 && autoreconf --force --install && ./configure && make && make install && ldconfig
 
-# install libczmq
-RUN wget https://github.com/zeromq/czmq/archive/v3.0.2.tar.gz
-RUN tar xzf v3.0.2.tar.gz
-WORKDIR /bus/czmq-3.0.2
-RUN ./autogen.sh
-RUN ./configure
-RUN make install
-WORKDIR /bus
-
-
-# install urcu
-RUN wget http://www.lttng.org/files/urcu/userspace-rcu-0.9.1.tar.bz2
-RUN tar xjf userspace-rcu-0.9.1.tar.bz2
-WORKDIR /bus/userspace-rcu-0.9.1
-RUN ./configure
-RUN make install
-WORKDIR /bus
-
-
-# install libsodium
-RUN wget https://download.libsodium.org/libsodium/releases/libsodium-1.0.7.tar.gz
-RUN tar xzf libsodium-1.0.7.tar.gz
-WORKDIR /bus/libsodium-1.0.7
-RUN ./configure
-RUN make install
-WORKDIR /bus
-
-
-# TODO: write a run.sh script that handles ENV variables properly
 ADD ./run.sh /bus/
-RUN wget https://github.com/Acreo/DoubleDecker/archive/master.tar.gz -O dd.tar.gz
-RUN tar xzf dd.tar.gz
-WORKDIR /bus/DoubleDecker-master/c/
-RUN mkdir -pv m4
-RUN ls
-RUN autoreconf --force --install
-RUN ./configure
-RUN make
-RUN make install
-RUN ldconfig
 
 ENV BROKER_PORT=tcp://*:5555
 ENV BROKER_SCOPE=0/0/0
 WORKDIR /bus/
-RUN rm -rf czmq-3.0.2 libsodium-1.0.3.tar.gz libsodium-1.0.7.tar.gz userspace-rcu-0.9.1 v3.0.2.tar.gz libsodium-1.0.3 libsodium-1.0.7 userspace-rcu-0.9.1.tar.bz2
-RUN DEBIAN_FRONTEND=noninteractive apt-get remove -yq git apt-utils wget build-essential libtool git libtool-bin automake pkg-config
-RUN DEBIAN_FRONTEND=noninteractive apt-get autoremove -yq
-RUN DEBIAN_FRONTEND=noninteractive apt-get autoclean -yq
+EXPOSE 5555
+EXPOSE 5556
+EXPOSE 5557
 CMD ./run.sh
 
+# VOLUMES
+#########
 
+# by default the broker tries to read keys from /keys/broker-keys.json
+# the /keys volume has to be provided when starting the container 
+# eg -v /etc/doubledecker:/keys
 
+# Environmental variables
+#########################
 
+# BROKER_PORT  
+# tcp/ipc where the broker is listening for clients/southern
+# brokers. separated by comma if multiple
+
+#BROKER_SCOPE
+# scope of the broker, e.g. 0/0/1
+
+#DEALER_PORT
+# the BROKER_PORT of another broker, when building a hierarchy
+
+#DEBUG
+# Debuglevel
+
+#KEYS
+# filename and path of the broker-keys.json 
+
+#REST
+# string for opening a management REST API, e.g. tcp://*:8080
