@@ -470,7 +470,6 @@ static int s_on_pipe_msg(zloop_t *loop, zsock_t *handle, void *args) {
   //  All actors must handle $TERM in this way
   // returning -1 should stop zloop_start and terminate the actor
   if (streq(command, "$TERM")) {
-    fprintf(stderr, "s_on_pipe_msg, got $TERM, quitting\n");
     free(command);
     zmsg_destroy(&msg);
     return -1;
@@ -697,12 +696,10 @@ void *ddthread(void *args) {
 
 void dd_destroy(dd_t **self_p) {
   assert(self_p);
-  printf("DD: dd_destroy called..\n");
   if (*self_p) {
     dd_t *self = *self_p;
 
     if (self->state == DD_STATE_REGISTERED) {
-      printf("DD: Sending unregistration message..\n");
       zsock_send(self->socket, "bbb", &dd_version, 4, &dd_cmd_unreg, 4,
                  &self->cookie, sizeof(self->cookie));
     }
@@ -722,9 +719,7 @@ void dd_destroy(dd_t **self_p) {
     }
 
     dd_keys_destroy(&self->keys);
-
     sublist_destroy(&self->sublist);
-
     zloop_destroy(&self->loop);
 
     free(self);
@@ -734,6 +729,7 @@ void dd_destroy(dd_t **self_p) {
 void dd_actor(zsock_t *pipe, void *args) {
   dd_t *self = (dd_t *)args;
   int rc;
+//  fprintf(stderr,"dd_actor:zsock_signal(%p,0)\n",pipe);
   zsock_signal(pipe, 0);
   self->pipe = pipe;
   self->socket = zsock_new_dealer(NULL);
@@ -760,17 +756,26 @@ void dd_actor(zsock_t *pipe, void *args) {
   }
 
   self->sublist = sublist_new();
-  printf("Sublist initilized %p\n", self->sublist);
-
+//  fprintf(stderr,"Sublist initilized %p\n", self->sublist);
+  
   self->loop = zloop_new();
   assert(self->loop);
   self->registration_loop =
       zloop_timer(self->loop, 1000, 0, s_ask_registration, self);
   rc = zloop_reader(self->loop, self->socket, s_on_dealer_msg, self);
   rc = zloop_reader(self->loop, pipe, s_on_pipe_msg, self);
-  zloop_start(self->loop);
-
-  dd_destroy(&self);
+  while (rc == 0){
+    rc = zloop_start(self->loop);
+    if(rc == 0) {
+     fprintf(stderr,"DD:dd_actor:zloop_start returned 0, interrupted! - terminating(might not be the best choice)\n");
+     // terminate, maybe not always a good choice here :(
+     rc = -1;
+    } else if (rc == -1) {
+     //fprintf(stderr,"DD:dd_actor:zloop_start returned -1, cancelled by handler!\n");
+    }
+  }
+   //fprintf(stderr, "DD:dd_actor - calling dd_destroy\n");  
+   dd_destroy(&self);
 }
 
 zactor_t *ddactor_new(char *client_name, char *endpoint, char *keyfile) {
@@ -778,7 +783,7 @@ zactor_t *ddactor_new(char *client_name, char *endpoint, char *keyfile) {
   zsys_init();
   zsys_handler_reset(); 
   dd_t *self = malloc(sizeof(dd_t));
-  self->style = DD_ACTOR;
+  self->style = DD_ACTOR;  
   self->client_name = (unsigned char *)strdup(client_name);
   self->endpoint = (unsigned char *)strdup(endpoint);
   self->keyfile = (unsigned char *)strdup(keyfile);
