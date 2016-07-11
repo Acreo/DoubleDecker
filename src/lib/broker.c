@@ -1569,8 +1569,6 @@ static int s_on_dealer_msg(zloop_t *loop, zsock_t *handle, void *arg) {
 
 static int s_register(zloop_t *loop, int timer_id, void *arg) {
   dd_broker_t *self = arg;
-  dd_debug("trying to register..");
-
   if (self->state == DD_STATE_UNREG || self->state == DD_STATE_ROOT) {
     if (self->dsock) {
       zsock_set_linger(self->dsock, 0);
@@ -1603,7 +1601,7 @@ static int s_heartbeat(zloop_t *loop, int timer_id, void *arg) {
   if (self->timeout > 3) {
     self->state = DD_STATE_ROOT;
     zloop_timer_end(self->loop, self->heartbeat_loop);
-    self->reg_loop = zloop_timer(self->loop, 1000, 0, s_register, self->dsock);
+    self->reg_loop = zloop_timer(self->loop, 1000, 0, s_register, self);
   }
   zsock_send(self->dsock, "bbb", &dd_version, sizeof(dd_version), &dd_cmd_ping,
              sizeof(dd_cmd_ping), &self->keys->cookie,
