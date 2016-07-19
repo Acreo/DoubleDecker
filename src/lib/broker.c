@@ -1609,6 +1609,10 @@ static int s_heartbeat(zloop_t *loop, int timer_id, void *arg) {
   return 0;
 }
 
+// The unreg_cli sends on a socket that is being polled in the main thread
+// this can cause an assert in src/signal.cpp:282
+// Either lock the socket, or skip the separate thread, or have some signaling thread
+// between them.
 static int s_check_cli_timeout(zloop_t *loop, int timer_fd, void *arg) {
   dd_broker_t *self = arg;
   // iterate through local clients and check if they should time out
@@ -1633,7 +1637,10 @@ static int s_check_cli_timeout(zloop_t *loop, int timer_fd, void *arg) {
   rcu_read_unlock();
   return 0;
 }
-
+// The delete_dist_clients sends on a socket that is being polled in the main thread
+// this can cause an assert in src/signal.cpp:282
+// Either lock the socket, or skip the separate thread, or have some signaling thread
+// between them.
 static int s_check_br_timeout(zloop_t *loop, int timer_fd, void *arg) {
   dd_broker_t *self = arg;
   // iterate through local brokers and check if they should time out
@@ -2297,10 +2304,10 @@ void broker_gc_rest(zsock_t *pipe, void *args) {
   assert(gc_loop);
   int rc = zloop_reader(gc_loop, pipe, s_gc_pipe_msg, self);
 
-  self->cli_timeout_loop =
-      zloop_timer(gc_loop, 3000, 0, s_check_cli_timeout, self);
-  self->br_timeout_loop =
-      zloop_timer(gc_loop, 1000, 0, s_check_br_timeout, self);
+  /* self->cli_timeout_loop = */
+  /*     zloop_timer(gc_loop, 3000, 0, s_check_cli_timeout, self); */
+  /* self->br_timeout_loop = */
+  /*     zloop_timer(gc_loop, 1000, 0, s_check_br_timeout, self); */
 
   if (self->reststr)
     start_httpd_gc(self, gc_loop);
@@ -2342,10 +2349,16 @@ void broker_actor(zsock_t *pipe, void *args) {
     dd_info("Will act as ROOT broker");
     self->state = DD_STATE_ROOT;
   }
-
-  zactor_t *act = zactor_new(broker_gc_rest, self);
-
-  rc = zloop_reader(self->loop, act, s_on_pipe_msg, self);
+  zactor_t *act = NULL;
+  if (self->reststr != NULL) {
+    act = zactor_new(broker_gc_rest, self);
+    rc = zloop_reader(self->loop, act, s_on_pipe_msg, self);
+  }
+  /* Moved here instead of in the gc_thread */
+  self->cli_timeout_loop =
+      zloop_timer(self->loop, 3000, 0, s_check_cli_timeout, self);
+  self->br_timeout_loop =
+      zloop_timer(self->loop, 1000, 0, s_check_br_timeout, self);
 
   // create and attach the pubsub southbound sockets
   start_pubsub(self);
