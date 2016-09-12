@@ -210,7 +210,7 @@ static void s_cb_addbr(dd_broker_t *self, zframe_t *sockid, zmsg_t *msg) {
     // TODO send error
     dd_error("Error, got ADDBR with wrong hash!");
     free(hash);
-    zmsg_destroy(&msg);
+    //    zmsg_destroy(&msg);
     return;
   }
 
