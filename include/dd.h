@@ -45,7 +45,7 @@ extern "C" {
 
 // state definitions
 // -----------------
-  
+
 // Client/broker not registered
 #define DD_STATE_UNREG 1
 // Broker is the root broker
@@ -70,14 +70,41 @@ extern "C" {
 // ------------------------
 // Callback based DD client
 
-// Called On disconnection
+/**
+ * Called upon disconnection
+ * @param self DD client which issued the callback
+ *
+ * @return
+ */
 typedef void(dd_on_discon)(void *self);
-// On recieve DATA
-typedef void(dd_on_data)(char *, unsigned char *, int, void *self);
-// On recieve PUB
-typedef void(dd_on_pub)(char *, char *, unsigned char *, int, void *self);
-// On receive ERROR
-typedef void(dd_on_error)(int, char *, void *self);
+/**
+ * Called upon recieving a notification
+ * @param source Client that sent the message
+ * @param data Message data
+ * @param length Message length
+ * @param self DD client which issued the callback
+ * @return
+ */
+
+typedef void(dd_on_data)(char *source, unsigned char *data, int length, void *self);
+/**
+ * Called upon recieving a publication
+ * @param source Client that sent the message
+ * @param topic Topic the message was published on
+ * @param data Message data
+ * @param length Message length
+ * @param self DD client which issued the callback
+ * @return
+ */
+typedef void(dd_on_pub)(char *source, char *topic, unsigned char *data, int length, void *self);
+/**
+ * Called upon an error
+ * @param error_code Error which occoured (DD_ERROR_*) 
+ * @param error_msg Message explaining the error 
+ * @param self DD client which issued the callback
+ * @return
+ */
+typedef void(dd_on_error)(int error_code, char *error_msg, void *self);
 
 // Class definition for a DoubleDecker callback client
 typedef struct _dd_t dd_t;
