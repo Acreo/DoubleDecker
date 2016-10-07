@@ -78,6 +78,13 @@ extern "C" {
  */
 typedef void(dd_on_discon)(void *self);
 /**
+ * Called upon connection
+ * @param self DD client which issued the callback
+ * @return
+ */
+
+typedef void(dd_on_con)(void *self);
+/**
  * Called upon recieving a notification
  * @param source Client that sent the message
  * @param data Message data
@@ -86,7 +93,8 @@ typedef void(dd_on_discon)(void *self);
  * @return
  */
 
-typedef void(dd_on_data)(char *source, unsigned char *data, int length, void *self);
+typedef void(dd_on_data)(char *source, unsigned char *data, int length,
+                         void *self);
 /**
  * Called upon recieving a publication
  * @param source Client that sent the message
@@ -96,18 +104,19 @@ typedef void(dd_on_data)(char *source, unsigned char *data, int length, void *se
  * @param self DD client which issued the callback
  * @return
  */
-typedef void(dd_on_pub)(char *source, char *topic, unsigned char *data, int length, void *self);
+typedef void(dd_on_pub)(char *source, char *topic, unsigned char *data,
+                        int length, void *self);
 /**
  * Called upon an error
- * @param error_code Error which occoured (DD_ERROR_*) 
- * @param error_msg Message explaining the error 
+ * @param error_code Error which occoured (DD_ERROR_*)
+ * @param error_msg Message explaining the error
  * @param self DD client which issued the callback
  * @return
  */
 typedef void(dd_on_error)(int error_code, char *error_msg, void *self);
 
 // Class definition for a DoubleDecker callback client
-typedef struct _dd_t dd_t;
+typedef stdd_ruct _dd_t dd_t;
 // Class definiotion for subscribed topics
 typedef struct _ddtopic_t ddtopic_t;
 // Class definition for internal key structure
