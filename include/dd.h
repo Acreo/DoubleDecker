@@ -116,7 +116,7 @@ typedef void(dd_on_pub)(char *source, char *topic, unsigned char *data,
 typedef void(dd_on_error)(int error_code, char *error_msg, void *self);
 
 // Class definition for a DoubleDecker callback client
-typedef stdd_ruct _dd_t dd_t;
+typedef struct _dd_t dd_t;
 // Class definiotion for subscribed topics
 typedef struct _ddtopic_t ddtopic_t;
 // Class definition for internal key structure
