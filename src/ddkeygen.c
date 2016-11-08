@@ -8,7 +8,6 @@ dd_keys_t *public_keys;
 
 char *generate_broker_keys() { return "no"; }
 char *generate_public_keys() { return "no"; }
-
 void generate_client_key(char *name, unsigned char *broker_pubkey,
                          unsigned char *public_pubkey) {
   unsigned char alice_publickey[crypto_box_PUBLICKEYBYTES];
@@ -62,22 +61,15 @@ int main(int argc, char **argv) {
   char *broker_key_file = NULL;
   char *public_key_file = NULL;
   char *tenant_names = NULL;
+  char *configfile = NULL;
   bool generate_broker = false;
   bool generate_public = false;
   char c;
-  while ((c = getopt(argc, argv, "C:c:B:b:P:p:")) != -1)
+  while ((c = getopt(argc, argv, "t:B:b:P:p:")) != -1)
     switch (c) {
-    case 'c':
-      printf("Generate client keys\n");
+    case 't':
+      printf("Tenants: %s\n", optarg);
       tenant_names = optarg;
-      break;
-    case 'b':
-      printf("Generate broker keys\n");
-      generate_broker = true;
-      break;
-    case 'p':
-      printf("Generate public keys\n");
-      generate_public = true;
       break;
     case 'B':
       printf("Read broker keys\n");
@@ -99,24 +91,28 @@ int main(int argc, char **argv) {
       abort();
     }
 
-  if (broker_key_file && !generate_broker) {
-    broker_keys = read_ddbrokerkeys(broker_key_file);
-  } else {
-    broker_keys = generate_broker_keys();
+  if (configfile == NULL && public_key_file == NULL &&
+      broker_key_file == NULL) {
+    fprintf(stderr, "No argument given!\n");
+    fprintf(stderr, "-t <tenants> // Comma separated list of tenants\n");
+    fprintf(stderr, "-B <keyfile> // Read broker keys\n");
+    fprintf(stderr, "-P <keyfile> // Read public keys\n");
+    exit(1);
   }
 
-  if (public_key_file && !generate_public) {
+  if (broker_key_file != NULL) {
+    broker_keys = dd_broker_keys_read(broker_key_file);
+    
+  } else if (public_key_file != NULL) {
     public_keys = dd_keys_new(public_key_file);
-  } else {
-    public_keys = generate_public_keys();
-  }
-
-  if (tenant_names && broker_key_file && public_key_file) {
+  } else if (tenant_names != NULL) {
     char *token;
     token = strtok(tenant_names, ",");
     while (token) {
-      generate_client_key(token, broker_keys->pubkey, dd_keys_pub(public_keys));
+      printf("Found tenant %s\n", token);
+      //      generate_client_key(token, broker_keys->pubkey, dd_keys_pub(public_keys));
       token = strtok(NULL, ",");
     }
   }
+  
 }

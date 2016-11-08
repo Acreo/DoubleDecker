@@ -27,41 +27,9 @@
 #ifndef _DDKEYS_H_
 #define _DDKEYS_H_
 
-#include "dd.h"
+#include "dd.h-old"
 
-typedef struct ddbrokerkeys {
-  // list of tenant names
-  zlist_t *tenants;
-  // broker private and public keys
-  unsigned char *privkey;
-  unsigned char *pubkey;
-  // Broker pre-calc key
-  unsigned char *ddboxk;
-  // Precalculated tenant keys
-  zhash_t *tenantkeys;
-  // hash string
-  char *hash;
-  uint64_t cookie;
-} ddbrokerkeys_t;
 
-typedef struct tenantsinfo {
-  char *name;
-  uint64_t cookie;
-  char *boxk;
-} ddtenant_t;
-
-dd_keys_t *dd_keys_new(const char *filename);
-void dd_keys_destroy(dd_keys_t **self);
-zhash_t *dd_keys_clients(dd_keys_t *self);
-bool dd_keys_ispublic(dd_keys_t *self);
-const uint8_t *dd_keys_custboxk(dd_keys_t *self);
-const char *dd_keys_hash(dd_keys_t *self);
-const uint8_t *dd_keys_pub(dd_keys_t *self);
-const uint8_t *dd_keys_ddboxk(dd_keys_t *self);
-const uint8_t *dd_keys_ddpub(dd_keys_t *self);
-const uint8_t *dd_keys_pubboxk(dd_keys_t *self);
-const uint8_t *dd_keys_publicpub(dd_keys_t *self);
-const uint8_t *dd_keys_priv(dd_keys_t *self);
 
 ddbrokerkeys_t *read_ddbrokerkeys(char *filename);
 void dd_broker_keys_destroy(ddbrokerkeys_t **);

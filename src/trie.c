@@ -28,7 +28,7 @@
     IN THE SOFTWARE.
 */
 
-#include "../include/trie.h"
+#include "trie.h"
 #include <assert.h>
 #include <czmq.h>
 #include <errno.h>

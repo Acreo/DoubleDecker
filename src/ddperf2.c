@@ -184,12 +184,12 @@ void s_sendmsg(dd_t *dd) {
     if (verbose)
       printf("sending clock: s:%ld ns:%ld ", sendt.tv_sec, sendt.tv_nsec);
       
-    dd_notify(dd, "ddperfsrv", (char *)&sendt, sizeof(struct timespec));
+    dd_notify(dd, "ddperfsrv2", (char *)&sendt, sizeof(struct timespec));
   } else {
     if (verbose)
       printf("sending message to ddperfsrv, size %d\n", msize);
 
-    dd_notify(dd, "ddperfsrv", rndstr, msize);
+    dd_notify(dd, "ddperfsrv2", rndstr, msize);
   }
 }
 void on_reg_client(void *args) {
@@ -281,7 +281,7 @@ void on_error(int error_code, char *error_message, void *args) {
 void start_server(char *address) {
   setlocale(LC_NUMERIC, "en_US.utf-8"); /* important */
 
-  dd_t *client = dd_new("ddperfsrv", address, keyfile, on_reg_server, on_discon,
+  dd_t *client = dd_new("ddperfsrv2", address, keyfile, on_reg_server, on_discon,
                         on_data_server, on_pub, on_error); // on_nodst);
   //  int timer_id = zloop_timer (client->loop, 1000, 0,
   //  s_print_throughput, NULL);
@@ -313,7 +313,7 @@ srand(time(NULL));
 int r = rand();
 
   char *cliname;
-  asprintf(&cliname, "ddperfcli%d", r);
+  asprintf(&cliname, "ddperfcli2%d", r);
   dd_t *client = dd_new(cliname, address, keyfile, on_reg_client, on_discon,
                         on_data_server, on_pub, on_error); // on_nodst);
   while (dd_get_state(client) != DD_STATE_EXIT && !zsys_interrupted) {
@@ -336,7 +336,7 @@ int main(int argc, char **argv) {
   signal(SIGTERM, stop_program);
   signal(SIGINT, stop_program);
 
-  logfile = fopen("ddperf.log", "w+");
+  logfile = fopen("ddperf2.log", "w+");
 
   while ((c = getopt(argc, argv, "m:n:s:c:vlp:")) != -1)
     switch (c) {

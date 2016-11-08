@@ -39,8 +39,10 @@
  * <ponsko@acreo.se> Created: tis mar 10 22:31:03 2015 (+0100)
  * Last-Updated: By:
  */
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
-#include "dd.h"
+#endif 
+#include "doubledecker.h"
 FILE *logfp;
 int daemonize = 0;
 
@@ -77,7 +79,7 @@ void usage() {
 
 int s_ddactor_msg(zloop_t *loop, zsock_t *handle, void *arg) {
   zmsg_t *msg = zmsg_recv(handle);
-  printf("s_ddactor_msg message %p from dd_broker_actor!\n", msg);
+  printf("s_ddactor_msg message %p from dd_broker_actor!\n", (void*) msg);
   if (msg != NULL) {
     zmsg_print(msg);
     zmsg_destroy(&msg);
@@ -116,7 +118,7 @@ int get_config(dd_broker_t *self, char *conffile) {
         logfp = fopen(zconfig_value(child), "w");
         if (logfp == NULL) {
           fprintf(stderr, "Cannot open logfile %s\n", zconfig_value(child));
-          perror(errno);
+          perror("Logfile open");
           exit(EXIT_FAILURE);
         }
       }
@@ -134,8 +136,8 @@ int get_config(dd_broker_t *self, char *conffile) {
 int main(int argc, char **argv) {
 
   int c;
-  char *configfile = NULL;
-  void *ctx = zsys_init();
+  //  char *configfile = NULL;
+  zsys_init();
   zsys_set_logident("DD");
   dd_broker_t *broker = dd_broker_new();
   opterr = 0;
@@ -173,7 +175,7 @@ int main(int argc, char **argv) {
       logfp = fopen(optarg, "w");
       if (logfp == NULL) {
         fprintf(stderr, "Cannot open logfile %s\n", optarg);
-        perror(errno);
+        perror("Logfile open");
         exit(EXIT_FAILURE);
       }
       zsys_set_logstream(logfp);
@@ -209,8 +211,16 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
   zloop_t *loop = zloop_new();
-  int rc = zloop_reader(loop, actor, s_ddactor_msg, NULL);
+  int rc = zloop_reader(loop, (zsock_t*) actor, s_ddactor_msg, NULL);
+  if(rc == -1){
+    fprintf(stderr,"Error adding reader to zloop!\n");
+    exit(EXIT_FAILURE);
+  }
   rc = zloop_start(loop);
+  if(rc == -1){
+    fprintf(stderr,"Error starting zloop!\n");
+    exit(EXIT_FAILURE);
+  }
 
   while (!zsys_interrupted) {
     zmsg_t *msg = zmsg_recv(actor);
@@ -222,4 +232,8 @@ int main(int argc, char **argv) {
   zactor_destroy(&actor);
   printf("Done, quitting!\n");
   return 1;
+}
+
+void ddbroker_test(){
+return;
 }

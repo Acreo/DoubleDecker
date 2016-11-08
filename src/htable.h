@@ -3,48 +3,6 @@
 #include <urcu.h>
 #include <urcu/rculfhash.h>
 #include "dd_classes.h"
-#define RCU_MEMBARRIER
-#define XXHSEED 1234
-#define MAXTENANTNAME 256
-
-// subscriptions[sockid] = ["b.topicA/0/1/2/", "b.topicB/0/1/2/"]
-struct _subscription_node {
-  zlist_t *topics;
-  zframe_t *sockid;
-  struct cds_lfht_node node;
-};
-
-// Local nodes
-struct _lcl_node {
-  char *name; // client name		/* Node content */
-  char *prefix_name;
-  char *tenant;
-  uint64_t cookie;
-  zframe_t *sockid;
-  int timeout;
-  // sockid_node for lcl_cli_ht
-  // prename_node and rev_lcl_cli_ht (combine with dist_node?)
-  struct cds_lfht_node lcl_node; // Chaining in hash table
-  struct cds_lfht_node rev_node; // Chaining in hash table
-  // struct cds_lfht_node node;
-};
-
-// Distant nodes
-struct _dist_node {
-  char *name; /* Node content */
-  zframe_t *broker;
-  int distance;
-  struct cds_lfht_node node; /* Chaining in hash table */
-};
-
-// Local broker
-struct _lcl_broker {
-  zframe_t *sockid;
-  uint64_t cookie;
-  int distance;
-  int timeout;
-  struct cds_lfht_node node; /* Chaining in hash table */
-};
 int insert_local_client(dd_broker_t *self, zframe_t *sockid, ddtenant_t *ten,
                         char *client_name);
 void hashtable_remove_dist_node(dd_broker_t *self, char *prefix_name);
@@ -77,5 +35,4 @@ void print_sub_ht(dd_broker_t *self);
 void print_local_ht(dd_broker_t *self);
 void print_dist_ht(dd_broker_t *self);
 void print_broker_ht(dd_broker_t *self);
-char *zframe_tostr(zframe_t *self, char *buffer);
 #endif

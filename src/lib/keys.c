@@ -1,4 +1,4 @@
-#include "../../include/dd.h"
+#include "../../include/dd.h-old"
 #include "../../include/keys.h"
 #include "../../include/dd_classes.h"
 
@@ -26,41 +26,11 @@ struct _dd_keys_t {
   char *hash;
   zhash_t *clientkeys;
 };
-void dd_keys_destroy(dd_keys_t **self_p) {
-  assert(self_p);
-  if (*self_p) {
-    dd_keys_t *self = *self_p;
-    free(self->publicpubkey);
-    free(self->ddpubkey);
-    free(self->privkey);
-    free(self->pubkey);
-    free(self->ddboxk);
-    free(self->custboxk);
-    free(self->pubboxk);
-    free(self->hash);
-    zhash_destroy(&self->clientkeys);
-    free(self);
-    *self_p = NULL;
-  }
-}
-
-zhash_t *dd_keys_clients(dd_keys_t *self) { return self->clientkeys; }
-bool dd_keys_ispublic(dd_keys_t *self) { return self->ispublic; }
-const unsigned char *dd_keys_custboxk(dd_keys_t *self) {
-  return self->custboxk;
-}
-const char *dd_keys_hash(dd_keys_t *self) { return self->hash; }
-const uint8_t *dd_keys_pub(dd_keys_t *self) { return self->pubkey; }
-const uint8_t *dd_keys_ddboxk(dd_keys_t *self) { return self->ddboxk; }
-const uint8_t *dd_keys_ddpub(dd_keys_t *self) { return self->ddpubkey; }
-const uint8_t *dd_keys_pubboxk(dd_keys_t *self) { return self->pubboxk; }
-const uint8_t *dd_keys_publicpub(dd_keys_t *self) { return self->publicpubkey; }
-const unsigned char *dd_keys_priv(dd_keys_t *self) { return self->privkey; }
-
 // Read the Doubledecker keys from JSON file, for customer
 // Returns a pointer to a struct ddkeystate of successful
 // Or NULL if something fails.
-dd_keys_t *dd_keys_new(const char *filename) {
+dd_keys_t *
+dd_keys_new(const char *filename) {
   assert(filename);
   FILE *fp;
   int retval;
@@ -266,8 +236,50 @@ dd_keys_t *dd_keys_new(const char *filename) {
 
   return ddkeys;
 }
+void
+dd_keys_destroy(dd_keys_t **self_p) {
+  assert(self_p);
+  if (*self_p) {
+    dd_keys_t *self = *self_p;
+    free(self->publicpubkey);
+    free(self->ddpubkey);
+    free(self->privkey);
+    free(self->pubkey);
+    free(self->ddboxk);
+    free(self->custboxk);
+    free(self->pubboxk);
+    free(self->hash);
+    zhash_destroy(&self->clientkeys);
+    free(self);
+    *self_p = NULL;
+  }
+}
+zhash_t *
+dd_keys_clients(dd_keys_t *self) { return self->clientkeys; }
+bool
+dd_keys_ispublic(dd_keys_t *self) { return self->ispublic; }
+const unsigned char *
+dd_keys_custboxk(dd_keys_t *self) {
+  return self->custboxk;
+}
+const char *
+dd_keys_hash(dd_keys_t *self) { return self->hash; }
+const uint8_t *
+dd_keys_pub(dd_keys_t *self) { return self->pubkey; }
+const uint8_t *
+dd_keys_ddboxk(dd_keys_t *self) { return self->ddboxk; }
+const uint8_t *
+dd_keys_ddpub(dd_keys_t *self) { return self->ddpubkey; }
+const uint8_t *
+dd_keys_pubboxk(dd_keys_t *self) { return self->pubboxk; }
+const uint8_t *
+dd_keys_publicpub(dd_keys_t *self) { return self->publicpubkey; }
+const unsigned char *
+dd_keys_priv(dd_keys_t *self) { return self->privkey; }
 
-void dd_broker_keys_destroy(ddbrokerkeys_t **self_p) {
+
+void
+dd_broker_keys_destroy(ddbrokerkeys_t **self_p) {
   ddbrokerkeys_t *self = *self_p;
   assert(self_p);
   if (*self_p) {
@@ -295,7 +307,12 @@ void dd_broker_keys_destroy(ddbrokerkeys_t **self_p) {
   }
 }
 
-ddbrokerkeys_t *read_ddbrokerkeys(char *filename) {
+ddbrokerkeys_t *
+dd_broker_keys_read(char *filename){
+  return read_ddbrokerkeys(filename);
+}
+ddbrokerkeys_t *
+read_ddbrokerkeys(char *filename) {
   FILE *fp;
   int retval;
 
@@ -465,3 +482,35 @@ void nonce_increment(unsigned char *n, const size_t nlen) {
     c >>= 8;
   }
 }
+
+/* TODO, API for key generation
+
+
+  generate broker keys
+   tenants = null
+   privkey = something
+   pubkey = something
+   tenantkeys = null
+   hash = something
+   cookie = something
+   dd_broker_keys_t *broker_keys = dd_broker_keys_new();
+   
+   
+   generate public tenant and add to broker_keys
+   return the public tenant keys
+   
+   dd_keys_t* public_key = dd_keys_add_public(
+    broker_keys);
+   
+   generate private tenant and add to broker keys
+   return the private tenant keys
+   
+   dd_keys_t* private_key = dd_keys_add_private(
+   broker_keys, public_key, "tenant");
+   
+   char * dd_keys_json(public_key);
+   fprintf(.. dd_keys_json());
+   fprintf(.. dd_keys_json());
+   fprintf(.. dd_broker_keys_json());
+*/
+  

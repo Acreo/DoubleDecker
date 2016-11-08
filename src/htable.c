@@ -1,5 +1,6 @@
-#include "../include/dd.h"
-#include "../include/dd_classes.h"
+//#include "../include/dd.h"
+//#include "../include/dd_classes.h"
+#include "xxhash.h"
 static int match_lcl_node_prename(struct cds_lfht_node *ht_node,
                                   const void *_key) {
   local_client *node = caa_container_of(ht_node, local_client, rev_node);
@@ -638,64 +639,4 @@ void print_broker_ht(dd_broker_t *self) {
     cds_lfht_next(self->lcl_cli_ht, &iter);
     ht_node = cds_lfht_iter_get_node(&iter);
   }
-}
-char *zframe_tostr(zframe_t *self, char *buffer) {
-  assert(self);
-  assert(zframe_is(self));
-
-  byte *data = zframe_data(self);
-  size_t size = zframe_size(self);
-  buffer[0] = '\0';
-  //  Probe data to check if it looks like unprintable binary
-  int is_bin = 0;
-  uint char_nbr;
-  for (char_nbr = 0; char_nbr < size; char_nbr++)
-    if (data[char_nbr] < 9 || data[char_nbr] > 127)
-      is_bin = 1;
-
-  snprintf(buffer, 30, "[%03d] ", (int)size);
-  size_t max_size = is_bin ? 35 : 70;
-  const char *ellipsis = "";
-  if (size > max_size) {
-    size = max_size;
-    ellipsis = "...";
-  }
-  for (char_nbr = 0; char_nbr < size; char_nbr++) {
-    if (is_bin)
-      sprintf(buffer + strlen(buffer), "%02X", (unsigned char)data[char_nbr]);
-    else
-      sprintf(buffer + strlen(buffer), "%c", data[char_nbr]);
-  }
-  strcat(buffer, ellipsis);
-  return buffer;
-}
-char *zframe_tojson(zframe_t *self, char *buffer) {
-  assert(self);
-  assert(zframe_is(self));
-
-  byte *data = zframe_data(self);
-  size_t size = zframe_size(self);
-  buffer[0] = '\0';
-  //  Probe data to check if it looks like unprintable binary
-  int is_bin = 0;
-  uint char_nbr;
-  for (char_nbr = 0; char_nbr < size; char_nbr++)
-    if (data[char_nbr] < 9 || data[char_nbr] > 127)
-      is_bin = 1;
-
-  //  snprintf(buffer, 30, "[%03d] ", (int)size);
-  size_t max_size = is_bin ? 35 : 70;
-  const char *ellipsis = "";
-  if (size > max_size) {
-    size = max_size;
-    ellipsis = "...";
-  }
-  for (char_nbr = 0; char_nbr < size; char_nbr++) {
-    if (is_bin)
-      sprintf(buffer + strlen(buffer), "%02X", (unsigned char)data[char_nbr]);
-    else
-      sprintf(buffer + strlen(buffer), "%c", data[char_nbr]);
-  }
-  strcat(buffer, ellipsis);
-  return buffer;
 }

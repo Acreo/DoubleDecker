@@ -1,4 +1,3 @@
-/* Local Variables:  */
 /* flycheck-gcc-include-path:
  * "/home/eponsko/double-decker/c-version/include/" */
 /* End:              */
@@ -44,6 +43,11 @@
 #include "../include/dd_classes.h"
 #define IPC_REGEX "(ipc://)(.+)"
 #define TCP_REGEX "(tcp://[^:]+:)(\\d+)"
+
+/* TODO:
+   when reading the keys, check that they are broker keys, and fail nicely instead of
+   segfault
+*/
 
 static int s_on_subN_msg(zloop_t *loop, zsock_t *handle, void *arg);
 static int s_on_subS_msg(zloop_t *loop, zsock_t *handle, void *arg);
@@ -1352,8 +1356,7 @@ static int s_on_router_msg(zloop_t *loop, zsock_t *handle, void *arg) {
 #ifdef DEBUG
   dd_debug("s_on_router_msg called");
   zmsg_print(msg);
-#endif
-
+#endif 
   if (msg == NULL) {
     dd_error("zmsg_recv returned NULL");
     return 0;

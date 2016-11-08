@@ -3,7 +3,6 @@ extern "C" {
 #endif
 #ifndef _SUBLIST_H_
 #define _SUBLIST_H_
-#include "dd.h"
 zlistx_t *sublist_new();
 void sublist_destroy(zlistx_t **self);
 int sublist_cmp(const void *item1, const void *item2);

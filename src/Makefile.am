@@ -8,10 +8,12 @@ libdd_la_SOURCES = lib/protocol.c lib/client.c lib/keys.c lib/cdecode.c \
 
 libdd_la_LDFLAGS = -version-info 0:3:0 
 
-bin_PROGRAMS = ddperf ddbroker ddclient ddbug  ddactor_test ddbroker_test ddkeygen
+bin_PROGRAMS = ddperf ddperf2 ddbroker ddclient ddbug  ddactor_test ddbroker_test ddkeygen
 
 ddebug = ddbug.c
 ddperf_SOURCES = ddperf.c
+ddperf2_SOURCES = ddperf2.c
+
 ddactor_test_SOURCES = actor_test.c
 ddbroker_SOURCES = ddbroker.c 
 ddbroker_test_SOURCES = broker_test.c 
@@ -25,6 +27,8 @@ ddclient_SOURCES =  ddclient.c cli_parser/cparser_tree.c  cli_parser/cparser.c\
 
 ddactor_test_LDADD = libdd.la
 ddperf_LDADD = libdd.la
+ddperf2_LDADD = libdd.la
+
 ddbroker_LDADD = libdd.la
 ddclient_LDADD = libdd.la
 ddbroker_test_LDADD = libdd.la
