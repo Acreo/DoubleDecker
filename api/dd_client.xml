@@ -1,0 +1,62 @@
+<class name = "dd_client">
+    Global Domination client API
+    <constructor>
+      Create a new Global Domination client
+      <argument name = "client_name" type = "string" />
+      <argument name = "endpoint" type = "string" />
+      <argument name = "keyfile" type = "string" />
+      <argument name = "on_con" type = "dd_client_on_con" callback = "1" />
+      <argument name = "on_discon" type = "dd_client_on_discon" callback = "1" />
+      <argument name = "on_data" type = "dd_client_on_data" callback = "1" />
+      <argument name = "on_pub" type = "dd_client_on_pub" callback = "1" />
+      <argument name = "on_error" type = "dd_client_on_error" callback = "1" />
+    </constructor>
+    <destructor>
+        Destroy a Global Domination client
+    </destructor>
+    <callback_type name = "on_data">
+        <argument name = "source" type = "string" />
+        <argument name = "data" type = "buffer" />
+        <argument name = "length" type = "size" />
+        <argument name = "self" type = "dd_client" />        
+        <return type = "nothing" />
+    </callback_type>
+    <callback_type name = "on_pub">
+        <argument name = "source" type = "string" />
+        <argument name = "topic" type = "string" />
+        <argument name = "data" type = "buffer" />
+        <argument name = "length" type = "size" />
+        <argument name = "self" type = "dd_client" />        
+        <return type = "nothing" />
+    </callback_type>
+    <callback_type name = "on_error">
+      <argument name = "error_code" type = "integer" />
+      <argument name = "error_msg" type = "string" />
+      <argument name = "self" type = "dd_client" />        
+      <return type = "nothing" />
+    </callback_type>
+    <callback_type name = "on_con">
+        <argument name = "self" type = "dd_client" />        
+        <return type = "nothing" />
+    </callback_type>
+   <callback_type name = "on_discon">
+        <argument name = "self" type = "dd_client" />        
+        <return type = "nothing" />
+    </callback_type>
+
+    <method name = "publish">
+      Send a zmsg message to the actor, take ownership of the message
+      and destroy when it has been sent.
+      <argument name = "topic" type = "string" />
+      <argument name = "message" type = "buffer" />
+      <argument name = "length" type = "size" />
+      <return type = "integer" />
+    </method>
+    <method name = "add_pipe">
+      lblalba
+      <argument name = "pipe" type = "zsock_p" />
+      <argument name = "handler" type = "zloop_reader_fn" />
+      <return type = "nothing" />
+    </method>
+    
+</class>
