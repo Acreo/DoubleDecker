@@ -1,0 +1,62 @@
+[
+{
+  "directory": "/home/ponsko/code/DoubleDecker",
+  "command": "/usr/bin/cc  -DCZMQ_BUILD_DRAFT_API=1 -DDD_BUILD_DRAFT_API -I/usr/local/include -I/home/ponsko/code/DoubleDecker/src -I/home/ponsko/code/DoubleDecker/include    -I/usr/local/include -I/usr/local/include -I/usr/include/json-c -o CMakeFiles/dd_selftest.dir/src/dd_selftest.c.o   -c /home/ponsko/code/DoubleDecker/src/dd_selftest.c",
+  "file": "/home/ponsko/code/DoubleDecker/src/dd_selftest.c"
+},
+{
+  "directory": "/home/ponsko/code/DoubleDecker",
+  "command": "/usr/bin/cc  -DCZMQ_BUILD_DRAFT_API=1 -DDD_BUILD_DRAFT_API -DDD_EXPORTS -I/usr/local/include -I/home/ponsko/code/DoubleDecker/src -I/home/ponsko/code/DoubleDecker/include  -fPIC   -I/usr/local/include -I/usr/local/include -I/usr/include/json-c -o CMakeFiles/dd.dir/src/dd_protocol.c.o   -c /home/ponsko/code/DoubleDecker/src/dd_protocol.c",
+  "file": "/home/ponsko/code/DoubleDecker/src/dd_protocol.c"
+},
+{
+  "directory": "/home/ponsko/code/DoubleDecker",
+  "command": "/usr/bin/cc  -DCZMQ_BUILD_DRAFT_API=1 -DDD_BUILD_DRAFT_API -DDD_EXPORTS -I/usr/local/include -I/home/ponsko/code/DoubleDecker/src -I/home/ponsko/code/DoubleDecker/include  -fPIC   -I/usr/local/include -I/usr/local/include -I/usr/include/json-c -o CMakeFiles/dd.dir/src/dd_broker_keys.c.o   -c /home/ponsko/code/DoubleDecker/src/dd_broker_keys.c",
+  "file": "/home/ponsko/code/DoubleDecker/src/dd_broker_keys.c"
+},
+{
+  "directory": "/home/ponsko/code/DoubleDecker",
+  "command": "/usr/bin/cc  -DCZMQ_BUILD_DRAFT_API=1 -DDD_BUILD_DRAFT_API -DDD_EXPORTS -I/usr/local/include -I/home/ponsko/code/DoubleDecker/src -I/home/ponsko/code/DoubleDecker/include  -fPIC   -I/usr/local/include -I/usr/local/include -I/usr/include/json-c -o CMakeFiles/dd.dir/src/base64.c.o   -c /home/ponsko/code/DoubleDecker/src/base64.c",
+  "file": "/home/ponsko/code/DoubleDecker/src/base64.c"
+},
+{
+  "directory": "/home/ponsko/code/DoubleDecker",
+  "command": "/usr/bin/cc  -DCZMQ_BUILD_DRAFT_API=1 -DDD_BUILD_DRAFT_API -DDD_EXPORTS -I/usr/local/include -I/home/ponsko/code/DoubleDecker/src -I/home/ponsko/code/DoubleDecker/include  -fPIC   -I/usr/local/include -I/usr/local/include -I/usr/include/json-c -o CMakeFiles/dd.dir/src/dd_broker.c.o   -c /home/ponsko/code/DoubleDecker/src/dd_broker.c",
+  "file": "/home/ponsko/code/DoubleDecker/src/dd_broker.c"
+},
+{
+  "directory": "/home/ponsko/code/DoubleDecker",
+  "command": "/usr/bin/cc  -DCZMQ_BUILD_DRAFT_API=1 -DDD_BUILD_DRAFT_API -DDD_EXPORTS -I/usr/local/include -I/home/ponsko/code/DoubleDecker/src -I/home/ponsko/code/DoubleDecker/include  -fPIC   -I/usr/local/include -I/usr/local/include -I/usr/include/json-c -o CMakeFiles/dd.dir/src/dd_client.c.o   -c /home/ponsko/code/DoubleDecker/src/dd_client.c",
+  "file": "/home/ponsko/code/DoubleDecker/src/dd_client.c"
+},
+{
+  "directory": "/home/ponsko/code/DoubleDecker",
+  "command": "/usr/bin/cc  -DCZMQ_BUILD_DRAFT_API=1 -DDD_BUILD_DRAFT_API -DDD_EXPORTS -I/usr/local/include -I/home/ponsko/code/DoubleDecker/src -I/home/ponsko/code/DoubleDecker/include  -fPIC   -I/usr/local/include -I/usr/local/include -I/usr/include/json-c -o CMakeFiles/dd.dir/src/dd_keys.c.o   -c /home/ponsko/code/DoubleDecker/src/dd_keys.c",
+  "file": "/home/ponsko/code/DoubleDecker/src/dd_keys.c"
+},
+{
+  "directory": "/home/ponsko/code/DoubleDecker",
+  "command": "/usr/bin/cc  -DCZMQ_BUILD_DRAFT_API=1 -DDD_BUILD_DRAFT_API -DDD_EXPORTS -I/usr/local/include -I/home/ponsko/code/DoubleDecker/src -I/home/ponsko/code/DoubleDecker/include  -fPIC   -I/usr/local/include -I/usr/local/include -I/usr/include/json-c -o CMakeFiles/dd.dir/src/dd_topic.c.o   -c /home/ponsko/code/DoubleDecker/src/dd_topic.c",
+  "file": "/home/ponsko/code/DoubleDecker/src/dd_topic.c"
+},
+{
+  "directory": "/home/ponsko/code/DoubleDecker",
+  "command": "/usr/bin/cc  -DCZMQ_BUILD_DRAFT_API=1 -DDD_BUILD_DRAFT_API -DDD_EXPORTS -I/usr/local/include -I/home/ponsko/code/DoubleDecker/src -I/home/ponsko/code/DoubleDecker/include  -fPIC   -I/usr/local/include -I/usr/local/include -I/usr/include/json-c -o CMakeFiles/dd.dir/src/dd_sublist.c.o   -c /home/ponsko/code/DoubleDecker/src/dd_sublist.c",
+  "file": "/home/ponsko/code/DoubleDecker/src/dd_sublist.c"
+},
+{
+  "directory": "/home/ponsko/code/DoubleDecker",
+  "command": "/usr/bin/cc  -DCZMQ_BUILD_DRAFT_API=1 -DDD_BUILD_DRAFT_API -DDD_EXPORTS -I/usr/local/include -I/home/ponsko/code/DoubleDecker/src -I/home/ponsko/code/DoubleDecker/include  -fPIC   -I/usr/local/include -I/usr/local/include -I/usr/include/json-c -o CMakeFiles/dd.dir/src/dd_client_actor.c.o   -c /home/ponsko/code/DoubleDecker/src/dd_client_actor.c",
+  "file": "/home/ponsko/code/DoubleDecker/src/dd_client_actor.c"
+},
+{
+  "directory": "/home/ponsko/code/DoubleDecker",
+  "command": "/usr/bin/cc  -DCZMQ_BUILD_DRAFT_API=1 -DDD_BUILD_DRAFT_API -I/usr/local/include -I/home/ponsko/code/DoubleDecker/src -I/home/ponsko/code/DoubleDecker/include    -I/usr/local/include -I/usr/local/include -I/usr/include/json-c -o CMakeFiles/ddclient.dir/src/ddclient.c.o   -c /home/ponsko/code/DoubleDecker/src/ddclient.c",
+  "file": "/home/ponsko/code/DoubleDecker/src/ddclient.c"
+},
+{
+  "directory": "/home/ponsko/code/DoubleDecker",
+  "command": "/usr/bin/cc  -DCZMQ_BUILD_DRAFT_API=1 -DDD_BUILD_DRAFT_API -I/usr/local/include -I/home/ponsko/code/DoubleDecker/src -I/home/ponsko/code/DoubleDecker/include    -I/usr/local/include -I/usr/local/include -I/usr/include/json-c -o CMakeFiles/ddbroker.dir/src/ddbroker.c.o   -c /home/ponsko/code/DoubleDecker/src/ddbroker.c",
+  "file": "/home/ponsko/code/DoubleDecker/src/ddbroker.c"
+}
+]

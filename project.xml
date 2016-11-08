@@ -1,27 +1,30 @@
 <project 
-  script = "zproject.gsl" 
-  name = "DoubleDecker" 
-  prefix = "dd"
-  email = "ponsko@acreo.se" 
-  url = "https://github.com/Acreo/DoubleDecker"
-  repository = "https://github.com/Acreo/DoubleDecker.git">
-  <use project = "czmq" />
-- <main name = "ddbroker" private = "0" />  
-  <main name = "ddclient" private = "0" />
-  
-  <include filename = "license.xml" />
-  <target name = "cmake" />	
-  <target name = "autotools" />
-  
+    script = "zproject.gsl" 
+    name = "DoubleDecker" 
+    prefix = "dd"
+    email = "ponsko@acreo.se" 
+    url = "https://github.com/Acreo/DoubleDecker"
+    repository = "https://github.com/Acreo/DoubleDecker.git">
   <version major = "0" minor = "4" patch = "0"/>
+
+  <use project = "czmq" />
   <use project = "libsodium" />
-  <use project = "json-c" header = "json-c/json.h" test = "json_object_to_json_string" />
+  <use project = "json-c" />
   <use project = "urcu" master = "git://git.liburcu.org/userspace-rcu.git" debian_name = "liburcu-dev" test = "rcu_read_lock_memb" />    
   <use project = "urcu-cds"
        master = "git://git.liburcu.org/userspace-rcu.git"
        debian_name = "liburcu-dev"
        test = "cds_lfht_add"
        header = "urcu/cds.h" />         
+
+
+  <main name = "ddbroker" private = "0" />  
+  <main name = "ddclient" private = "0" />
+  
+  <include filename = "license.xml" />
+  <target name = "cmake" />	
+  <target name = "autotools" />
+  
 
   <class name = "dd_broker"> DoubleDecker broker class </class>
   <class name = "dd_client"> DoubleDecker client class, with callbacks </class>
