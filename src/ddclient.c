@@ -201,31 +201,28 @@ cparser_result_t cparser_cmd_help(cparser_context_t *context) {
 }
 
 // callback functions
-void on_reg(void *args) {
-    dd_client_t *dd = (dd_client_t *) args;
+void on_reg(dd_client_t *dd) {
     printf("\nRegistered with broker %s!\n", dd_client_get_endpoint(dd));
     fflush(stdout);
 }
 
-void on_discon(void *args) {
-    dd_client_t *dd = (dd_client_t *) args;
+void on_discon(dd_client_t *dd) {
     printf("\nGot disconnected from broker %s!\n", dd_client_get_endpoint(dd));
     fflush(stdout);
 }
 
-void on_pub(char *source, char *topic, unsigned char *data, size_t length,
-            void *args) {
+void on_pub(const char *source, const char *topic, const byte *data, size_t length,
+            dd_client_t *args) {
     printf("\nPUB S: %s T: %s L: %zu D: '%s'", source, topic, length, data);
     fflush(stdout);
 }
 
-void on_data(char *source, unsigned char *data, size_t length, void *args) {
-    dd_t *dd = (dd_t *) args;
+void on_data(const char *source, const byte *data, size_t length, dd_client_t *args) {
     printf("\nDATA S: %s L: %zu D: '%s'", source, length, data);
     fflush(stdout);
 }
 
-void on_error(int error_code, char *error_message, void *args) {
+void on_error(int error_code, const char *error_message, dd_client_t *args) {
     switch (error_code) {
         case DD_ERROR_NODST:
             printf("Error - no destination: %s\n", error_message);

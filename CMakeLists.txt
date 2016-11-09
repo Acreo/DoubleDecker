@@ -168,7 +168,6 @@ IF (ENABLE_DRAFTS)
         include/dd_client.h
         include/dd_keys.h
         include/dd_topic.h
-        include/dd_sublist.h
         include/dd_client_actor.h
     )
 ENDIF (ENABLE_DRAFTS)
@@ -192,7 +191,6 @@ IF (ENABLE_DRAFTS)
         src/dd_client.c
         src/dd_keys.c
         src/dd_topic.c
-        src/dd_sublist.c
         src/dd_client_actor.c
     )
 ENDIF (ENABLE_DRAFTS)
@@ -327,7 +325,6 @@ IF (ENABLE_DRAFTS)
     dd_client
     dd_keys
     dd_topic
-    dd_sublist
     dd_client_actor
     )
 ENDIF (ENABLE_DRAFTS)

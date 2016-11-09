@@ -5,8 +5,10 @@
     email = "ponsko@acreo.se" 
     url = "https://github.com/Acreo/DoubleDecker"
     repository = "https://github.com/Acreo/DoubleDecker.git">
+  
   <version major = "0" minor = "4" patch = "0"/>
-
+  <include filename = "license.xml" />
+  
   <use project = "czmq" />
   <use project = "libsodium" />
   <use project = "json-c" />
@@ -21,20 +23,25 @@
   <main name = "ddbroker" private = "0" />  
   <main name = "ddclient" private = "0" />
   
-  <include filename = "license.xml" />
-  <target name = "cmake" />	
-  <target name = "autotools" />
   
-
   <class name = "dd_broker"> DoubleDecker broker class </class>
   <class name = "dd_client"> DoubleDecker client class, with callbacks </class>
   <class name = "dd_keys" />
   <class name = "dd_topic" />
-  <class name = "dd_sublist" />
   <class name = "dd_protocol" private = "1" />
   <class name = "dd_broker_keys" private = "1" />
   <class name = "base64" private = "1" />
 
   <actor name = "dd_client_actor"> DoubleDecker client actor</actor>
 
+
+  <target name = "cmake" />	
+  <target name = "autotools" />
+  <target name = "debian" />
+  <target name = "python" />  
+  <target name = "python_cffi" />  
+  <target name = "java" />
+  <target name = "java" />
+
+  
 </project>

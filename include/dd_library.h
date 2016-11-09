@@ -88,8 +88,6 @@ typedef struct _dd_keys_t dd_keys_t;
 #define DD_KEYS_T_DEFINED
 typedef struct _dd_topic_t dd_topic_t;
 #define DD_TOPIC_T_DEFINED
-typedef struct _dd_sublist_t dd_sublist_t;
-#define DD_SUBLIST_T_DEFINED
 typedef struct _dd_client_actor_t dd_client_actor_t;
 #define DD_CLIENT_ACTOR_T_DEFINED
 #endif // DD_BUILD_DRAFT_API
@@ -101,7 +99,6 @@ typedef struct _dd_client_actor_t dd_client_actor_t;
 #include "dd_client.h"
 #include "dd_keys.h"
 #include "dd_topic.h"
-#include "dd_sublist.h"
 #include "dd_client_actor.h"
 #endif // DD_BUILD_DRAFT_API
 

@@ -1,0 +1,32 @@
+<class name = "dd_topic">
+    DoubleDecker subscription topics API
+    <constructor>
+      Create a new topic object
+    </constructor>
+    <destructor>
+        Destroy a topic object
+    </destructor>
+
+    <method name = "get_topic">
+        <return type = "string"/>
+    </method>
+    <method name = "get_scope">
+        <return type = "string"/>
+    </method>
+    <method name = "get_active">
+        <return type = "boolean"/>
+    </method>
+
+    <method name = "set_topic">
+        <argument name = "topic" type="string"/>
+        <return type = "nothing"/>
+    </method>
+    <method name = "set_scope">
+        <argument name = "scope" type = "string"/>
+        <return type = "nothing"/>
+    </method>
+    <method name = "set_active">
+        <argument name = "active" type = "boolean" />
+        <return type = "nothing"/>
+    </method>
+</class>

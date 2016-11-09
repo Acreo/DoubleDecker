@@ -46,11 +46,11 @@ struct _dd_client_actor_t {
     bool verbose;               //  Verbose logging enabled?
 };
 
-static void actor_con(void *args);
-static void actor_discon(void *args);
-static void actor_pub(char *source, char *topic, unsigned char *data, size_t length, void *args);
-static void actor_data(char *source, unsigned char *data, size_t length, void *args);
-static void actor_error(int error_code, char *error_message, void *args);
+static void actor_con(dd_client_t *self);
+static void actor_discon(dd_client_t *self);
+static void actor_pub(const char *source, const char *topic, const byte *data, size_t length, dd_client_t *self);
+static void actor_data(const char *source, const byte *data, size_t length, dd_client_t *self);
+static void actor_error(int error_code, const char *error_message, dd_client_t *self);
 static int s_on_pipe_msg(zloop_t *loop, zsock_t *handle, void *args);
 
 //  --------------------------------------------------------------------------
@@ -135,36 +135,9 @@ dd_client_actor_test (bool verbose)
 
 
 
-void actor_con(void *args) {
-    dd_client_t *self = (dd_client_t *)args;
-    zsock_send(dd_client_get_pipe(self), "ss", "reg", dd_client_get_endpoint(self));
-}
-
-void actor_discon(void *args) {
-    dd_client_t *self = (dd_client_t *)args;
-    zsock_send(dd_client_get_pipe(self), "ss", "discon", dd_client_get_endpoint(self));
-}
-
-void actor_pub(char *source, char *topic, unsigned char *data, size_t length, void *args) {
-    dd_client_t *self = (dd_client_t *)args;
-    zsock_send(dd_client_get_pipe(self), "sssbb", "pub", source, topic, &length, sizeof(length),
-               data, length);
-}
-
-void actor_data(char *source, unsigned char *data, size_t length, void *args) {
-    dd_client_t *self = (dd_client_t *)args;
-    zsock_send(dd_client_get_pipe(self), "ssbb", "data", source, &length, sizeof(length), data,
-               length);
-}
-
-void actor_error(int error_code, char *error_message, void *args) {
-    dd_client_t *self = (dd_client_t *)args;
-    zsock_send(dd_client_get_pipe(self), "ssb", "error", error_message, &error_code,
-               sizeof(error_code));
-}
 
 int s_on_pipe_msg(zloop_t *loop, zsock_t *handle, void *args) {
-    dd_client_t *self = (dd_client_t *)args;
+    dd_client_t *self = args;
     zmsg_t *msg = zmsg_recv(handle);
     char *command = zmsg_popstr(msg);
     //  All actors must handle $TERM in this way
@@ -192,7 +165,7 @@ int s_on_pipe_msg(zloop_t *loop, zsock_t *handle, void *args) {
         zmsg_destroy(&msg);
     } else if (streq(command, "publish")) {
         char *topic = zmsg_popstr(msg);
-        char *message = zmsg_popstr(msg);
+        byte *message = zmsg_popstr(msg);
         zframe_t *mlen = zmsg_pop(msg);
         uint32_t len = *((uint32_t *)zframe_data(mlen));
         dd_client_publish(self, topic, message, len);
@@ -204,7 +177,7 @@ int s_on_pipe_msg(zloop_t *loop, zsock_t *handle, void *args) {
 
     } else if (streq(command, "notify")) {
         char *target = zmsg_popstr(msg);
-        char *message = zmsg_popstr(msg);
+        byte *message = zmsg_popstr(msg);
         zframe_t *mlen = zmsg_pop(msg);
         uint32_t len = *((uint32_t *)zframe_data(mlen));
         dd_client_notify(self, target, message, len);
@@ -219,6 +192,31 @@ int s_on_pipe_msg(zloop_t *loop, zsock_t *handle, void *args) {
         zmsg_destroy(&msg);
     }
     return 0;
+}
+
+void actor_error(int error_code, const char *error_message, dd_client_t *self) {
+
+    zsock_send(dd_client_get_pipe(self), "ssb", "error", error_message, &error_code,
+               sizeof(error_code));
+}
+
+void actor_data(const char *source, const byte *data, size_t length, dd_client_t *self) {
+
+    zsock_send(dd_client_get_pipe(self), "ssbb", "data", source, &length, sizeof(length), data,
+               length);
+}
+
+void actor_pub(const char *source, const char *topic, const byte *data, size_t length, dd_client_t *self) {
+    zsock_send(dd_client_get_pipe(self), "sssbb", "pub", source, topic, &length, sizeof(length),
+               data, length);
+}
+
+void actor_discon(dd_client_t *self) {
+    zsock_send(dd_client_get_pipe(self), "ss", "discon", dd_client_get_endpoint(self));
+}
+
+void actor_con(dd_client_t *self) {
+    zsock_send(dd_client_get_pipe(self), "ss", "reg", dd_client_get_endpoint(self));
 }
 
 

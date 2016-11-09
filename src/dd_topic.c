@@ -25,7 +25,7 @@
 struct _dd_topic_t {
     char *topic;
     char *scope;
-    char active;
+    bool active;
 };
 
 
@@ -81,17 +81,17 @@ const char *dd_topic_get_topic(dd_topic_t *sub) {
 const char *dd_topic_get_scope(dd_topic_t *sub) {
     return (const char *)sub->scope;
 }
-char dd_topic_get_active(dd_topic_t *sub) { 
+bool dd_topic_get_active(dd_topic_t *sub) {
     return sub->active; 
 }
 
-void dd_topic_set_topic(dd_topic_t *sub, char *topic) {
+void dd_topic_set_topic(dd_topic_t *sub, const char *topic) {
     sub->topic = topic;
 }
-void dd_topic_set_scope(dd_topic_t *sub, char *scope) {
+void dd_topic_set_scope(dd_topic_t *sub, const char *scope) {
     sub->scope = scope;
 
 }
-void dd_topic_set_active(dd_topic_t *sub, char active) {
+void dd_topic_set_active(dd_topic_t *sub, bool active) {
     sub->active = active;
 }

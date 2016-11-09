@@ -22,7 +22,6 @@ include_HEADERS += \
     include/dd_client.h \
     include/dd_keys.h \
     include/dd_topic.h \
-    include/dd_sublist.h \
     include/dd_client_actor.h
 
 endif
@@ -38,7 +37,6 @@ src_libdd_la_SOURCES += \
     src/dd_client.c \
     src/dd_keys.c \
     src/dd_topic.c \
-    src/dd_sublist.c \
     src/dd_client_actor.c
 
 endif
@@ -84,6 +82,13 @@ src_dd_selftest_CPPFLAGS = ${AM_CPPFLAGS}
 src_dd_selftest_LDADD = ${program_libs}
 src_dd_selftest_SOURCES = src/dd_selftest.c
 endif #ENABLE_DD_SELFTEST
+
+# Install api files into /usr/local/share/zproject
+apidir = @datadir@/zproject/doubledecker
+dist_api_DATA = \
+    api/dd_client.xml \
+    api/dd_keys.xml \
+    api/dd_topic.xml
 
 # define custom target for all products of /src
 src:

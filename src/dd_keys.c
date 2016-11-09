@@ -325,7 +325,7 @@ dd_keys_priv(dd_keys_t *self) { return self->privkey; }
 
 
 
-void dd_keys_nonce_increment(unsigned char *n, const size_t nlen) {
+void dd_keys_nonce_increment(byte *n, size_t nlen) {
     size_t i = 0U;
     uint_fast16_t c = 1U;
 

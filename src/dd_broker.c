@@ -1730,7 +1730,7 @@ static int s_register(zloop_t *loop, int timer_id, void *arg) {
             return -1;
         }
 
-        int rc = zsock_connect(self->dsock, self->dealer_connect);
+        int rc = zsock_connect(self->dsock, "%s",self->dealer_connect);
         if (rc != 0) {
             dd_error("Error in zmq_connect: %s", zmq_strerror(errno));
             return -1;
@@ -1921,14 +1921,14 @@ void connect_pubsubN(dd_broker_t *self) {
             self->sub_connect);
     self->pubN = zsock_new(ZMQ_XPUB);
     self->subN = zsock_new(ZMQ_XSUB);
-    int rc = zsock_connect(self->pubN, self->pub_connect);
+    int rc = zsock_connect(self->pubN, "%s", self->pub_connect);
     if (rc < 0) {
         dd_error("Unable to connect pubN to %s", self->pub_connect);
         perror("Error: ");
         exit(EXIT_FAILURE);
     }
 
-    rc = zsock_connect(self->subN, self->sub_connect);
+    rc = zsock_connect(self->subN, "%s", self->sub_connect);
     if (rc < 0) {
         dd_error("Unable to connect subN to %s", self->sub_connect);
         perror("Error: ");
@@ -2357,7 +2357,7 @@ int s_on_http(zloop_t *loop, zsock_t *handle, void *arg) {
 
 void start_httpd(dd_broker_t *self) {
     self->http = zsock_new(ZMQ_STREAM);
-    int rc = zsock_bind(self->http, self->reststr);
+    int rc = zsock_bind(self->http, "%s", self->reststr);
     if (rc == -1) {
         dd_error("Could not initilize HTTP port 9080!");
         zsock_destroy(&self->http);
@@ -2371,7 +2371,7 @@ void start_httpd(dd_broker_t *self) {
 
 void start_httpd_gc(dd_broker_t *self, zloop_t *zloop_gc) {
     self->http = zsock_new(ZMQ_STREAM);
-    int rc = zsock_bind(self->http, self->reststr);
+    int rc = zsock_bind(self->http, "%s", self->reststr);
     if (rc == -1) {
         dd_error("Could not initilize HTTP port 9080!");
         zsock_destroy(&self->http);
@@ -2619,7 +2619,7 @@ int dd_broker_set_dealer(dd_broker_t *self, char *dealerstr) {
         zsock_destroy(&self->dsock);
     self->dealer_connect = strdup(dealerstr);
     self->dsock = zsock_new(ZMQ_DEALER);
-    zsock_connect(self->dsock, self->dealer_connect);
+    zsock_connect(self->dsock, "%s", self->dealer_connect);
     if (self->dsock == NULL) {
         dd_error("Couldn't connect dealer socket to %s", self->dealer_connect);
         perror("Error: ");

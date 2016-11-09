@@ -108,7 +108,6 @@ TESTS =
 @ENABLE_DRAFTS_TRUE@    include/dd_client.h \
 @ENABLE_DRAFTS_TRUE@    include/dd_keys.h \
 @ENABLE_DRAFTS_TRUE@    include/dd_topic.h \
-@ENABLE_DRAFTS_TRUE@    include/dd_sublist.h \
 @ENABLE_DRAFTS_TRUE@    include/dd_client_actor.h
 
 @ENABLE_DRAFTS_TRUE@am__append_3 = \
@@ -116,7 +115,6 @@ TESTS =
 @ENABLE_DRAFTS_TRUE@    src/dd_client.c \
 @ENABLE_DRAFTS_TRUE@    src/dd_keys.c \
 @ENABLE_DRAFTS_TRUE@    src/dd_topic.c \
-@ENABLE_DRAFTS_TRUE@    src/dd_sublist.c \
 @ENABLE_DRAFTS_TRUE@    src/dd_client_actor.c
 
 @ON_MINGW_TRUE@am__append_4 = \
@@ -141,8 +139,8 @@ am__aclocal_m4_deps = $(top_srcdir)/config/libtool.m4 \
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 DIST_COMMON = $(srcdir)/Makefile.am $(top_srcdir)/configure \
-	$(am__configure_deps) $(am__include_HEADERS_DIST) \
-	$(am__DIST_COMMON)
+	$(am__configure_deps) $(dist_api_DATA) \
+	$(am__include_HEADERS_DIST) $(am__DIST_COMMON)
 am__CONFIG_DISTCLEAN_FILES = config.status config.cache config.log \
  configure.lineno config.status.lineno
 mkinstalldirs = $(install_sh) -d
@@ -177,7 +175,8 @@ am__uninstall_files_from_dir = { \
          $(am__cd) "$$dir" && rm -f $$files; }; \
   }
 am__installdirs = "$(DESTDIR)$(libdir)" "$(DESTDIR)$(bindir)" \
-	"$(DESTDIR)$(pkgconfigdir)" "$(DESTDIR)$(includedir)"
+	"$(DESTDIR)$(apidir)" "$(DESTDIR)$(pkgconfigdir)" \
+	"$(DESTDIR)$(includedir)"
 LTLIBRARIES = $(lib_LTLIBRARIES) $(noinst_LTLIBRARIES)
 am__DEPENDENCIES_1 =
 am__DEPENDENCIES_2 = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
@@ -186,14 +185,12 @@ am__DEPENDENCIES_2 = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 src_libdd_la_DEPENDENCIES = $(am__DEPENDENCIES_2)
 am__src_libdd_la_SOURCES_DIST = src/dd_protocol.c src/dd_broker_keys.c \
 	src/base64.c src/platform.h src/dd_broker.c src/dd_client.c \
-	src/dd_keys.c src/dd_topic.c src/dd_sublist.c \
-	src/dd_client_actor.c
+	src/dd_keys.c src/dd_topic.c src/dd_client_actor.c
 am__dirstamp = $(am__leading_dot)dirstamp
 @ENABLE_DRAFTS_TRUE@am__objects_1 = src/src_libdd_la-dd_broker.lo \
 @ENABLE_DRAFTS_TRUE@	src/src_libdd_la-dd_client.lo \
 @ENABLE_DRAFTS_TRUE@	src/src_libdd_la-dd_keys.lo \
 @ENABLE_DRAFTS_TRUE@	src/src_libdd_la-dd_topic.lo \
-@ENABLE_DRAFTS_TRUE@	src/src_libdd_la-dd_sublist.lo \
 @ENABLE_DRAFTS_TRUE@	src/src_libdd_la-dd_client_actor.lo
 am_src_libdd_la_OBJECTS = src/src_libdd_la-dd_protocol.lo \
 	src/src_libdd_la-dd_broker_keys.lo src/src_libdd_la-base64.lo \
@@ -282,11 +279,10 @@ am__can_run_installinfo = \
     n|no|NO) false;; \
     *) (install-info --version) >/dev/null 2>&1;; \
   esac
-DATA = $(pkgconfig_DATA)
+DATA = $(dist_api_DATA) $(pkgconfig_DATA)
 am__include_HEADERS_DIST = include/doubledecker.h include/dd_library.h \
 	include/dd_broker.h include/dd_client.h include/dd_keys.h \
-	include/dd_topic.h include/dd_sublist.h \
-	include/dd_client_actor.h
+	include/dd_topic.h include/dd_client_actor.h
 HEADERS = $(include_HEADERS)
 RECURSIVE_CLEAN_TARGETS = mostlyclean-recursive clean-recursive	\
   distclean-recursive maintainer-clean-recursive
@@ -496,9 +492,9 @@ am__DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/src/Makemodule.am \
 	$(top_srcdir)/config/install-sh $(top_srcdir)/config/ltmain.sh \
 	$(top_srcdir)/config/missing $(top_srcdir)/config/test-driver \
 	$(top_srcdir)/src/libdd.pc.in $(top_srcdir)/src/platform.h.in \
-	TODO config/compile config/config.guess config/config.sub \
-	config/depcomp config/install-sh config/ltmain.sh \
-	config/missing
+	AUTHORS TODO config/compile config/config.guess \
+	config/config.sub config/depcomp config/install-sh \
+	config/ltmain.sh config/missing
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 distdir = $(PACKAGE)-$(VERSION)
 top_distdir = $(distdir)
@@ -741,6 +737,14 @@ src_libdd_la_LIBADD = ${project_libs}
 @ENABLE_DD_SELFTEST_TRUE@src_dd_selftest_CPPFLAGS = ${AM_CPPFLAGS}
 @ENABLE_DD_SELFTEST_TRUE@src_dd_selftest_LDADD = ${program_libs}
 @ENABLE_DD_SELFTEST_TRUE@src_dd_selftest_SOURCES = src/dd_selftest.c
+
+# Install api files into /usr/local/share/zproject
+apidir = @datadir@/zproject/doubledecker
+dist_api_DATA = \
+    api/dd_client.xml \
+    api/dd_keys.xml \
+    api/dd_topic.xml
+
 all: all-recursive
 
 .SUFFIXES:
@@ -862,8 +866,6 @@ src/src_libdd_la-dd_keys.lo: src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
 src/src_libdd_la-dd_topic.lo: src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
-src/src_libdd_la-dd_sublist.lo: src/$(am__dirstamp) \
-	src/$(DEPDIR)/$(am__dirstamp)
 src/src_libdd_la-dd_client_actor.lo: src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
 
@@ -973,7 +975,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/src_libdd_la-dd_client_actor.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/src_libdd_la-dd_keys.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/src_libdd_la-dd_protocol.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/src_libdd_la-dd_sublist.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/src_libdd_la-dd_topic.Plo@am__quote@
 
 .c.o:
@@ -1049,13 +1050,6 @@ src/src_libdd_la-dd_topic.lo: src/dd_topic.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_libdd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o src/src_libdd_la-dd_topic.lo `test -f 'src/dd_topic.c' || echo '$(srcdir)/'`src/dd_topic.c
 
-src/src_libdd_la-dd_sublist.lo: src/dd_sublist.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_libdd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT src/src_libdd_la-dd_sublist.lo -MD -MP -MF src/$(DEPDIR)/src_libdd_la-dd_sublist.Tpo -c -o src/src_libdd_la-dd_sublist.lo `test -f 'src/dd_sublist.c' || echo '$(srcdir)/'`src/dd_sublist.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/$(DEPDIR)/src_libdd_la-dd_sublist.Tpo src/$(DEPDIR)/src_libdd_la-dd_sublist.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/dd_sublist.c' object='src/src_libdd_la-dd_sublist.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_libdd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o src/src_libdd_la-dd_sublist.lo `test -f 'src/dd_sublist.c' || echo '$(srcdir)/'`src/dd_sublist.c
-
 src/src_libdd_la-dd_client_actor.lo: src/dd_client_actor.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_libdd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT src/src_libdd_la-dd_client_actor.lo -MD -MP -MF src/$(DEPDIR)/src_libdd_la-dd_client_actor.Tpo -c -o src/src_libdd_la-dd_client_actor.lo `test -f 'src/dd_client_actor.c' || echo '$(srcdir)/'`src/dd_client_actor.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/$(DEPDIR)/src_libdd_la-dd_client_actor.Tpo src/$(DEPDIR)/src_libdd_la-dd_client_actor.Plo
@@ -1114,6 +1108,27 @@ clean-libtool:
 
 distclean-libtool:
 	-rm -f libtool config.lt
+install-dist_apiDATA: $(dist_api_DATA)
+	@$(NORMAL_INSTALL)
+	@list='$(dist_api_DATA)'; test -n "$(apidir)" || list=; \
+	if test -n "$$list"; then \
+	  echo " $(MKDIR_P) '$(DESTDIR)$(apidir)'"; \
+	  $(MKDIR_P) "$(DESTDIR)$(apidir)" || exit 1; \
+	fi; \
+	for p in $$list; do \
+	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
+	  echo "$$d$$p"; \
+	done | $(am__base_list) | \
+	while read files; do \
+	  echo " $(INSTALL_DATA) $$files '$(DESTDIR)$(apidir)'"; \
+	  $(INSTALL_DATA) $$files "$(DESTDIR)$(apidir)" || exit $$?; \
+	done
+
+uninstall-dist_apiDATA:
+	@$(NORMAL_UNINSTALL)
+	@list='$(dist_api_DATA)'; test -n "$(apidir)" || list=; \
+	files=`for p in $$list; do echo $$p; done | sed -e 's|^.*/||'`; \
+	dir='$(DESTDIR)$(apidir)'; $(am__uninstall_files_from_dir)
 install-pkgconfigDATA: $(pkgconfig_DATA)
 	@$(NORMAL_INSTALL)
 	@list='$(pkgconfig_DATA)'; test -n "$(pkgconfigdir)" || list=; \
@@ -1615,7 +1630,7 @@ install-binPROGRAMS: install-libLTLIBRARIES
 
 installdirs: installdirs-recursive
 installdirs-am:
-	for dir in "$(DESTDIR)$(libdir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(pkgconfigdir)" "$(DESTDIR)$(includedir)"; do \
+	for dir in "$(DESTDIR)$(libdir)" "$(DESTDIR)$(bindir)" "$(DESTDIR)$(apidir)" "$(DESTDIR)$(pkgconfigdir)" "$(DESTDIR)$(includedir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
 install: install-recursive
@@ -1678,7 +1693,8 @@ info: info-recursive
 
 info-am:
 
-install-data-am: install-includeHEADERS install-pkgconfigDATA
+install-data-am: install-dist_apiDATA install-includeHEADERS \
+	install-pkgconfigDATA
 
 install-dvi: install-dvi-recursive
 
@@ -1726,8 +1742,9 @@ ps: ps-recursive
 
 ps-am:
 
-uninstall-am: uninstall-binPROGRAMS uninstall-includeHEADERS \
-	uninstall-libLTLIBRARIES uninstall-pkgconfigDATA
+uninstall-am: uninstall-binPROGRAMS uninstall-dist_apiDATA \
+	uninstall-includeHEADERS uninstall-libLTLIBRARIES \
+	uninstall-pkgconfigDATA
 
 .MAKE: $(am__recursive_targets) check-am install-am install-strip
 
@@ -1742,16 +1759,17 @@ uninstall-am: uninstall-binPROGRAMS uninstall-includeHEADERS \
 	distclean-hdr distclean-libtool distclean-tags distcleancheck \
 	distdir distuninstallcheck dvi dvi-am html html-am info \
 	info-am install install-am install-binPROGRAMS install-data \
-	install-data-am install-dvi install-dvi-am install-exec \
-	install-exec-am install-html install-html-am \
-	install-includeHEADERS install-info install-info-am \
-	install-libLTLIBRARIES install-man install-pdf install-pdf-am \
-	install-pkgconfigDATA install-ps install-ps-am install-strip \
-	installcheck installcheck-am installdirs installdirs-am \
-	maintainer-clean maintainer-clean-generic mostlyclean \
-	mostlyclean-compile mostlyclean-generic mostlyclean-libtool \
-	pdf pdf-am ps ps-am recheck tags tags-am uninstall \
-	uninstall-am uninstall-binPROGRAMS uninstall-includeHEADERS \
+	install-data-am install-dist_apiDATA install-dvi \
+	install-dvi-am install-exec install-exec-am install-html \
+	install-html-am install-includeHEADERS install-info \
+	install-info-am install-libLTLIBRARIES install-man install-pdf \
+	install-pdf-am install-pkgconfigDATA install-ps install-ps-am \
+	install-strip installcheck installcheck-am installdirs \
+	installdirs-am maintainer-clean maintainer-clean-generic \
+	mostlyclean mostlyclean-compile mostlyclean-generic \
+	mostlyclean-libtool pdf pdf-am ps ps-am recheck tags tags-am \
+	uninstall uninstall-am uninstall-binPROGRAMS \
+	uninstall-dist_apiDATA uninstall-includeHEADERS \
 	uninstall-libLTLIBRARIES uninstall-pkgconfigDATA
 
 .PRECIOUS: Makefile

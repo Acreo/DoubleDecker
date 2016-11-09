@@ -52,7 +52,6 @@ all_tests [] = {
     { "dd_client", dd_client_test },
     { "dd_keys", dd_keys_test },
     { "dd_topic", dd_topic_test },
-    { "dd_sublist", dd_sublist_test },
     { "dd_client_actor", dd_client_actor_test },
 #endif // DD_BUILD_DRAFT_API
     {0, 0}          //  Sentinel
@@ -112,7 +111,7 @@ main (int argc, char **argv)
         else
         if (streq (argv [argn], "--number")
         ||  streq (argv [argn], "-n")) {
-            puts ("9");
+            puts ("8");
             return 0;
         }
         else
@@ -123,7 +122,6 @@ main (int argc, char **argv)
             puts ("    dd_client");
             puts ("    dd_keys");
             puts ("    dd_topic");
-            puts ("    dd_sublist");
             puts ("    dd_protocol");
             puts ("    dd_broker_keys");
             puts ("    base64");

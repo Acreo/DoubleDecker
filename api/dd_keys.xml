@@ -1,0 +1,68 @@
+<class name = "dd_keys">
+    DoubleDecker client keys API
+    <constructor>
+      Create a keys object from a JSON keyfile file
+      <argument name = "filename" type = "string" />
+    </constructor>
+    <destructor>
+        Destroy a DoubleDecker JSON keyfile object
+    </destructor>
+
+    <method name = "clients">
+        Get the client keys
+        <return type = "zhash" />
+    </method>
+
+    <method name = "ispublic">
+        Is the key object representing a public keyset?
+        <return type = "boolean" />
+    </method>
+
+    <method name = "custboxk">
+        Get the precalculated client - client key
+        <return type = "buffer" />
+    </method>
+
+    <method name = "hash">
+        Get the keyset customer hash
+        <return type = "string" />
+    </method>
+
+    <method name = "pub">
+        Get the public key
+        <return type = "buffer" />
+    </method>
+
+    <method name = "ddboxk">
+        Get the precalculated client - broker key
+        <return type = "buffer" />
+    </method>
+
+    <method name = "ddpub">
+        Get the broker public key
+        <return type = "buffer" />
+    </method>
+
+    <method name = "pubboxk">
+        Get the precalculated  public tenant key
+        <return type = "buffer" />
+    </method>
+
+    <method name = "publicpub">
+        Get the public key of the public tenant key
+        <return type = "buffer" />
+    </method>
+
+    <method name = "priv">
+        Get the private key
+        <return type = "buffer" />
+    </method>
+
+    <method name = "nonce_increment" singleton = "1">
+        Increment a nonce
+        <argument name = "nonce" type = "buffer" mutable = "1"/>
+        <argument name = "length" type = "size" />
+        <return type = "nothing" />
+    </method>
+
+</class>

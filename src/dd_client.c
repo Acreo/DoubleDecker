@@ -35,7 +35,7 @@ struct _dd_client_t {
     void *pipe;
     int verbose;                //  Print activity to stdout
     unsigned char *endpoint;    //  Broker binds to this endpoint
-    const char *keyfile;     // JSON file with pub/priv keys
+    unsigned char *keyfile;     // JSON file with pub/priv keys
     unsigned char *client_name; // This client name
     int timeout;                // Incremental timeout (trigger > 3)
     int state;                  // Internal state
@@ -55,46 +55,28 @@ struct _dd_client_t {
 };
 
 static void sublist_resubscribe(dd_client_t *self);
-
 static int s_ping(zloop_t *loop, int timerid, void *args);
-
 static int s_heartbeat(zloop_t *loop, int timerid, void *args);
-
 static int s_ask_registration(zloop_t *loop, int timerid, void *args);
-
 static void cb_regok(dd_client_t *self, zmsg_t *msg, zloop_t *loop);
-
 static void cb_pong(dd_client_t *self, zmsg_t *msg, zloop_t *loop);
-
 static void cb_chall(dd_client_t *self, zmsg_t *msg);
-
 static void cb_data(dd_client_t *self, zmsg_t *msg);
-
 static void cb_pub(dd_client_t *self, zmsg_t *msg);
-
 static void cb_subok(dd_client_t *self, zmsg_t *msg);
-
 static void cb_error(dd_client_t *self, zmsg_t *msg);
-
 static int s_on_pipe_msg(zloop_t *loop, zsock_t *handle, void *args);
-
 static int s_on_dealer_msg(zloop_t *loop, zsock_t *handle, void *args);
-
 static void dd_keys_print(dd_keys_t *keys);
 
 // update or add topic/scope/active to list
+// TODO: should this be dd_sublist class?
 void sublist_add(dd_client_t *self, char *topic, char *scope, char active);
-
 int sublist_delete(dd_client_t *self, char *topic, char *scope);
-
 void sublist_activate(dd_client_t *self, char *topic, char *scope);
-
 zlistx_t *sublist_new();
-
 void sublist_destroy(zlistx_t **self_p);
-
 void sublist_deactivate_all(dd_client_t *self);
-
 static void sublist_resubscribe(dd_client_t *self) {
     dd_topic_t *item;
     while ((item = zlistx_next((zlistx_t *) dd_client_get_subscriptions(self)))) {
@@ -129,7 +111,7 @@ char *dd_client_get_privkey(dd_client_t *self) {
     return hex;
 }
 
-char *dd_client_get_pubkey(dd_client_t *self) {
+char * dd_client_get_pubkey(dd_client_t *self) {
     assert(self);
     char *hex = malloc(100);
     assert(hex);
@@ -146,9 +128,9 @@ char *dd_client_get_publickey(dd_client_t *self) {
     return hex;
 }
 
-const zlistx_t *dd_client_get_subscriptions(dd_client_t *self) { return self->sublist; }
+zlistx_t *dd_client_get_subscriptions(dd_client_t *self) { return self->sublist; }
 
-int dd_client_subscribe(dd_client_t *self, char *topic, char *scope) {
+int dd_client_subscribe(dd_client_t *self, const char *topic, const char *scope) {
     char *scopestr;
     if (strcmp(scope, "all") == 0) {
         scopestr = "/";
@@ -175,7 +157,7 @@ int dd_client_subscribe(dd_client_t *self, char *topic, char *scope) {
 }
 
 
-int dd_client_unsubscribe(dd_client_t *self, char *topic, char *scope) {
+int dd_client_unsubscribe(dd_client_t *self, const char *topic, const char *scope) {
     char *scopestr;
     if (strcmp(scope, "all") == 0) {
         scopestr = "/";
@@ -199,7 +181,7 @@ int dd_client_unsubscribe(dd_client_t *self, char *topic, char *scope) {
     return 0;
 }
 
-int dd_client_publish(dd_client_t *self, char *topic, char *message, unsigned long long int mlen) {
+int dd_client_publish(dd_client_t *self, const char *topic, const byte *message, size_t mlen) {
     const unsigned char *precalck = NULL;
     int srcpublic = 0;
     int dstpublic = 0;
@@ -243,7 +225,7 @@ int dd_client_publish(dd_client_t *self, char *topic, char *message, unsigned lo
                                      self->nonce, precalck);
 
     if (retval != 0) {
-        fprintf(stderr, "DD: Unable to encrypt %llu bytes!\n", mlen);
+        fprintf(stderr, "DD: Unable to encrypt %zu bytes!\n", mlen);
         free(ciphertext);
         return -1;
     }
@@ -255,7 +237,7 @@ int dd_client_publish(dd_client_t *self, char *topic, char *message, unsigned lo
     return 0;
 }
 
-int dd_client_notify(dd_client_t *self, char *target, char *message, unsigned long long int mlen) {
+int dd_client_notify(dd_client_t *self, const char *target, const byte *message, size_t mlen) {
     const uint8_t *precalck = NULL;
     int srcpublic = 0;
     int dstpublic = 0;
@@ -307,7 +289,7 @@ int dd_client_notify(dd_client_t *self, char *target, char *message, unsigned lo
 
     if (retval == 0) {
     } else {
-        fprintf(stderr, "DD: Unable to encrypt %llu bytes!\n", mlen);
+        fprintf(stderr, "DD: Unable to encrypt %zu bytes!\n", mlen);
         free(ciphertext);
         return -1;
     }
@@ -358,7 +340,7 @@ static int s_ask_registration(zloop_t *loop, int timerid, void *args) {
             free(self);
             return -1;
         }
-        int rc = zsock_connect(self->socket, (const char *) self->endpoint);
+        int rc = zsock_connect(self->socket, "%s", (const char *) self->endpoint);
         if (rc != 0) {
             fprintf(stderr, "DD: Error in zmq_connect: %s\n", zmq_strerror(errno));
             free(self);
@@ -673,19 +655,19 @@ void dd_client_destroy(dd_client_t **self_p) {
     }
 }
 
-void dd_client_add_pipe(dd_client_t *self, zsock_t *socket, zloop_reader_fn callback_func){
+void dd_client_add_pipe(dd_client_t *self, zsock_t *socket, zloop_reader_fn handler){
+
     self->pipe = socket;
-    int rc = zloop_reader(self->loop, socket, callback_func, self);
+    int rc = zloop_reader(self->loop, socket, handler, self);
     assert(rc != -1);
 }
 
-void *dd_client_thread(void *args) {
-    dd_client_t *self = (dd_client_t *) args;
+void *dd_client_thread(dd_client_t *self) {
     zloop_start(self->loop);
     return self;
 }
 
-dd_client_t *dd_client_setup(char *client_name, char *endpoint, char *keyfile, dd_client_on_con con,
+dd_client_t *dd_client_setup(const char *client_name, const char *endpoint, const char *keyfile, dd_client_on_con con,
                              dd_client_on_discon discon, dd_client_on_data data, dd_client_on_pub pub,
                              dd_client_on_error error) {
 // Make sure that ZMQ doesn't affect main process signal handling
@@ -714,7 +696,7 @@ dd_client_t *dd_client_setup(char *client_name, char *endpoint, char *keyfile, d
         return NULL;
     }
 
-    rc = zsock_connect(self->socket, (const char *) self->endpoint);
+    rc = zsock_connect(self->socket,  "%s", (const char *) self->endpoint);
     if (rc != 0) {
         fprintf(stderr, "DD: Error in zmq_connect: %s\n", zmq_strerror(errno));
         free(self);
@@ -742,14 +724,17 @@ dd_client_t *dd_client_setup(char *client_name, char *endpoint, char *keyfile, d
     return self;
 }
 
-dd_client_t *dd_client_new(char *client_name, char *endpoint, char *keyfile, dd_client_on_con con,
-                           dd_client_on_discon discon, dd_client_on_data data, dd_client_on_pub pub,
-                           dd_client_on_error error) {
+dd_client_t * dd_client_new(const char *client_name, const char *endpoint, const char *keyfile,
+                            dd_client_on_con con,
+                            dd_client_on_discon discon, dd_client_on_data data, dd_client_on_pub pub,
+                            dd_client_on_error error) {
 
     dd_client_t *self = dd_client_setup(client_name, endpoint, keyfile, con, discon, data, pub, error);
-    zthread_new(dd_client_thread, self);
+    zthread_new((void *(*)(void *)) dd_client_thread, self);
     return self;
 }
+
+// TODO: move to dd_keys instead,  a to_string version perhaps?
 
 static void dd_keys_print(dd_keys_t *keys) {
     char *hex = malloc(100);
@@ -765,27 +750,24 @@ static void dd_keys_print(dd_keys_t *keys) {
 
 //  --------------------------------------------------------------------------
 //  Self test of this class
-void test_on_reg(void *args) {
-    dd_client_t *dd = (dd_client_t *) args;
+void test_on_reg(dd_client_t *dd) {
     zsys_info("Registered with broker %s!\n", dd_client_get_endpoint(dd));
 }
 
-void test_on_discon(void *args) {
-    dd_client_t *dd = (dd_client_t *) args;
+void test_on_discon(dd_client_t *dd) {
     zsys_info("Got disconnected from broker %s!\n", dd_client_get_endpoint(dd));
 }
 
-void test_on_pub(char *source, char *topic, unsigned char *data, size_t length,
-                 void *args) {
+void test_on_pub(const char *source, const char *topic, const byte *data, size_t length,
+                 dd_client_t *dd) {
     zsys_info("PUB S: %s T: %s L: %zu D: '%s'", source, topic, length, data);
 }
 
-void test_on_data(char *source, unsigned char *data, size_t length, void *args) {
-    dd_t *dd = (dd_t *) args;
+void test_on_data(const char *source, const byte *data, size_t length, dd_client_t *dd) {
     zsys_info("\nDATA S: %s L: %zu D: '%s'", source, length, data);
 }
 
-void test_on_error(int error_code, char *error_message, void *args) {
+void test_on_error(int error_code, const char *error_message, dd_client_t *dd) {
     switch (error_code) {
         case DD_ERROR_NODST:
             zsys_error("No destination: %s\n", error_message);
@@ -820,6 +802,7 @@ dd_client_test(bool verbose) {
 }
 
 
+// subscription list stuff
 
 
 // - compare two items, for sorting
