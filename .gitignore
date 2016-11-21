@@ -118,9 +118,5 @@ target/
 /src/dd_selftest
 /src/lib/#broker.c#
 /src/lib/DEADJOE
-/src/libdd.pc
-/src/libdd.pc.in
-/src/platform.h
-/src/platform.h.in
 /src/stamp-h1
 /src/test.sh
