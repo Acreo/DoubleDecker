@@ -1,5 +1,5 @@
 /*  =========================================================================
-    dd_client - class description
+    dd_client - DoubleDecker callback client class
 
     Copyright (c) the Contributors as noted in the AUTHORS file.       
     This file is part of CZMQ, the high-level C binding for 0MQ:       
@@ -13,10 +13,19 @@
 
 /*
 @header
-    dd_client - 
+ The dd_client class provides methods to instantiate and communicate with a
+    DoubleDecker client. The client can either be instantiated as a callback client or
+    as an CZMQ zactor.
+    The callback client runs in a separate thread and calling provided methods upon
+    events such as messages being received. The instance of the class is also
+    used to send and publish messages.
+    In the actor case a client is running in a separate case, but uses a socket to
+    communicate instead of callbacks and _send/_publish functions.
 @discuss
+    Note that the zactor version is defined in a separate header, dd_client_actor.h
 @end
 */
+
 #ifndef __USE_GNU
 #define __USE_GNU 1
 #endif

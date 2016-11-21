@@ -1,18 +1,24 @@
 <project 
     script = "zproject.gsl" 
-    name = "DoubleDecker" 
+    name = "DoubleDecker"
+    description = "Hierarchical messaging system"
     prefix = "dd"
     email = "ponsko@acreo.se" 
     url = "https://github.com/Acreo/DoubleDecker"
     repository = "https://github.com/Acreo/DoubleDecker.git">
   
-  <version major = "0" minor = "4" patch = "0"/>
+  <version major = "0" minor = "5" patch = "0"/>
   <include filename = "license.xml" />
   
   <use project = "czmq" />
   <use project = "libsodium" />
   <use project = "json-c" />
-  <use project = "urcu" master = "git://git.liburcu.org/userspace-rcu.git" debian_name = "liburcu-dev" test = "rcu_read_lock_memb" />    
+
+  <use project = "urcu"
+       master = "git://git.liburcu.org/userspace-rcu.git"
+       debian_name = "liburcu-dev"
+       test = "rcu_read_lock_memb" />    
+
   <use project = "urcu-cds"
        master = "git://git.liburcu.org/userspace-rcu.git"
        debian_name = "liburcu-dev"
@@ -34,14 +40,29 @@
 
   <actor name = "dd_client_actor"> DoubleDecker client actor</actor>
 
+  <constant name = "dd_state_unreg" value = "1" />
+  <constant name = "dd_state_root"   value = "2" />
+  <constant name = "dd_state_exit"   value = "3" />
+  <constant name = "dd_state_challenged"   value = "4" />
+  <constant name = "dd_state_registered"   value = "5" />
 
+  <constant name = "dd_error_regfail" value = "1"
+            description = "Error message - Registration failed" />
+  <constant name = "dd_error_nodst"   value = "2" 
+    description = "Error message - Message destination non existing" />
+  <constant name = "dd_error_version"   value = "3" 
+        description = "Error message - Wrong protocol version" />
+
+  <constant name = "dd_pro_version" value = "218955779"
+    description = "Protocol version 0x0d0d0003" />
+  
   <target name = "cmake" />	
   <target name = "autotools" />
-  <target name = "debian" />
+<!--  <target name = "debian" />
   <target name = "python" />  
   <target name = "python_cffi" />  
   <target name = "java" />
-  <target name = "java" />
+  <target name = "java" /> -->
 
   
 </project>

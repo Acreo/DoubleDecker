@@ -1,4 +1,6 @@
-/*
+/*  =========================================================================
+    ddbroker - DoubleDecker broker program
+
    Copyright (c) 2015 Pontus Sköldström, Bertrand Pechenot
 
    This file is part of libdd, the DoubleDecker hierarchical
@@ -22,7 +24,33 @@
    License for more details.  You should have received a copy of the
    GNU Lesser General Public License along with this program.  If not,
    see <http://www.gnu.org/licenses/>.
-   */
+    =========================================================================
+*/
+
+/*
+@interface
+Run a command line version of the DoubleDecker client
+
+@header
+
+In the CLI interface use the menu to select actions, e.g. to subscribe,
+ publish, and send notifications.
+
+@discuss
+ Required options are -c, -n and -d.
+
+  -d [ADDR] - Which broker to connect to
+     Where [ADDR] can be e.g. tcp://127.0.0.1:5555 or ipc:///file
+
+  -k [KEYFILE] - where to find the keys
+     Where [KEYFILE] is the path to a JSON file containing the client keys
+     These have to be generated with ddkeys.py
+
+  -n [NAME] - set the name of the client, this has to be unique
+     E.g. -n client2
+
+@end
+*/
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>

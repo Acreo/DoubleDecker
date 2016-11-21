@@ -1,8 +1,6 @@
-/* Local Variables:  */
-/* flycheck-gcc-include-path:
- * "/home/eponsko/double-decker/c-version/include/" */
-/* End:              */
-/*
+/*  =========================================================================
+    ddbroker - DoubleDecker broker program
+
    Copyright (c) 2015 Pontus Sköldström, Bertrand Pechenot
 
    This file is part of libdd, the DoubleDecker hierarchical
@@ -26,19 +24,54 @@
    License for more details.  You should have received a copy of the
    GNU Lesser General Public License along with this program.  If not,
    see <http://www.gnu.org/licenses/>.
+    =========================================================================
+*/
 
- * broker.c --- Filename: broker.c Description: Initial idea for a C
- * implementation of double-decker based around czmq and cds_lfht cds_lfht
- * is a high-performance multi-thread supporting hashtable Idea is to
- * have one thread (main) recieving all messages which are pushed using
- * inproc threads to processing threads.  Processing threads then perform
- * lookups in the shared hashtables and forward to the zmqsockets (they
- * are threadsafe I hope..?) Hashtable and usersparce RCU library
- * implementation at: git://git.lttng.org/userspace-rcu.git
- * http://lwn.net/Articles/573431/ Author: Pontus Sköldström
- * <ponsko@acreo.se> Created: tis mar 10 22:31:03 2015 (+0100)
- * Last-Updated: By:
- */
+
+/*
+@interface
+ Run a standalone DoubleDecker broker
+
+@header
+    Starts DoubleDecker broker
+@discuss
+ Required options are -r, -s and -k.
+
+  -r [ADDR] - where to listen for clients and other brokers
+     Where [ADDR] can be e.g. tcp://127.0.0.1:5555
+     Multiple addresses with comma tcp://127.0.0.1:5555,ipc:///file
+
+  -k [KEYFILE] - where to find the keys
+     Where [KEYFILE] is the path to a JSON file containing the broker keys
+     These have to be generated with ddkeys.py
+
+  -s [SCOPE] - set the scope of the broker
+      Scope of the broker, e.g. for region 1, cluster 2, node 3 it is "1/2/3"
+
+ Optional options are -d, -k, -w, -f, -L , -D, and -S
+
+  -d [ADDR] - set the dealer URI to connect to
+     For example tcp://1.2.3.4:5555
+     Dealer should be connected to Router of another broker
+
+  -l [CHAR] - set the log level, e.g. "-l w"
+     Where CHAR is "e" for ERROR,w:WARNING,n:NOTICE,i:INFO,d:DEBUG,q:QUIET
+
+  -w [ADDR]
+     Open a REST socket for debugging, [ADDR] can be e.g. tcp://127.0.0.1:8080
+
+  -f [FILE]
+     Read configuration [FILE]
+
+  -L [FILE]
+     Log to [FILE]
+
+  -D - daemonize the broker
+
+  -S - log to syslog
+
+@end
+*/
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE 1
 #endif

@@ -35,7 +35,6 @@ extern "C" {
 #endif
 
 // Commands and version
-#define DD_PRO_VERSION 0x0d0d0003
 #define DD_CMD_SEND 0
 #define DD_CMD_FORWARD 1
 #define DD_CMD_PING 2

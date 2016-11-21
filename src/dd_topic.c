@@ -1,5 +1,5 @@
 /*  =========================================================================
-    dd_topic - class description
+    dd_topic - Holds topics and scopes defining different subscriptions
 
     Copyright (c) the Contributors as noted in the AUTHORS file.       
     This file is part of CZMQ, the high-level C binding for 0MQ:       

@@ -744,7 +744,8 @@ dist_api_DATA = \
     api/dd_broker.xml \
     api/dd_client.xml \
     api/dd_keys.xml \
-    api/dd_topic.xml
+    api/dd_topic.xml \
+    api/dd_client_actor.xml
 
 all: all-recursive
 

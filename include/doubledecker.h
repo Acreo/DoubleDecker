@@ -21,29 +21,4 @@
 #endif
 
 
-// state definitions
-// -----------------
-
-// Client/broker not registered
-#define DD_STATE_UNREG 1
-// Broker is the root broker
-#define DD_STATE_ROOT 2
-// In the process of exiting
-#define DD_STATE_EXIT 3
-// In the process of authentication with a broker
-#define DD_STATE_CHALLENGED 4
-// Registered with a broker
-#define DD_STATE_REGISTERED 5
-
-// Error codes
-// -----------
-
-// Registration failed
-#define DD_ERROR_REGFAIL 1
-// Message destination doesn't exist
-#define DD_ERROR_NODST 2
-// Wrong protocol version
-#define DD_ERROR_VERSION 3
-
-
 #endif

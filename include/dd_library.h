@@ -46,7 +46,7 @@
 
 //  DD version macros for compile-time API detection
 #define DD_VERSION_MAJOR 0
-#define DD_VERSION_MINOR 4
+#define DD_VERSION_MINOR 5
 #define DD_VERSION_PATCH 0
 
 #define DD_MAKE_VERSION(major, minor, patch) \
@@ -92,6 +92,18 @@ typedef struct _dd_client_actor_t dd_client_actor_t;
 #define DD_CLIENT_ACTOR_T_DEFINED
 #endif // DD_BUILD_DRAFT_API
 
+//  Public constants
+#ifdef DD_BUILD_DRAFT_API
+#define DD_STATE_UNREG      1                  //  
+#define DD_STATE_ROOT       2                  //  
+#define DD_STATE_EXIT       3                  //  
+#define DD_STATE_CHALLENGED  4                 //  
+#define DD_STATE_REGISTERED  5                 //  
+#define DD_ERROR_REGFAIL    1                  //  
+#define DD_ERROR_NODST      2                  //  
+#define DD_ERROR_VERSION    3                  //  
+#define DD_PRO_VERSION      218955779          //  
+#endif // DD_BUILD_DRAFT_API
 
 //  Public classes, each with its own header file
 #ifdef DD_BUILD_DRAFT_API

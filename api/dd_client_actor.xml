@@ -1,0 +1,59 @@
+<class name="dd_client_actor">
+    DoubleDecker client actor API
+    <actor>
+        To work with dd_client_actor, use the CZMQ zactor API:
+
+        // create an actor with a embedded dd_client
+         dd_client_actor_t *actor_conf = dd_client_actor_new("client1","tcp://localhost:5555,"./keys.json");
+
+        // start actor
+        zactor_t *dd_client_actor = zactor_new (dd_client_actor_actor, actor_conf);
+
+        // receive message on "dd_client_actor" as if it is a zsock_t
+        zmsg_t *msg = zmsg_recv(handle);
+
+        // send message through the client
+        zsock_send(dd_client_actor, "sss", "subscribe", topic, scope);
+
+        // destroy the actor
+        zactor_destroy (&dd_client_actor);
+    </actor>
+
+    <constructor>
+        Create a new DoubleDecker client actor, with some parameters
+        <argument name="client_name" type="string"/>
+        <argument name="endpoint" type="string"/>
+        <argument name="keyfile" type="string"/>
+    </constructor>
+
+    <method name="subscribe" singleton="1">
+        Subscribe to a topic.
+        <argument name="actor" type="zactor"/>
+        <argument name="topic" type="string"/>
+        <argument name="scope" type="string"/>
+        <return type="integer"/>
+    </method>
+    <method name="unsubscribe" singleton="1">
+        Unsubscribe from a topic.
+        <argument name="actor" type="zactor"/>
+        <argument name="topic" type="string"/>
+        <argument name="scope" type="string"/>
+        <return type="integer"/>
+    </method>
+    <method name="publish" singleton="1">
+        Publish a message on a topic. It's the callers responsibility to free the message.
+        <argument name="actor" type="zactor"/>
+        <argument name="topic" type="string"/>
+        <argument name="message" type="buffer"/>
+        <argument name="length" type="size"/>
+        <return type="integer"/>
+    </method>
+    <method name="notify" singleton="1">
+        Send a notification to another DD client. It's the callers responsibility to free the message.
+        <argument name="actor" type="zactor"/>
+        <argument name="target" type="string"/>
+        <argument name="message" type="buffer"/>
+        <argument name="length" type="size"/>
+        <return type="integer"/>
+    </method>
+</class>

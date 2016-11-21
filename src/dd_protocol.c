@@ -60,7 +60,9 @@ const uint32_t dd_cmd_sendpt = DD_CMD_SENDPT;
 const uint32_t dd_cmd_forwardpt = DD_CMD_FORWARDPT;
 const uint32_t dd_cmd_datapt = DD_CMD_DATAPT;
 const uint32_t dd_cmd_subok = DD_CMD_SUBOK;
+
 const uint32_t dd_version = DD_PRO_VERSION;
+
 const uint32_t dd_error_regfail = DD_ERROR_REGFAIL;
 const uint32_t dd_error_nodst = DD_ERROR_NODST;
 const uint32_t dd_error_version = DD_ERROR_VERSION;

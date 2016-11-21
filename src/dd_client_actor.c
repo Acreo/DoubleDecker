@@ -31,11 +31,44 @@
 @header
     dd_client_actor - DoubleDecker client actor
 @discuss
+Messages from the actor may be:
+
+  On error:
+    {string "error", string error_msg, byte error_code}
+
+  On disconnection from broker:
+    {string "discon", string broker endpoint}
+
+  On connection to broker established:
+    {string "reg", string broker endpoint}
+
+  On notification received:
+    {string "data", string source, size_t length, byte data}
+
+  On publication received:
+    {string "pub", string source, string topic, size_t length, byte data}
+
+Messages to the actor may be:
+
+  To subscribe:
+    {string "subscribe", string topic, string scope}
+
+  To unsubscribe:
+    {string "unsubscribe", string topic, string scope}
+
+  To publish:
+    {string "publish", string topic, byte[] message}
+
+  To notify:
+    {string "notify", string target, byte [] message}
+
+Sending messages can be simplified using the dd_client_actor_* methods.
 @end
 */
 
 //#include <sublist.h>
-#include "dd_classes.h"
+#include <doubledecker.h>
+#include "dd_client.h"
 
 //  Structure of our actor
 
@@ -56,14 +89,18 @@ static int s_on_pipe_msg(zloop_t *loop, zsock_t *handle, void *args);
 //  --------------------------------------------------------------------------
 //  Create a new dd_client_actor instance
 
-static dd_client_actor_t *
-dd_client_actor_new (char *client_name, char *endpoint, char *keyfile)
+dd_client_actor_t *
+dd_client_actor_new (const char *client_name, const char *endpoint, const char *keyfile)
 {
-    dd_client_actor_t *self = (dd_client_actor_t *) zmalloc (sizeof (dd_client_actor_t));
+    dd_client_actor_t *self = (dd_client_actor_t *) malloc (sizeof (dd_client_actor_t));
     assert (self);
 
     self->dd_client = dd_client_setup(client_name,endpoint,keyfile,
-                                      actor_con,actor_discon, actor_data,actor_pub,actor_error);
+                                      actor_con,
+                                      actor_discon,
+                                      actor_data,
+                                      actor_pub,
+                                      actor_error);
     self->terminated = false;
 
     return self;
@@ -90,7 +127,7 @@ dd_client_actor_destroy (dd_client_actor_t **self_p)
 //  --------------------------------------------------------------------------
 //  This is the actor which runs in its own thread.
 void
-dd_client_actor_actor (zsock_t *pipe, void *args)
+dd_client_actor (zsock_t *pipe, void *args)
 {
     dd_client_actor_t * self = (dd_client_actor_t*) args;
 
@@ -125,16 +162,33 @@ dd_client_actor_test (bool verbose)
     // create an actor with a embedded dd_client
     dd_client_actor_t *actor_conf = dd_client_actor_new(client_name,endpoint,keyfile);
     // run it
-    zactor_t *dd_client_actor = zactor_new (dd_client_actor_actor, actor_conf);
+    zactor_t *actor = zactor_new (dd_client_actor, actor_conf);
     sleep(5);
-    zactor_destroy (&dd_client_actor);
+    zactor_destroy (&actor);
     //  @end
 
     printf ("OK\n");
 }
 
+//  Subscribe to a topic.
+int dd_client_actor_subscribe (zactor_t *actor, const char *topic, const char *scope){
+    return zsock_send(actor, "sss", "subscribe", topic, scope);
+}
 
+//  Unsubscribe from a topic.
+int dd_client_actor_unsubscribe (zactor_t *actor, const char *topic, const char *scope){
+    return zsock_send(actor, "sss", "unsubscribe", topic, scope);
+}
 
+//  Publish a message on a topic. It's the callers responsibility to free the message.
+int dd_client_actor_publish (zactor_t *actor, const char *topic, const byte *message, size_t length){
+    return zsock_send(actor, "sb", topic, message, length);
+}
+
+//  Send a notification to another DD client. It's the callers responsibility to free the message.
+int dd_client_actor_notify (zactor_t *actor, const char *target, const byte *message, size_t length){
+    return zsock_send(actor, "sb", target, message, length);
+}
 
 int s_on_pipe_msg(zloop_t *loop, zsock_t *handle, void *args) {
     dd_client_t *self = (dd_client_t* ) args;
@@ -165,11 +219,13 @@ int s_on_pipe_msg(zloop_t *loop, zsock_t *handle, void *args) {
         zmsg_destroy(&msg);
     } else if (streq(command, "publish")) {
         char *topic = zmsg_popstr(msg);
-        byte *message = (byte*) zmsg_popstr(msg);
+        zframe_t *data =  zmsg_pop(msg);
+        byte *message =  zframe_data(data);
         zframe_t *mlen = zmsg_pop(msg);
         uint32_t len = *((uint32_t *)zframe_data(mlen));
         dd_client_publish(self, topic, message, len);
         zframe_destroy(&mlen);
+        zframe_destroy(&data);
         free(topic);
         free(message);
         free(command);
@@ -177,12 +233,13 @@ int s_on_pipe_msg(zloop_t *loop, zsock_t *handle, void *args) {
 
     } else if (streq(command, "notify")) {
         char *target = zmsg_popstr(msg);
-        byte *message = (byte*) zmsg_popstr(msg);
-
+        zframe_t *data =  zmsg_pop(msg);
+        byte *message = zframe_data(data);
         zframe_t *mlen = zmsg_pop(msg);
         uint32_t len = *((uint32_t *)zframe_data(mlen));
         dd_client_notify(self, target, message, len);
         zframe_destroy(&mlen);
+        zframe_destroy(&data);
         free(target);
         free(message);
         free(command);
@@ -219,96 +276,3 @@ void actor_discon(dd_client_t *self) {
 void actor_con(dd_client_t *self) {
     zsock_send(dd_client_get_pipe(self), "ss", "reg", dd_client_get_endpoint(self));
 }
-
-
-// main actor
-// motsvarar dd_client_actor_actor
-// och dd_client_thread
-//void dd_actor(zsock_t *pipe, void *args) {
-//    dd_client_t *self = (dd_client_t *)args;
-//    int rc;
-//
-//    zsock_signal(pipe, 0);
-//    self->pipe = pipe;
-//
-//    self->socket = zsock_new_dealer(NULL);
-//    if (!self->socket) {
-//        fprintf(stderr, "DD: Error in zsock_new_dealer: %s\n", zmq_strerror(errno));
-//        zsock_send(self->pipe, "ss", "$TERM", "Error creating socket");
-//        dd_client_destroy(&self);
-//        return;
-//    }
-//    rc = zsock_connect(self->socket, (const char *)self->endpoint);
-//    if (rc != 0) {
-//        fprintf(stderr, "DD: Error in zmq_connect: %s\n", zmq_strerror(errno));
-//        zsock_send(self->pipe, "ss", "$TERM", "Connection failed");
-//        dd_client_destroy(&self);
-//        return;
-//    }
-//
-//    self->keys = dd_keys_new(self->keyfile);
-//    if (self->keys == NULL) {
-//        fprintf(stderr, "DD: Error reading keyfile!\n");
-//        zsock_send(self->pipe, "ss", "$TERM", "Missing keyfile");
-//        dd_client_destroy(&self);
-//        return;
-//    }
-//
-//    self->sublist = sublist_new();
-//
-//    self->loop = zloop_new();
-//    assert(self->loop);
-//    self->registration_loop =
-//            zloop_timer(self->loop, 1000, 0, s_ask_registration, self);
-//    rc = zloop_reader(self->loop, self->socket, s_on_dealer_msg, self);
-//    assert(rc != -1);
-//    rc = zloop_reader(self->loop, pipe, s_on_pipe_msg, self);
-//    assert(rc != -1);
-//    while (rc == 0){
-//        rc = zloop_start(self->loop);
-//        if(rc == 0) {
-//            fprintf(stderr,"DD:dd_actor:zloop_start returned 0, interrupted! - terminating(might not be the best choice)\n");
-//            // terminate, maybe not always a good choice here :(
-//            rc = -1;
-//        } else if (rc == -1) {
-//            //fprintf(stderr,"DD:dd_actor:zloop_start returned -1, cancelled by handler!\n");
-//        }
-//    }
-//    //fprintf(stderr, "DD:dd_actor - calling dd_destroy\n");
-//    dd_client_destroy(&self);
-//}
-
-//
-//zactor_t *ddactor_new(char *client_name, char *endpoint, char *keyfile) {
-//    // Make sure that ZMQ doesn't affect main process signal handling
-//
-//
-//    zsys_init();
-//    zsys_handler_reset();
-//    dd_client_t *self = malloc(sizeof(dd_client_t));
-//
-//
-//    self->client_name = (unsigned char *)strdup(client_name);
-//    self->endpoint = (unsigned char *)strdup(endpoint);
-//    self->keyfile = strdup(keyfile);
-//    self->timeout = 0;
-//    self->state = DD_STATE_UNREG;
-//
-//    self->pipe = NULL;
-//    self->sublist = NULL;
-//    self->loop = NULL;
-//
-//    randombytes_buf(self->nonce, crypto_box_NONCEBYTES);
-//    self->on_reg = actor_con;
-//    self->on_discon = actor_discon;
-//    self->on_data = actor_data;
-//    self->on_pub = actor_pub;
-//    self->on_error = actor_error;
-//
-//
-//    // until here it's identical with dd_client_new
-//
-//    zactor_t *actor = zactor_new(dd_actor, self);
-//    return actor;
-//}
-

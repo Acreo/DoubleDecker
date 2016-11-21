@@ -1,5 +1,5 @@
 /*  =========================================================================
-    dd_broker - class description
+    dd_broker - DoubleDecker broker class
 
     Copyright (c) the Contributors as noted in the AUTHORS file.       
     This file is part of CZMQ, the high-level C binding for 0MQ:       
@@ -13,8 +13,10 @@
 
 /*
 @header
-    dd_broker - 
+    The DoubleDecker broker class allows instatiation of a DoubleDecker broker,
+    either in a blocking manner or as a zactor.
 @discuss
+  See ddbroker.c for examples on how to use the class.
 @end
 */
 
@@ -225,6 +227,7 @@ dd_broker_test(bool verbose) {
     //  @selftest
     //  Simple create/destroy test
     dd_broker_t *self = dd_broker_new();
+    
     assert (self);
     dd_broker_destroy(&self);
     //  @end

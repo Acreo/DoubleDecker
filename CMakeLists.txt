@@ -219,7 +219,7 @@ install(TARGETS dd
 ########################################################################
 # pkgconfig
 ########################################################################
-set (VERSION "0.4.0")
+set (VERSION "0.5.0")
 set (prefix "${CMAKE_INSTALL_PREFIX}")
 set (exec_prefix "\${prefix}")
 set (libdir "\${prefix}/lib${LIB_SUFFIX}")
