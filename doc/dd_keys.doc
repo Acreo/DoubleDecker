@@ -1,0 +1,93 @@
+#### dd_keys - Class holding client keys
+
+dd_keys - 
+
+Please add @discuss section in ../src/dd_keys.c.
+
+This is the class interface:
+
+```h
+    //  This API is a draft, and may change without notice.
+    #ifdef DD_BUILD_DRAFT_API
+    //  *** Draft method, for development use, may change without warning ***
+    //  Create a keys object from a JSON keyfile file
+    DD_EXPORT dd_keys_t *
+        dd_keys_new (const char *filename);
+    
+    //  *** Draft method, for development use, may change without warning ***
+    //  Destroy a DoubleDecker JSON keyfile object
+    DD_EXPORT void
+        dd_keys_destroy (dd_keys_t **self_p);
+    
+    //  *** Draft method, for development use, may change without warning ***
+    //  Get the client keys
+    DD_EXPORT zhash_t *
+        dd_keys_clients (dd_keys_t *self);
+    
+    //  *** Draft method, for development use, may change without warning ***
+    //  Is the key object representing a public keyset?
+    DD_EXPORT bool
+        dd_keys_ispublic (dd_keys_t *self);
+    
+    //  *** Draft method, for development use, may change without warning ***
+    //  Get the precalculated client - client key
+    DD_EXPORT const byte *
+        dd_keys_custboxk (dd_keys_t *self);
+    
+    //  *** Draft method, for development use, may change without warning ***
+    //  Get the keyset customer hash
+    DD_EXPORT const char *
+        dd_keys_hash (dd_keys_t *self);
+    
+    //  *** Draft method, for development use, may change without warning ***
+    //  Get the public key
+    DD_EXPORT const byte *
+        dd_keys_pub (dd_keys_t *self);
+    
+    //  *** Draft method, for development use, may change without warning ***
+    //  Get the precalculated client - broker key
+    DD_EXPORT const byte *
+        dd_keys_ddboxk (dd_keys_t *self);
+    
+    //  *** Draft method, for development use, may change without warning ***
+    //  Get the broker public key
+    DD_EXPORT const byte *
+        dd_keys_ddpub (dd_keys_t *self);
+    
+    //  *** Draft method, for development use, may change without warning ***
+    //  Get the precalculated  public tenant key
+    DD_EXPORT const byte *
+        dd_keys_pubboxk (dd_keys_t *self);
+    
+    //  *** Draft method, for development use, may change without warning ***
+    //  Get the public key of the public tenant key
+    DD_EXPORT const byte *
+        dd_keys_publicpub (dd_keys_t *self);
+    
+    //  *** Draft method, for development use, may change without warning ***
+    //  Get the private key
+    DD_EXPORT const byte *
+        dd_keys_priv (dd_keys_t *self);
+    
+    //  *** Draft method, for development use, may change without warning ***
+    //  Increment a nonce
+    DD_EXPORT void
+        dd_keys_nonce_increment (byte *nonce, size_t length);
+    
+    //  *** Draft method, for development use, may change without warning ***
+    //  Self test of this class.
+    DD_EXPORT void
+        dd_keys_test (bool verbose);
+    
+    #endif // DD_BUILD_DRAFT_API
+```
+
+This is the class self test code:
+
+```c
+    //  Simple create/destroy test
+    dd_keys_t *self = dd_keys_new ("keys/public-keys.json");
+    assert (self);
+    dd_keys_destroy (&self);
+```
+

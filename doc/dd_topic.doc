@@ -1,0 +1,68 @@
+#### dd_topic - Holds topics and scopes defining different subscriptions
+
+dd_topic - 
+
+Please add @discuss section in ../src/dd_topic.c.
+
+This is the class interface:
+
+```h
+    //  This API is a draft, and may change without notice.
+    #ifdef DD_BUILD_DRAFT_API
+    //  *** Draft method, for development use, may change without warning ***
+    //  Create a new topic object
+    DD_EXPORT dd_topic_t *
+        dd_topic_new (void);
+    
+    //  *** Draft method, for development use, may change without warning ***
+    //  Destroy a topic object
+    DD_EXPORT void
+        dd_topic_destroy (dd_topic_t **self_p);
+    
+    //  *** Draft method, for development use, may change without warning ***
+    //  
+    DD_EXPORT const char *
+        dd_topic_get_topic (dd_topic_t *self);
+    
+    //  *** Draft method, for development use, may change without warning ***
+    //  
+    DD_EXPORT const char *
+        dd_topic_get_scope (dd_topic_t *self);
+    
+    //  *** Draft method, for development use, may change without warning ***
+    //  
+    DD_EXPORT bool
+        dd_topic_get_active (dd_topic_t *self);
+    
+    //  *** Draft method, for development use, may change without warning ***
+    //  
+    DD_EXPORT void
+        dd_topic_set_topic (dd_topic_t *self, const char *topic);
+    
+    //  *** Draft method, for development use, may change without warning ***
+    //  
+    DD_EXPORT void
+        dd_topic_set_scope (dd_topic_t *self, const char *scope);
+    
+    //  *** Draft method, for development use, may change without warning ***
+    //  
+    DD_EXPORT void
+        dd_topic_set_active (dd_topic_t *self, bool active);
+    
+    //  *** Draft method, for development use, may change without warning ***
+    //  Self test of this class.
+    DD_EXPORT void
+        dd_topic_test (bool verbose);
+    
+    #endif // DD_BUILD_DRAFT_API
+```
+
+This is the class self test code:
+
+```c
+    //  Simple create/destroy test
+    dd_topic_t *self = dd_topic_new ();
+    assert (self);
+    dd_topic_destroy (&self);
+```
+

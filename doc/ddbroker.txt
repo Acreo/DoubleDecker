@@ -1,0 +1,63 @@
+ddbroker(1)
+===========
+
+NAME
+----
+ddbroker - DoubleDecker broker program
+
+SYNOPSIS
+--------
+----
+ Run a standalone DoubleDecker broker
+
+@header
+    Starts DoubleDecker broker
+----
+
+DESCRIPTION
+-----------
+
+Starts DoubleDecker broker
+
+ Required options are -r, -s and -k.
+
+  -r [ADDR] - where to listen for clients and other brokers
+ Where [ADDR] can be e.g. tcp://127.0.0.1:5555
+ Multiple addresses with comma tcp://127.0.0.1:5555,ipc:///file
+
+  -k [KEYFILE] - where to find the keys
+ Where [KEYFILE] is the path to a JSON file containing the broker keys
+ These have to be generated with ddkeys.py
+
+  -s [SCOPE] - set the scope of the broker
+  Scope of the broker, e.g. for region 1, cluster 2, node 3 it is "1/2/3"
+
+ Optional options are -d, -k, -w, -f, -L , -D, and -S
+
+  -d [ADDR] - set the dealer URI to connect to
+ For example tcp://1.2.3.4:5555
+ Dealer should be connected to Router of another broker
+
+  -l [CHAR] - set the log level, e.g. "-l w"
+ Where CHAR is "e" for ERROR,w:WARNING,n:NOTICE,i:INFO,d:DEBUG,q:QUIET
+
+  -w [ADDR]
+ Open a REST socket for debugging, [ADDR] can be e.g. tcp://127.0.0.1:8080
+
+  -f [FILE]
+ Read configuration [FILE]
+
+  -L [FILE]
+ Log to [FILE]
+
+  -D - daemonize the broker
+
+  -S - log to syslog
+
+
+EXAMPLE
+-------
+.From ddbroker_test method
+----
+Please add @selftest section in ../src/ddbroker.c.
+----

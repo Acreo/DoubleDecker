@@ -1,0 +1,159 @@
+#### dd_client - DoubleDecker callback client class
+
+ The dd_client class provides methods to instantiate and communicate with a
+DoubleDecker client. The client can either be instantiated as a callback client or
+as an CZMQ zactor.
+The callback client runs in a separate thread and calling provided methods upon
+events such as messages being received. The instance of the class is also
+used to send and publish messages.
+In the actor case a client is running in a separate case, but uses a socket to
+communicate instead of callbacks and _send/_publish functions.
+
+Note that the zactor version is defined in a separate header, dd_client_actor.h
+
+This is the class interface:
+
+```h
+    //  This API is a draft, and may change without notice.
+    #ifdef DD_BUILD_DRAFT_API
+    // Callback that is called when a notification from another client has been received.
+    // It's the responsibility of the receiver to free() the data.                       
+    typedef void (dd_client_on_data) (
+        const char *source, const byte *data, size_t length, dd_client_t *self);
+    
+    // Callback that is called when a publication from another client on a subscribed topic has been received.
+    // It's the responsibility of the receiver to free() the data.                                            
+    typedef void (dd_client_on_pub) (
+        const char *source, const char *topic, const byte *data, size_t length, dd_client_t *self);
+    
+    // Callback that is called when an error has occoured.
+    // Errors are defined in DD_ERROR_.                   
+    typedef void (dd_client_on_error) (
+        int error_code, const char *error_msg, dd_client_t *self);
+    
+    // Callback called when connection with broker is established.
+    typedef void (dd_client_on_con) (
+        dd_client_t *self);
+    
+    // Callback called when connection with broker is lost.
+    typedef void (dd_client_on_discon) (
+        dd_client_t *self);
+    
+    //  *** Draft method, for development use, may change without warning ***
+    //  Create a new DoubleDecker client
+    DD_EXPORT dd_client_t *
+        dd_client_new (const char *client_name, const char *endpoint, const char *keyfile, dd_client_on_con on_con, dd_client_on_discon on_discon, dd_client_on_data on_data, dd_client_on_pub on_pub, dd_client_on_error on_error);
+    
+    //  *** Draft method, for development use, may change without warning ***
+    //  Destroy a DoubleDecker client
+    DD_EXPORT void
+        dd_client_destroy (dd_client_t **self_p);
+    
+    //  *** Draft method, for development use, may change without warning ***
+    //  Subscribe to a topic.
+    DD_EXPORT int
+        dd_client_subscribe (dd_client_t *self, const char *topic, const char *scope);
+    
+    //  *** Draft method, for development use, may change without warning ***
+    //  Subscribe to a topic.
+    DD_EXPORT int
+        dd_client_unsubscribe (dd_client_t *self, const char *topic, const char *scope);
+    
+    //  *** Draft method, for development use, may change without warning ***
+    //  Publish a message on a topic. It's the callers responsibility to free the message.
+    DD_EXPORT int
+        dd_client_publish (dd_client_t *self, const char *topic, const byte *message, size_t length);
+    
+    //  *** Draft method, for development use, may change without warning ***
+    //  Send a notification to another DD client. It's the callers responsibility to free the message.
+    DD_EXPORT int
+        dd_client_notify (dd_client_t *self, const char *target, const byte *message, size_t length);
+    
+    //  *** Draft method, for development use, may change without warning ***
+    //  Get a list of topics the client is subscribed to
+    DD_EXPORT zlistx_t *
+        dd_client_get_subscriptions (dd_client_t *self);
+    
+    //  *** Draft method, for development use, may change without warning ***
+    //  Return the library version
+    DD_EXPORT const char *
+        dd_client_get_version (dd_client_t *self);
+    
+    //  *** Draft method, for development use, may change without warning ***
+    //  Get the internal state of the client (useful for GUI, etc)
+    //  Defined in DD_STATE_                                      
+    DD_EXPORT int
+        dd_client_get_state (dd_client_t *self);
+    
+    //  *** Draft method, for development use, may change without warning ***
+    //  Get the configured endpoint for this DD client
+    DD_EXPORT const char *
+        dd_client_get_endpoint (dd_client_t *self);
+    
+    //  *** Draft method, for development use, may change without warning ***
+    //  Get the configured keyfile for this DD client
+    DD_EXPORT const char *
+        dd_client_get_keyfile (dd_client_t *self);
+    
+    //  *** Draft method, for development use, may change without warning ***
+    //  Get the configured public key for this DD client
+    //  Caller owns return value and must destroy it when done.
+    DD_EXPORT char *
+        dd_client_get_pubkey (dd_client_t *self);
+    
+    //  *** Draft method, for development use, may change without warning ***
+    //  Get the configured public tenant public key for this DD client
+    //  Caller owns return value and must destroy it when done.
+    DD_EXPORT char *
+        dd_client_get_publickey (dd_client_t *self);
+    
+    //  *** Draft method, for development use, may change without warning ***
+    //  Get the configured private key for this DD client
+    //  Caller owns return value and must destroy it when done.
+    DD_EXPORT char *
+        dd_client_get_privkey (dd_client_t *self);
+    
+    //  *** Draft method, for development use, may change without warning ***
+    //  Get the actor pipe associated with this dd_client_t instance
+    //  If no actor is associated with the dd_client_t, return null 
+    DD_EXPORT zsock_t *
+        dd_client_get_pipe (dd_client_t *self);
+    
+    //  *** Draft method, for development use, may change without warning ***
+    //  For dd_client_actor INTERNAL USE ONLY!
+    DD_EXPORT void *
+        dd_client_thread (dd_client_t *self);
+    
+    //  *** Draft method, for development use, may change without warning ***
+    //  For dd_client_actor INTERNAL USE ONLY!
+    DD_EXPORT void
+        dd_client_add_pipe (dd_client_t *self, zsock_t *pipe, zloop_reader_fn handler);
+    
+    //  *** Draft method, for development use, may change without warning ***
+    //  Configure a DoubleDecker client.
+    //  For dd_client_actor only!       
+    //  Caller owns return value and must destroy it when done.
+    DD_EXPORT dd_client_t *
+        dd_client_setup (const char *client_name, const char *endpoint, const char *keyfile, dd_client_on_con on_con, dd_client_on_discon on_discon, dd_client_on_data on_data, dd_client_on_pub on_pub, dd_client_on_error on_error);
+    
+    //  *** Draft method, for development use, may change without warning ***
+    //  Self test of this class.
+    DD_EXPORT void
+        dd_client_test (bool verbose);
+    
+    #endif // DD_BUILD_DRAFT_API
+```
+
+This is the class self test code:
+
+```c
+    //  Simple create/destroy test
+    dd_client_t *self = dd_client_new("testcli","tcp://localhost:5555","keys/public-keys.json",
+                                      test_on_reg, test_on_discon,test_on_data,test_on_pub,test_on_error);
+    
+    assert (self);
+    printf("sleeping .. 5s");
+    sleep(5);
+    dd_client_destroy (&self);
+```
+

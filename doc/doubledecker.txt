@@ -1,0 +1,25 @@
+Name(7)
+=======
+
+
+NAME
+----
+doubledecker - Hierarchical messaging system
+
+
+SYNOPSIS
+--------
+----
+#include <doubledecker.h>
+
+cc ['flags'] 'files' -ldd ['libraries']
+----
+
+
+DESCRIPTION
+-----------
+
+Classes
+~~~~~~~
+
+Something.
