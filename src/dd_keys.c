@@ -137,6 +137,7 @@ dd_keys_new(const char *filename) {
     ddkeys->clientkeys = zhash_new();
 
     json_object_object_foreach(parse_result, key, val) {
+        if (val == NULL); // added to avoid -Werror=pedantic        
         if (streq(key, "public")) {
             ddkeys->ispublic = true;
         }
