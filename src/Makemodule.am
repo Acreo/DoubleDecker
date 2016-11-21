@@ -86,6 +86,7 @@ endif #ENABLE_DD_SELFTEST
 # Install api files into /usr/local/share/zproject
 apidir = @datadir@/zproject/doubledecker
 dist_api_DATA = \
+    api/dd_broker.xml \
     api/dd_client.xml \
     api/dd_keys.xml \
     api/dd_topic.xml

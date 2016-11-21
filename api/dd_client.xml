@@ -1,153 +1,153 @@
-<class name = "dd_client">
+<class name="dd_client">
     DoubleDecker client API
     <constructor>
-      Create a new DoubleDecker client
-      <argument name = "client_name" type = "string" />
-      <argument name = "endpoint" type = "string" />
-      <argument name = "keyfile" type = "string" />
-      <argument name = "on_con" type = "dd_client_on_con" callback = "1" />
-      <argument name = "on_discon" type = "dd_client_on_discon" callback = "1" />
-      <argument name = "on_data" type = "dd_client_on_data" callback = "1" />
-      <argument name = "on_pub" type = "dd_client_on_pub" callback = "1" />
-      <argument name = "on_error" type = "dd_client_on_error" callback = "1" />
+        Create a new DoubleDecker client
+        <argument name="client_name" type="string"/>
+        <argument name="endpoint" type="string"/>
+        <argument name="keyfile" type="string"/>
+        <argument name="on_con" type="dd_client_on_con" callback="1"/>
+        <argument name="on_discon" type="dd_client_on_discon" callback="1"/>
+        <argument name="on_data" type="dd_client_on_data" callback="1"/>
+        <argument name="on_pub" type="dd_client_on_pub" callback="1"/>
+        <argument name="on_error" type="dd_client_on_error" callback="1"/>
     </constructor>
     <destructor>
         Destroy a DoubleDecker client
     </destructor>
-    <callback_type name = "on_data">
+    <callback_type name="on_data">
         Callback that is called when a notification from another client has been received.
         It's the responsibility of the receiver to free() the data.
-        <argument name = "source" type = "string" />
-        <argument name = "data" type = "buffer" />
-        <argument name = "length" type = "size" />
-        <argument name = "self" type = "dd_client" />        
-        <return type = "nothing" />
+        <argument name="source" type="string"/>
+        <argument name="data" type="buffer"/>
+        <argument name="length" type="size"/>
+        <argument name="self" type="dd_client"/>
+        <return type="nothing"/>
     </callback_type>
-    <callback_type name = "on_pub">
+    <callback_type name="on_pub">
         Callback that is called when a publication from another client on a subscribed topic has been received.
         It's the responsibility of the receiver to free() the data.
-        <argument name = "source" type = "string" />
-        <argument name = "topic" type = "string" />
-        <argument name = "data" type = "buffer" />
-        <argument name = "length" type = "size" />
-        <argument name = "self" type = "dd_client" />        
-        <return type = "nothing" />
+        <argument name="source" type="string"/>
+        <argument name="topic" type="string"/>
+        <argument name="data" type="buffer"/>
+        <argument name="length" type="size"/>
+        <argument name="self" type="dd_client"/>
+        <return type="nothing"/>
     </callback_type>
-    <callback_type name = "on_error">
+    <callback_type name="on_error">
         Callback that is called when an error has occoured.
         Errors are defined in DD_ERROR_.
-        <argument name = "error_code" type = "integer" />
-      <argument name = "error_msg" type = "string" />
-      <argument name = "self" type = "dd_client" />        
-      <return type = "nothing" />
+        <argument name="error_code" type="integer"/>
+        <argument name="error_msg" type="string"/>
+        <argument name="self" type="dd_client"/>
+        <return type="nothing"/>
     </callback_type>
-    <callback_type name = "on_con">
+    <callback_type name="on_con">
         Callback called when connection with broker is established.
-        <argument name = "self" type = "dd_client" />        
-        <return type = "nothing" />
+        <argument name="self" type="dd_client"/>
+        <return type="nothing"/>
     </callback_type>
-   <callback_type name = "on_discon">
-       Callback called when connection with broker is lost.
-        <argument name = "self" type = "dd_client" />        
-        <return type = "nothing" />
+    <callback_type name="on_discon">
+        Callback called when connection with broker is lost.
+        <argument name="self" type="dd_client"/>
+        <return type="nothing"/>
     </callback_type>
 
-    <method name = "subscribe">
+    <method name="subscribe">
         Subscribe to a topic.
-        <argument name = "topic" type = "string" />
-        <argument name = "scope" type = "string" />
-        <return type = "integer" />
+        <argument name="topic" type="string"/>
+        <argument name="scope" type="string"/>
+        <return type="integer"/>
     </method>
-    <method name = "unsubscribe">
+    <method name="unsubscribe">
         Subscribe to a topic.
-        <argument name = "topic" type = "string" />
-        <argument name = "scope" type = "string" />
-        <return type = "integer" />
+        <argument name="topic" type="string"/>
+        <argument name="scope" type="string"/>
+        <return type="integer"/>
     </method>
-    <method name = "publish">
-      Publish a message on a topic. It's the callers responsibility to free the message.
-      <argument name = "topic" type = "string" />
-      <argument name = "message" type = "buffer" />
-      <argument name = "length" type = "size" />
-      <return type = "integer" />
+    <method name="publish">
+        Publish a message on a topic. It's the callers responsibility to free the message.
+        <argument name="topic" type="string"/>
+        <argument name="message" type="buffer"/>
+        <argument name="length" type="size"/>
+        <return type="integer"/>
     </method>
-    <method name = "notify">
+    <method name="notify">
         Send a notification to another DD client. It's the callers responsibility to free the message.
-        <argument name = "target" type = "string" />
-        <argument name = "message" type = "buffer" />
-        <argument name = "length" type = "size" />
-        <return type = "integer" />
+        <argument name="target" type="string"/>
+        <argument name="message" type="buffer"/>
+        <argument name="length" type="size"/>
+        <return type="integer"/>
     </method>
 
 
-    <method name = "get_subscriptions">
+    <method name="get_subscriptions">
         Get a list of topics the client is subscribed to
-        <return type = "zlistx">
+        <return type="zlistx">
             zlistx_t containing the topics as ddtopic_t objects
         </return>
     </method>
 
-    <method name = "get_version">
+    <method name="get_version">
         Return the library version
-        <return type = "string" />
+        <return type="string"/>
     </method>
 
-    <method name = "get_state">
+    <method name="get_state">
         Get the internal state of the client (useful for GUI, etc)
         Defined in DD_STATE_
-        <return type = "integer" />
+        <return type="integer"/>
     </method>
 
-    <method name = "get_endpoint">
+    <method name="get_endpoint">
         Get the configured endpoint for this DD client
-        <return type = "string" />
+        <return type="string"/>
     </method>
-    <method name = "get_keyfile">
+    <method name="get_keyfile">
         Get the configured keyfile for this DD client
-        <return type = "string" />
+        <return type="string"/>
     </method>
-    <method name = "get_pubkey">
+    <method name="get_pubkey">
         Get the configured public key for this DD client
-        <return type = "string" fresh = "1"/>
+        <return type="string" fresh="1"/>
     </method>
-    <method name = "get_publickey">
+    <method name="get_publickey">
         Get the configured public tenant public key for this DD client
-        <return type = "string" fresh = "1"/>
+        <return type="string" fresh="1"/>
     </method>
 
-    <method name = "get_privkey">
+    <method name="get_privkey">
         Get the configured private key for this DD client
-        <return type = "string" fresh = "1"/>
+        <return type="string" fresh="1"/>
     </method>
-    <method name = "get_pipe">
+    <method name="get_pipe">
         Get the actor pipe associated with this dd_client_t instance
         If no actor is associated with the dd_client_t, return null
-        <return type = "zsock" />
+        <return type="zsock"/>
     </method>
 
-    <method name = "thread">
-        For dd_client_actor use only!
-        <return type = "anything" />
+    <method name="thread">
+        For dd_client_actor INTERNAL USE ONLY!
+        <return type="anything"/>
     </method>
 
-    <method name = "add_pipe">
-        For dd_client_actor use only!
-      <argument name = "pipe" type = "zsock" />
-      <argument name = "handler" type = "zloop_reader_fn" callback = "1"/>
-      <return type = "nothing" />
+    <method name="add_pipe">
+        For dd_client_actor INTERNAL USE ONLY!
+        <argument name="pipe" type="zsock"/>
+        <argument name="handler" type="zloop_reader_fn" callback="1"/>
+        <return type="nothing"/>
     </method>
-    <method name = "setup" singleton = "1">
+    <method name="setup" singleton="1">
         Configure a DoubleDecker client.
         For dd_client_actor only!
-        <argument name = "client_name" type = "string" />
-        <argument name = "endpoint" type = "string" />
-        <argument name = "keyfile" type = "string" />
-        <argument name = "on_con" type = "dd_client_on_con" callback = "1" />
-        <argument name = "on_discon" type = "dd_client_on_discon" callback = "1" />
-        <argument name = "on_data" type = "dd_client_on_data" callback = "1" />
-        <argument name = "on_pub" type = "dd_client_on_pub" callback = "1" />
-        <argument name = "on_error" type = "dd_client_on_error" callback = "1" />
-        <return type = "dd_client" fresh = "1"/>
+        <argument name="client_name" type="string"/>
+        <argument name="endpoint" type="string"/>
+        <argument name="keyfile" type="string"/>
+        <argument name="on_con" type="dd_client_on_con" callback="1"/>
+        <argument name="on_discon" type="dd_client_on_discon" callback="1"/>
+        <argument name="on_data" type="dd_client_on_data" callback="1"/>
+        <argument name="on_pub" type="dd_client_on_pub" callback="1"/>
+        <argument name="on_error" type="dd_client_on_error" callback="1"/>
+        <return type="dd_client" fresh="1"/>
     </method>
 
 </class>

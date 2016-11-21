@@ -1,3 +1,5 @@
+// Disable the most pedantic warnings/errors for this file
+#pragma GCC diagnostic ignored "-Wpedantic"
 /**
  * \file     cparser.c
  * \brief    parser top-level API
@@ -106,7 +108,7 @@ static void cparser_help_print_node(cparser_t *parser,
       parser->cfg.prints(parser, " ]");
       break;
     default:
-      parser->cfg.prints(parser, node->param);
+      parser->cfg.prints(parser, (const char*) node->param);
       if (print_desc && node->desc) {
         parser->cfg.prints(parser, " - ");
         parser->cfg.prints(parser, node->desc);
@@ -276,7 +278,7 @@ static cparser_result_t cparser_execute_cmd(cparser_t *parser) {
        */
       parser->cur_node = child;
       parser->cfg.printc(parser, '\n');
-      rc = ((cparser_glue_fn)child->param)(parser);
+        rc = ((cparser_glue_fn)child->param)(parser);
     } else {
       if (parser->token_tos) {
         cparser_print_error(parser, "Incomplete command\n");
@@ -422,7 +424,7 @@ static int cparser_complete_one_level(cparser_t *parser) {
       if (parser->cur_node && parser->cur_node->children &&
           !parser->cur_node->children->sibling &&
           (CPARSER_NODE_KEYWORD == parser->cur_node->children->type)) {
-        ch_ptr = parser->cur_node->children->param;
+        ch_ptr = (char*) parser->cur_node->children->param;
         while (*ch_ptr) {
           rc = cparser_input(parser, *ch_ptr, CPARSER_CHAR_REGULAR);
           assert(CPARSER_OK == rc);
@@ -472,7 +474,7 @@ static int cparser_complete_one_level(cparser_t *parser) {
          * is a parameter token in the match, we automatically abort.
          */
         offset = orig_offset = token->token_len;
-        ch_ptr = match->param + token->token_len;
+        ch_ptr = (char*) match->param + token->token_len;
         while (('\0' != *ch_ptr) &&
                (CPARSER_OK ==
                 cparser_match_prefix(parser, token->buf, token->token_len,
@@ -671,7 +673,7 @@ cparser_result_t cparser_input(cparser_t *parser, char ch,
 
 cparser_result_t cparser_run(cparser_t *parser) {
   int ch;
-  cparser_char_t ch_type = 0;
+  cparser_char_t ch_type = CPARSER_CHAR_UNKNOWN;
 
   if (!VALID_PARSER(parser))
     return CPARSER_ERR_INVALID_PARAMS;
@@ -980,7 +982,7 @@ static cparser_result_t cparser_help_post_walker(cparser_t *parser,
         if (CPARSER_NODE_KEYWORD != hs->nodes[n]->type) {
           continue;
         }
-        if (strstr(hs->nodes[n]->param, hs->filter)) {
+        if (strstr((const char*) hs->nodes[n]->param, hs->filter)) {
           do_print = 1; /* Yes, print it */
           break;
         }

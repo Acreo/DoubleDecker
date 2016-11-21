@@ -134,10 +134,10 @@ void nn_node_dump(struct nn_trie_node *self, int indent) {
   } else {
     nn_node_indent(indent);
     printf("sockid=[");
-    zframe_t *t = zlist_first(self->sockids);
+    zframe_t *t = (zframe_t*) zlist_first(self->sockids);
     while (t) {
       print_zframe(t);
-      t = zlist_next(self->sockids);
+      t = (zframe_t*) zlist_next(self->sockids);
     }
     printf("]\n");
   }
@@ -198,10 +198,10 @@ void nn_node_term(struct nn_trie_node *self) {
 
   /*  Deallocate this node. */
   if (self->sockids) {
-    zframe_t *f = zlist_pop(self->sockids);
+    zframe_t *f = (zframe_t*)zlist_pop(self->sockids);
     while (f) {
       zframe_destroy(&f);
-      f = zlist_pop(self->sockids);
+      f = (zframe_t*) zlist_pop(self->sockids);
     }
     zlist_destroy(&self->sockids);
   }
@@ -293,7 +293,7 @@ int zlist_has_sockid(zlist_t *self, zframe_t *sockid) {
     if (zframe_eq(sockid, tmp))
       return 1;
 
-    tmp = zlist_next(self);
+    tmp = (zframe_t*) zlist_next(self);
   }
   return 0;
 }
@@ -301,12 +301,12 @@ int zlist_has_sockid(zlist_t *self, zframe_t *sockid) {
 // Implement as heap/tree/something?
 // returns 0 if nothing was inserted, 1 if it was
 int zlist_append_unique(zlist_t *list, zframe_t *item) {
-  zframe_t *t = zlist_first(list);
+  zframe_t *t = (zframe_t*) zlist_first(list);
   while (t) {
     if (zframe_eq(t, item)){
       return 0;
     }
-    t = zlist_next(list);
+    t = (zframe_t*) zlist_next(list);
   }
   zlist_append(list, item);
   return 1;
@@ -368,7 +368,7 @@ int nn_trie_subscribe(struct nn_trie *self, const uint8_t *data, size_t size,
 step2:
 
   ch = *node;
-  *node = malloc(sizeof(struct nn_trie_node) + sizeof(struct nn_trie_node *));
+  *node = (struct nn_trie_node*) malloc(sizeof(struct nn_trie_node) + sizeof(struct nn_trie_node *));
   assert(*node);
   (*node)->refcount = 0;
   (*node)->sockids = NULL;
@@ -392,8 +392,8 @@ step3:
 
   /*  If the new branch fits into sparse array... */
   if ((*node)->type < NN_TRIE_SPARSE_MAX) {
-    *node =
-        realloc(*node, sizeof(struct nn_trie_node) +
+    *node = (struct nn_trie_node*)
+            realloc(*node, sizeof(struct nn_trie_node) +
                            ((*node)->type + 1) * sizeof(struct nn_trie_node *));
     assert(*node);
     (*node)->u.sparse.children[(*node)->type] = *data;
@@ -412,7 +412,7 @@ step3:
     if (c < (*node)->u.dense.min || c > (*node)->u.dense.max) {
       new_min = (*node)->u.dense.min < c ? (*node)->u.dense.min : c;
       new_max = (*node)->u.dense.max > c ? (*node)->u.dense.max : c;
-      *node = realloc(*node, sizeof(struct nn_trie_node) +
+      *node = (struct nn_trie_node*) realloc(*node, sizeof(struct nn_trie_node) +
                                  (new_max - new_min + 1) *
                                      sizeof(struct nn_trie_node *));
       assert(*node);
@@ -490,7 +490,7 @@ step4:
 
     /*  Create a new node to hold the next part of the subscription. */
     more_nodes = size > NN_TRIE_PREFIX_MAX;
-    *node = malloc(sizeof(struct nn_trie_node) +
+    *node = (struct nn_trie_node*)  malloc(sizeof(struct nn_trie_node) +
                    (more_nodes ? sizeof(struct nn_trie_node *) : 0));
     assert(*node);
 
@@ -559,12 +559,12 @@ zlist_t *nn_trie_tree(struct nn_trie *self, const uint8_t *data, size_t size) {
 
     /*  If all the data are matched, return. */
     if (nn_node_has_subscribers(node)) {
-      zframe_t *t = zlist_first(node->sockids);
+      zframe_t *t = (zframe_t*) zlist_first(node->sockids);
       if (pub == NULL)
         pub = zlist_new();
       while (t) {
         zlist_append_unique(pub, t);
-        t = zlist_next(node->sockids);
+        t = (zframe_t*)  zlist_next(node->sockids);
       }
     }
 
@@ -670,7 +670,7 @@ static int nn_node_unsubscribe(struct nn_trie_node **self, const uint8_t *data,
     memmove(nn_node_child(*self, index), nn_node_child(*self, index + 1),
             ((*self)->type - index - 1) * sizeof(struct nn_trie_node *));
     --(*self)->type;
-    *self = realloc(*self, sizeof(struct nn_trie_node) +
+    *self = (struct nn_trie_node*) realloc(*self, sizeof(struct nn_trie_node) +
                                ((*self)->type * sizeof(struct nn_trie_node *)));
     assert(*self);
 
@@ -680,10 +680,10 @@ static int nn_node_unsubscribe(struct nn_trie_node **self, const uint8_t *data,
 
       zframe_t *t = NULL;
       if ((*self)->sockids) {
-        t = zlist_pop((*self)->sockids);
+        t = (zframe_t*) zlist_pop((*self)->sockids);
         while (t) {
           zframe_destroy(&t);
-          t = zlist_pop((*self)->sockids);
+          t = (zframe_t*) zlist_pop((*self)->sockids);
         }
         zlist_destroy(&(*self)->sockids);
       }
@@ -716,7 +716,7 @@ static int nn_node_unsubscribe(struct nn_trie_node **self, const uint8_t *data,
                   sizeof(struct nn_trie_node *));
       (*self)->u.dense.min = new_min;
       --(*self)->u.dense.nbr;
-      *self = realloc(*self, sizeof(struct nn_trie_node) +
+      *self = (struct nn_trie_node*)  realloc(*self, sizeof(struct nn_trie_node) +
                                  ((*self)->u.dense.max - new_min + 1) *
                                      sizeof(struct nn_trie_node *));
       assert(*self);
@@ -731,8 +731,8 @@ static int nn_node_unsubscribe(struct nn_trie_node **self, const uint8_t *data,
           break;
       (*self)->u.dense.max = i + (*self)->u.dense.min;
       --(*self)->u.dense.nbr;
-      *self =
-          realloc(*self, sizeof(struct nn_trie_node) +
+      *self = (struct nn_trie_node*)
+              realloc(*self, sizeof(struct nn_trie_node) +
                              ((*self)->u.dense.max - (*self)->u.dense.min + 1) *
                                  sizeof(struct nn_trie_node *));
       assert(*self);
@@ -746,7 +746,7 @@ static int nn_node_unsubscribe(struct nn_trie_node **self, const uint8_t *data,
 
   /*  Convert dense array into sparse array. */
   {
-    new_node = malloc(sizeof(struct nn_trie_node) +
+    new_node = (struct nn_trie_node*)  malloc(sizeof(struct nn_trie_node) +
                       NN_TRIE_SPARSE_MAX * sizeof(struct nn_trie_node *));
     assert(new_node);
     new_node->refcount = 0;
@@ -778,14 +778,14 @@ found:
 
   /*  Subscription exists. Unsubscribe. */
   --(*self)->refcount;
-  zframe_t *t = zlist_first((*self)->sockids);
+  zframe_t *t = (zframe_t*) zlist_first((*self)->sockids);
   while (t) {
     if (zframe_eq(t, sockid)) {
       zlist_remove((*self)->sockids, t);
       zframe_destroy(&t);
       break;
     }
-    t = zlist_next((*self)->sockids);
+    t = (zframe_t*) zlist_next((*self)->sockids);
   }
 
   /*  If reference count has dropped to zero we can try to compact
@@ -796,10 +796,10 @@ found:
     if (!(*self)->type) {
 
       if ((*self)->sockids) {
-        zframe_t *t = zlist_pop((*self)->sockids);
+        zframe_t *t = (zframe_t*) zlist_pop((*self)->sockids);
         while (t) {
           zframe_destroy(&t);
-          t = zlist_pop((*self)->sockids);
+          t = (zframe_t*) zlist_pop((*self)->sockids);
         }
         zlist_destroy(&(*self)->sockids);
       }

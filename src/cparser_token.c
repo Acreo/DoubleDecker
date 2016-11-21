@@ -96,14 +96,14 @@ cparser_result_t cparser_match_keyword(const char *token,
          is_complete);
 
   // kw_len = strnlen(node->param, CPARSER_MAX_TOKEN_SIZE);
-  kw_len = strlen(node->param);
+  kw_len = strlen((const char*) node->param);
   if (token_len > kw_len) {
     *is_complete = 0;
     return CPARSER_NOT_OK;
   }
   match_len = (kw_len < token_len ? kw_len : token_len);
 
-  if (!strncmp(token, node->param, match_len)) {
+  if (!strncmp(token, (const char*) node->param, match_len)) {
     *is_complete = (match_len == kw_len);
     return CPARSER_OK;
   }
@@ -451,7 +451,7 @@ cparser_result_t cparser_complete_keyword(cparser_t *parser,
   char *ch_ptr;
 
   assert(parser && node && token && (CPARSER_NODE_KEYWORD == node->type));
-  ch_ptr = node->param + token_len;
+  ch_ptr = (char*) node->param + token_len;
   while (*ch_ptr) {
     rc = cparser_input(parser, *ch_ptr, CPARSER_CHAR_REGULAR);
     assert(CPARSER_OK == rc);
@@ -515,7 +515,7 @@ cparser_result_t cparser_complete_list(cparser_t *parser,
   /*
    * Find the longest common suffix if it exists
    */
-  for (lnode = node->param; NULL != lnode; lnode = lnode->next) {
+  for (lnode = (cparser_list_node_t*) node->param; NULL != lnode; lnode = lnode->next) {
     if (!strncmp(lnode->keyword, token, token_len)) {
       /*
        * Prefix matches. See what is the longest suffix
@@ -583,7 +583,7 @@ cparser_result_t cparser_get_string(const cparser_token_t *token,
 static cparser_result_t cparser_get_uint_internal(const char *token,
                                                   const int token_len,
                                                   void *value) {
-  uint32_t new = 0, old, d = 0, n;
+  uint32_t newtoken = 0, old, d = 0, n;
   uint32_t *val = (uint32_t *)value;
 
   assert(token && val);
@@ -594,12 +594,12 @@ static cparser_result_t cparser_get_uint_internal(const char *token,
     } else {
       assert(0); /* not a hex digit! */
     }
-    new = (old * 10) + d;
-    if (((new - d) / 10) != old)
+    newtoken = (old * 10) + d;
+    if (((newtoken - d) / 10) != old)
       return CPARSER_NOT_OK;
-    old = new;
+    old = newtoken;
   }
-  *val = new;
+  *val = newtoken;
   return CPARSER_OK;
 }
 
@@ -610,7 +610,7 @@ static cparser_result_t cparser_get_uint_internal(const char *token,
 static cparser_result_t cparser_get_uint64_internal(const char *token,
                                                     const int token_len,
                                                     void *value) {
-  uint64_t new = 0, old, d = 0, n;
+  uint64_t newtoken = 0, old, d = 0, n;
   uint64_t *val = (uint64_t *)value;
 
   assert(token && val);
@@ -621,12 +621,12 @@ static cparser_result_t cparser_get_uint64_internal(const char *token,
     } else {
       assert(0); /* not a hex digit! */
     }
-    new = (old * 10) + d;
-    if (((new - d) / 10) != old)
+    newtoken = (old * 10) + d;
+    if (((newtoken - d) / 10) != old)
       return CPARSER_NOT_OK;
-    old = new;
+    old = newtoken;
   }
-  *val = new;
+  *val = newtoken;
   return CPARSER_OK;
 }
 
@@ -754,7 +754,7 @@ cparser_result_t cparser_get_int64(const cparser_token_t *token,
 cparser_result_t cparser_get_hex(const cparser_token_t *token,
                                  void *value) {
   int n;
-  uint32_t new = 0, old, d = 0, *val = (uint32_t *)value;
+  uint32_t newtoken = 0, old, d = 0, *val = (uint32_t *)value;
 
   assert(token && val);
   if (!token->token_len) {
@@ -774,12 +774,12 @@ cparser_result_t cparser_get_hex(const cparser_token_t *token,
     } else {
       assert(0); /* not a hex digit! */
     }
-    new = (old << 4) + d;
-    if (((new - d) >> 4) != old)
+    newtoken = (old << 4) + d;
+    if (((newtoken - d) >> 4) != old)
       return CPARSER_NOT_OK;
-    old = new;
+    old = newtoken;
   }
-  *val = new;
+  *val = newtoken;
   return CPARSER_OK;
 }
 
@@ -789,7 +789,7 @@ cparser_result_t cparser_get_hex(const cparser_token_t *token,
 cparser_result_t cparser_get_hex64(const cparser_token_t *token,
                                    void *value) {
   int n;
-  uint64_t new = 0, old, d = 0, *val = (uint64_t *)value;
+  uint64_t newtoken = 0, old, d = 0, *val = (uint64_t *)value;
 
   assert(token && val);
   if (!token->token_len) {
@@ -809,12 +809,12 @@ cparser_result_t cparser_get_hex64(const cparser_token_t *token,
     } else {
       assert(0); /* not a hex digit! */
     }
-    new = (old << 4) + d;
-    if (((new - d) >> 4) != old)
+    newtoken = (old << 4) + d;
+    if (((newtoken - d) >> 4) != old)
       return CPARSER_NOT_OK;
-    old = new;
+    old = newtoken;
   }
-  *val = new;
+  *val = newtoken;
   return CPARSER_OK;
 }
 

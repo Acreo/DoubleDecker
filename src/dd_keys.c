@@ -98,8 +98,6 @@ dd_keys_new(const char *filename) {
     assert(filename);
     FILE *fp;
     int retval;
-    int i = 0;
-    int ispublic = 0;
 
     dd_keys_t *ddkeys;
     struct stat stats;
@@ -147,9 +145,9 @@ dd_keys_new(const char *filename) {
     if (ddkeys->ispublic) {
         json_object_object_foreach(parse_result, key, val) {
             if (strcmp(key, "public") == 0) {
-                enum json_type o_type = json_object_get_type(val);
+                //enum json_type o_type = json_object_get_type(val);
                 json_object_object_foreach(val, key2, val2) {
-                    enum json_type o_type2 = json_object_get_type(val2);
+//                    enum json_type o_type2 = json_object_get_type(val2);
                     if (strcmp(key2, "publicpubkey") == 0) {
                         base64_init_decodestate(&state_in);
                         ddkeys->publicpubkey = (unsigned char *)calloc(1, 33);
@@ -232,7 +230,7 @@ dd_keys_new(const char *filename) {
         }
     } else { // Not public!
         json_object_object_foreach(parse_result, key2, val2) {
-            enum json_type o_type2 = json_object_get_type(val2);
+
             if (strcmp(key2, "publicpubkey") == 0) {
                 base64_init_decodestate(&state_in);
                 ddkeys->publicpubkey = (unsigned char *)calloc(1, 33);

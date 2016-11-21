@@ -86,10 +86,10 @@ bool dd_topic_get_active(dd_topic_t *sub) {
 }
 
 void dd_topic_set_topic(dd_topic_t *sub, const char *topic) {
-    sub->topic = topic;
+    sub->topic = (char*) topic;
 }
 void dd_topic_set_scope(dd_topic_t *sub, const char *scope) {
-    sub->scope = scope;
+    sub->scope = (char*) scope;
 
 }
 void dd_topic_set_active(dd_topic_t *sub, bool active) {

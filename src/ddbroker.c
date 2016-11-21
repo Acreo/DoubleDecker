@@ -40,8 +40,9 @@
  * Last-Updated: By:
  */
 #ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif 
+#define _GNU_SOURCE 1
+#endif
+
 #include "doubledecker.h"
 FILE *logfp;
 int daemonize = 0;
@@ -102,7 +103,7 @@ int get_config(dd_broker_t *self, char *conffile) {
     } else if (streq(zconfig_name(child), "router")) {
       dd_broker_add_router(self, zconfig_value(child));
     } else if (streq(zconfig_name(child), "rest")) {
-      dd_broker_set_rest(self, zconfig_value(child));
+      dd_broker_set_rest_uri(self, zconfig_value(child));
     } else if (streq(zconfig_name(child), "loglevel")) {
       dd_broker_set_loglevel(self, zconfig_value(child));
     } else if (streq(zconfig_name(child), "keyfile")) {
@@ -163,7 +164,7 @@ int main(int argc, char **argv) {
       dd_broker_set_loglevel(broker, optarg);
       break;
     case 'w':
-      dd_broker_set_rest(broker, optarg);
+      dd_broker_set_rest_uri(broker, optarg);
       break;
     case 'f':
       get_config(broker, optarg);

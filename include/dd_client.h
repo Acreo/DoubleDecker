@@ -130,12 +130,12 @@ DD_EXPORT zsock_t *
     dd_client_get_pipe (dd_client_t *self);
 
 //  *** Draft method, for development use, may change without warning ***
-//  For dd_client_actor use only!
+//  For dd_client_actor INTERNAL USE ONLY!
 DD_EXPORT void *
     dd_client_thread (dd_client_t *self);
 
 //  *** Draft method, for development use, may change without warning ***
-//  For dd_client_actor use only!
+//  For dd_client_actor INTERNAL USE ONLY!
 DD_EXPORT void
     dd_client_add_pipe (dd_client_t *self, zsock_t *pipe, zloop_reader_fn handler);
 

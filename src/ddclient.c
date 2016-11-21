@@ -49,7 +49,7 @@ cparser_cmd_show_subscriptions(cparser_context_t *context) {
     printf("List of subscriptions:\n");
     const zlistx_t *subs = dd_client_get_subscriptions(client);
     dd_topic_t *item;
-    while ((item = zlistx_next((zlistx_t *) subs))) {
+    while ((item = (dd_topic_t*) zlistx_next((zlistx_t *) subs))) {
         printf("Topic: %s Scope: %s Active: %d\n", dd_topic_get_topic(item), dd_topic_get_scope(item),
                dd_topic_get_active(item));
     }
@@ -164,7 +164,7 @@ cparser_result_t cparser_cmd_publish_topic_message(cparser_context_t *context,
         return CPARSER_NOT_OK;
     }
     // +1 for \0 in strlen
-    dd_client_publish(client, topic, message, strlen(message));
+    dd_client_publish(client, topic, (byte*) message, strlen(message));
     return CPARSER_OK;
 }
 
@@ -184,7 +184,7 @@ cparser_result_t cparser_cmd_notify_destination_message(
         printf("error: notify 'destination' 'message'\n");
         return CPARSER_NOT_OK;
     }
-    dd_client_notify(client, destination, message, strlen(message));
+    dd_client_notify(client, destination, (byte*) message, strlen(message));
 
     return CPARSER_OK;
 }
@@ -242,12 +242,11 @@ void on_error(int error_code, const char *error_message, dd_client_t *args) {
 
 int main(int argc, char *argv[]) {
     cparser_t parser;
-    cparser_result_t rc;
+
     int debug = 0;
 
-    int i;
-    char *rndstr;
-    int index;
+
+
     int c;
     char *keyfile = NULL;
     char *connect_to = NULL;

@@ -65,9 +65,9 @@ static void cb_data(dd_client_t *self, zmsg_t *msg);
 static void cb_pub(dd_client_t *self, zmsg_t *msg);
 static void cb_subok(dd_client_t *self, zmsg_t *msg);
 static void cb_error(dd_client_t *self, zmsg_t *msg);
-static int s_on_pipe_msg(zloop_t *loop, zsock_t *handle, void *args);
+//static int s_on_pipe_msg(zloop_t *loop, zsock_t *handle, void *args);
 static int s_on_dealer_msg(zloop_t *loop, zsock_t *handle, void *args);
-static void dd_keys_print(dd_keys_t *keys);
+//static void dd_keys_print(dd_keys_t *keys);
 
 // update or add topic/scope/active to list
 // TODO: should this be dd_sublist class?
@@ -79,7 +79,7 @@ void sublist_destroy(zlistx_t **self_p);
 void sublist_deactivate_all(dd_client_t *self);
 static void sublist_resubscribe(dd_client_t *self) {
     dd_topic_t *item;
-    while ((item = zlistx_next((zlistx_t *) dd_client_get_subscriptions(self)))) {
+    while ((item = (dd_topic_t*) zlistx_next((zlistx_t *) dd_client_get_subscriptions(self)))) {
         zsock_send(self->socket, "bbbss", &dd_version, 4, &dd_cmd_sub, 4,
                    &self->cookie, sizeof(self->cookie), dd_topic_get_topic(item),
                    dd_topic_get_scope(item));
@@ -91,7 +91,8 @@ static void sublist_resubscribe(dd_client_t *self) {
 // ////////////////////////////////////////////////////
 const char *dd_get_version() {
     char *strp;
-    asprintf(&strp, "verision %d-%d-%d", DD_VERSION_MAJOR, DD_VERSION_MINOR, DD_VERSION_PATCH);
+    int retval = asprintf(&strp, "verision %d-%d-%d", DD_VERSION_MAJOR, DD_VERSION_MINOR, DD_VERSION_PATCH);
+    assert(retval != -1);
     return strp;
 }
 
@@ -100,20 +101,20 @@ int dd_client_get_state(dd_client_t *self) { return self->state; }
 const char *dd_client_get_endpoint(dd_client_t *self) { return (const char *) self->endpoint; }
 
 zsock_t *dd_client_get_pipe(dd_client_t *self) {
-    return self->pipe;
+    return  (zsock_t*) self->pipe;
 }
 
 const char *dd_client_get_keyfile(dd_client_t *self) { return (const char *) self->keyfile; }
 
 char *dd_client_get_privkey(dd_client_t *self) {
-    char *hex = malloc(100);
+    char *hex = (char*) malloc(100);
     sodium_bin2hex(hex, 100, dd_keys_priv(self->keys), crypto_box_SECRETKEYBYTES);
     return hex;
 }
 
 char * dd_client_get_pubkey(dd_client_t *self) {
     assert(self);
-    char *hex = malloc(100);
+    char *hex = (char*) malloc(100);
     assert(hex);
     sodium_bin2hex(hex, 100, dd_keys_pub(self->keys), crypto_box_PUBLICKEYBYTES);
     return hex;
@@ -121,7 +122,7 @@ char * dd_client_get_pubkey(dd_client_t *self) {
 
 char *dd_client_get_publickey(dd_client_t *self) {
     assert(self);
-    char *hex = malloc(100);
+    char *hex = (char*) malloc(100);
     assert(hex);
     sodium_bin2hex(hex, 100, dd_keys_publicpub(self->keys),
                    crypto_box_PUBLICKEYBYTES);
@@ -145,9 +146,9 @@ int dd_client_subscribe(dd_client_t *self, const char *topic, const char *scope)
     } else {
         // TODO: Check rexscope in broker.c
         // check that scope follows re.fullmatch("/((\d)+/)+", scope):
-        scopestr = scope;
+        scopestr = (char*) scope;
     }
-    sublist_add(self, topic, scopestr, 0);
+    sublist_add(self, (char*) topic, scopestr, 0);
     if (self->state == DD_STATE_REGISTERED) {
         zsock_send(self->socket, "bbbss", &dd_version, 4, &dd_cmd_sub, 4,
                    &self->cookie, sizeof(self->cookie), topic, scopestr);
@@ -172,9 +173,9 @@ int dd_client_unsubscribe(dd_client_t *self, const char *topic, const char *scop
     } else {
         // TODO: check rexscope in broker.c
         // check that scope follows re.fullmatch("/((\d)+/)+", scope):
-        scopestr = scope;
+        scopestr = (char*) scope;
     }
-    sublist_delete(self, topic, scopestr);
+    sublist_delete(self, (char*) topic, scopestr);
     if (self->state == DD_STATE_REGISTERED)
         zsock_send(self->socket, "bbbss", &dd_version, 4, &dd_cmd_unsub, 4,
                    &self->cookie, sizeof(self->cookie), topic, scopestr);
@@ -197,7 +198,7 @@ int dd_client_publish(dd_client_t *self, const char *topic, const byte *message,
     char *dot = strchr(topic, '.');
     if (dot && srcpublic) {
         *dot = '\0';
-        precalck = zhash_lookup(dd_keys_clients(self->keys), topic);
+        precalck = (const unsigned char*) zhash_lookup(dd_keys_clients(self->keys), topic);
         if (precalck) {
             // TODO: This is not allowed by the broker
             // We should return an error if this is happening
@@ -213,7 +214,7 @@ int dd_client_publish(dd_client_t *self, const char *topic, const byte *message,
     }
 
     size_t enclen = mlen + crypto_box_NONCEBYTES + crypto_box_MACBYTES;
-    unsigned char *dest = calloc(1, enclen);
+    unsigned char *dest = (unsigned char*) calloc(1, enclen);
     unsigned char *ciphertext = dest; // dest+crypto_box_NONCEBYTES;
 
     // increment nonce
@@ -257,7 +258,7 @@ int dd_client_notify(dd_client_t *self, const char *target, const byte *message,
     int retval;
     if (dot && srcpublic) {
         *dot = '\0';
-        precalck = zhash_lookup(dd_keys_clients(self->keys), target);
+        precalck = (const uint8_t*) zhash_lookup(dd_keys_clients(self->keys), target);
         if (precalck) {
             /* printf("encrypting with tenant key: %s\n",target); */
         }
@@ -272,7 +273,7 @@ int dd_client_notify(dd_client_t *self, const char *target, const byte *message,
     }
 
     size_t enclen = mlen + crypto_box_NONCEBYTES + crypto_box_MACBYTES;
-    unsigned char *dest = calloc(1, enclen);
+    unsigned char *dest = (unsigned char*) calloc(1, enclen);
     unsigned char *ciphertext = dest; // dest+crypto_box_NONCEBYTES;
 
     // increment nonce
@@ -386,7 +387,7 @@ static void cb_chall(dd_client_t *self, zmsg_t *msg) {
     zframe_t *encrypted = zmsg_first(msg);
     unsigned char *data = zframe_data(encrypted);
     size_t enclen = zframe_size(encrypted);
-    unsigned char *decrypted = calloc(1, enclen);
+    unsigned char *decrypted = (unsigned char*) calloc(1, enclen);
 
     retval = crypto_box_open_easy_afternm(decrypted, data + crypto_box_NONCEBYTES,
                                           enclen - crypto_box_NONCEBYTES, data,
@@ -411,13 +412,13 @@ static void cb_data(dd_client_t *self, zmsg_t *msg) {
     zframe_t *encrypted = zmsg_first(msg);
     unsigned char *data = zframe_data(encrypted);
     size_t enclen = zframe_size(encrypted);
-    unsigned char *decrypted =
+    unsigned char *decrypted = (unsigned char*)
             calloc(1, enclen - crypto_box_NONCEBYTES - crypto_box_MACBYTES);
     const uint8_t *precalck = NULL;
     char *dot = strchr(source, '.');
     if (dot) {
         *dot = '\0';
-        precalck = zhash_lookup(dd_keys_clients(self->keys), source);
+        precalck = (const uint8_t  *) zhash_lookup(dd_keys_clients(self->keys), source);
         if (precalck) {
         }
         *dot = '.';
@@ -454,13 +455,13 @@ static void cb_pub(dd_client_t *self, zmsg_t *msg) {
     size_t enclen = zframe_size(encrypted);
 
     size_t mlen = enclen - crypto_box_NONCEBYTES - crypto_box_MACBYTES;
-    unsigned char *decrypted = calloc(1, mlen);
+    unsigned char *decrypted = (unsigned char*) calloc(1, mlen);
 
     const unsigned char *precalck = NULL;
     char *dot = strchr(source, '.');
     if (dot) {
         *dot = '\0';
-        precalck = zhash_lookup(dd_keys_clients(self->keys), source);
+        precalck = (const unsigned char*) zhash_lookup(dd_keys_clients(self->keys), source);
         if (precalck) {
         }
         *dot = '.';
@@ -673,11 +674,11 @@ dd_client_t *dd_client_setup(const char *client_name, const char *endpoint, cons
 // Make sure that ZMQ doesn't affect main process signal handling
     zsys_init();
     zsys_handler_reset();
-    dd_client_t *self = malloc(sizeof(dd_client_t));
+    dd_client_t *self = (dd_client_t*) malloc(sizeof(dd_client_t));
 
     self->client_name = (unsigned char *) strdup(client_name);
     self->endpoint = (unsigned char *) strdup(endpoint);
-    self->keyfile = strdup(keyfile);
+    self->keyfile = (unsigned char*) strdup(keyfile);
     self->timeout = 0;
     self->state = DD_STATE_UNREG;
     randombytes_buf(self->nonce, crypto_box_NONCEBYTES);
@@ -703,7 +704,8 @@ dd_client_t *dd_client_setup(const char *client_name, const char *endpoint, cons
         return NULL;
     }
 
-    self->keys = dd_keys_new(self->keyfile);
+    self->keys = dd_keys_new((const char*) self->keyfile);
+
     if (self->keys == NULL) {
         fprintf(stderr, "DD: Error reading keyfile!\n");
         return NULL;
@@ -735,9 +737,9 @@ dd_client_t * dd_client_new(const char *client_name, const char *endpoint, const
 }
 
 // TODO: move to dd_keys instead,  a to_string version perhaps?
-
+/*
 static void dd_keys_print(dd_keys_t *keys) {
-    char *hex = malloc(100);
+    char *hex = (char*)malloc(100);
     printf("Hash value: \t%s", dd_keys_hash(keys));
     printf("Private key: \t%s", sodium_bin2hex(hex, 100, dd_keys_priv(keys), 32));
     printf("Public key: \t%s", sodium_bin2hex(hex, 100, dd_keys_pub(keys), 32));
@@ -747,6 +749,7 @@ static void dd_keys_print(dd_keys_t *keys) {
            sodium_bin2hex(hex, 100, dd_keys_publicpub(keys), 32));
     free(hex);
 }
+ */
 
 //  --------------------------------------------------------------------------
 //  Self test of this class
@@ -831,13 +834,13 @@ static void s_sublist_free(void **item) {
 // -- duplicate an item
 // typedef void *(czmq_duplicator) (const void *item);
 static void *s_sublist_dup(const void *item) {
-    dd_topic_t *new, *old;
+    dd_topic_t *newtopic, *old;
     old = (dd_topic_t *) item;
-    new = dd_topic_new();
-    dd_topic_set_topic(new, strdup(dd_topic_get_topic(old)));
-    dd_topic_set_scope(new, strdup(dd_topic_get_scope(old)));
-    dd_topic_set_active(new, dd_topic_get_active(old));
-    return new;
+    newtopic = dd_topic_new();
+    dd_topic_set_topic(newtopic, strdup(dd_topic_get_topic(old)));
+    dd_topic_set_scope(newtopic, strdup(dd_topic_get_scope(old)));
+    dd_topic_set_active(newtopic, dd_topic_get_active(old));
+    return newtopic;
 }
 
 zlistx_t *sublist_new() {
@@ -858,7 +861,7 @@ void sublist_add(dd_client_t *self, char *topic, char *scope, char active) {
     dd_topic_t *item;
     int found = 0;
 
-    while ((item = zlistx_next((zlistx_t *) dd_client_get_subscriptions(self)))) {
+    while ((item = (dd_topic_t*) zlistx_next((zlistx_t *) dd_client_get_subscriptions(self)))) {
         if (streq(dd_topic_get_topic(item), topic) && streq(dd_topic_get_scope(item), scope)) {
             dd_topic_set_active(item, active);
             found = 1;
@@ -885,17 +888,17 @@ void sublist_add(dd_client_t *self, char *topic, char *scope, char active) {
 }
 
 void sublist_delete_topic(dd_client_t *self, char *topic) {
-    dd_topic_t *item = zlistx_first((zlistx_t *) dd_client_get_subscriptions(self));
+    dd_topic_t *item = (dd_topic_t*) zlistx_first((zlistx_t *) dd_client_get_subscriptions(self));
     do {
         if (streq(dd_topic_get_topic(item), topic)) {
             zlistx_delete((zlistx_t *) dd_client_get_subscriptions(self), item);
         }
-    } while ((item = zlistx_next((zlistx_t *) dd_client_get_subscriptions(self))));
+    } while ((item = (dd_topic_t*) zlistx_next((zlistx_t *) dd_client_get_subscriptions(self))));
 }
 
 void sublist_activate(dd_client_t *self, char *topic, char *scope) {
     dd_topic_t *item;
-    while ((item = zlistx_next((zlistx_t *) dd_client_get_subscriptions(self)))) {
+    while ((item = (dd_topic_t*) zlistx_next((zlistx_t *) dd_client_get_subscriptions(self)))) {
         if (strcmp(dd_topic_get_topic(item), topic) == 0 && strcmp(dd_topic_get_scope(item), scope) == 0) {
             dd_topic_set_active(item, 1);
         }
@@ -904,7 +907,7 @@ void sublist_activate(dd_client_t *self, char *topic, char *scope) {
 
 void sublist_deactivate_all(dd_client_t *self) {
     dd_topic_t *item;
-    while ((item = zlistx_next((zlistx_t *) dd_client_get_subscriptions(self)))) {
+    while ((item = (dd_topic_t*) zlistx_next((zlistx_t *) dd_client_get_subscriptions(self)))) {
         dd_topic_set_active(item, 0);
     }
 }
@@ -913,7 +916,7 @@ void sublist_deactivate_all(dd_client_t *self) {
 // So that library clients can use it
 void sublist_print(dd_client_t *self) {
     dd_topic_t *item;
-    while ((item = zlistx_next((zlistx_t *) dd_client_get_subscriptions(self)))) {
+    while ((item =  (dd_topic_t*)zlistx_next((zlistx_t *) dd_client_get_subscriptions(self)))) {
         printf("Topic: %s Scope: %s Active: %d\n", dd_topic_get_topic(item), dd_topic_get_scope(item),
                dd_topic_get_active(item));
     }
@@ -924,7 +927,7 @@ int sublist_delete(dd_client_t *self, char *topic, char *scope) {
     dd_topic_set_topic(del, topic);
     dd_topic_set_scope(del, scope);
 
-    dd_topic_t *item = zlistx_find((zlistx_t *) dd_client_get_subscriptions(self), del);
+    dd_topic_t *item = (dd_topic_t*) zlistx_find((zlistx_t *) dd_client_get_subscriptions(self), del);
     dd_topic_destroy(&del);
     if (item)
         return zlistx_delete((zlistx_t *) dd_client_get_subscriptions(self), item);

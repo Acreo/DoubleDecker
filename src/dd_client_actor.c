@@ -92,7 +92,7 @@ dd_client_actor_destroy (dd_client_actor_t **self_p)
 void
 dd_client_actor_actor (zsock_t *pipe, void *args)
 {
-    dd_client_actor_t * self = args;
+    dd_client_actor_t * self = (dd_client_actor_t*) args;
 
     if (!self)
         return;          //  Interrupted
@@ -123,7 +123,7 @@ dd_client_actor_test (bool verbose)
     char *keyfile = "keys/public.keys.json";
 
     // create an actor with a embedded dd_client
-    dd_client_actor_t *actor_conf = dd_client_actor_new("testcliactor","tcp://localhost:5555","keys/public-keys.json");
+    dd_client_actor_t *actor_conf = dd_client_actor_new(client_name,endpoint,keyfile);
     // run it
     zactor_t *dd_client_actor = zactor_new (dd_client_actor_actor, actor_conf);
     sleep(5);
@@ -137,7 +137,7 @@ dd_client_actor_test (bool verbose)
 
 
 int s_on_pipe_msg(zloop_t *loop, zsock_t *handle, void *args) {
-    dd_client_t *self = args;
+    dd_client_t *self = (dd_client_t* ) args;
     zmsg_t *msg = zmsg_recv(handle);
     char *command = zmsg_popstr(msg);
     //  All actors must handle $TERM in this way
@@ -165,7 +165,7 @@ int s_on_pipe_msg(zloop_t *loop, zsock_t *handle, void *args) {
         zmsg_destroy(&msg);
     } else if (streq(command, "publish")) {
         char *topic = zmsg_popstr(msg);
-        byte *message = zmsg_popstr(msg);
+        byte *message = (byte*) zmsg_popstr(msg);
         zframe_t *mlen = zmsg_pop(msg);
         uint32_t len = *((uint32_t *)zframe_data(mlen));
         dd_client_publish(self, topic, message, len);
@@ -177,7 +177,8 @@ int s_on_pipe_msg(zloop_t *loop, zsock_t *handle, void *args) {
 
     } else if (streq(command, "notify")) {
         char *target = zmsg_popstr(msg);
-        byte *message = zmsg_popstr(msg);
+        byte *message = (byte*) zmsg_popstr(msg);
+
         zframe_t *mlen = zmsg_pop(msg);
         uint32_t len = *((uint32_t *)zframe_data(mlen));
         dd_client_notify(self, target, message, len);
