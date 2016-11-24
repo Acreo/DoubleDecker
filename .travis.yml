@@ -26,5 +26,5 @@ before_install:
   - sudo apt-get -qq update
   - sudo apt-get install -y wget build-essential libtool automake pkg-config  libzmq3-dev
 script:
-  - cd /home/travis/build/Acreo/DoubleDecker && ./autogen.sh && ./configure && make
+  - cd /home/travis/build/Acreo/DoubleDecker && cmake . && make 
 
