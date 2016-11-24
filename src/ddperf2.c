@@ -150,7 +150,7 @@ static int s_print_stats() {
   return 0;
 }
 
-void on_reg_server(void *args) {
+void on_reg_server(struct _dd_client_t *args) {
   dd_t *dd = (dd_t *)args;
   printf("DDPerf server registered with broker %s!\n", dd_get_endpoint(dd));
 }
@@ -192,7 +192,7 @@ void s_sendmsg(dd_t *dd) {
     dd_notify(dd, "ddperfsrv2", rndstr, msize);
   }
 }
-void on_reg_client(void *args) {
+void on_reg_client(struct _dd_client_t *args) {
   dd_t *dd = (dd_t *)args;
   printf("DDPerf client registered with broker %s\n", dd_get_endpoint(dd));
   rndstr = malloc(msize + 1);
@@ -240,18 +240,18 @@ void on_reg_client(void *args) {
   }
 }
 
-void on_discon(void *args) {
+void on_discon(struct _dd_client_t *args) {
   dd_t *dd = (dd_t *)args;
   printf("\nGot disconnected from broker %s!\n", dd_get_endpoint(dd));
 }
 
-void on_pub(char *source, char *topic, unsigned char *data, unsigned long length,
-            void *args) {
+void on_pub(const char *source, const char *topic, const byte *data, unsigned long length,
+            struct _dd_client_t *args) {
   dd_t *dd = (dd_t *)args;
   printf("\nPUB S: %s T: %s L: %d D: '%s'\n", source, topic, length, data);
 }
 
-void on_data_server(char *source, unsigned char *data, int length, void *args) {
+void on_data_server(const char *source, const byte *data, size_t length, struct _dd_client_t *args) {
   dd_t *dd = (dd_t *)args;
   struct timespec sendt, recvt;
   if (latency) {
@@ -274,7 +274,7 @@ void on_data_server(char *source, unsigned char *data, int length, void *args) {
 //   printf("\nNODST T: %s\n", source);
 // }
 
-void on_error(int error_code, char *error_message, void *args) {
+void on_error(int error_code, const char *error_message, struct _dd_client_t *args) {
   printf("Error %d : %s", error_code, error_message);
 }
 

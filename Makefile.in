@@ -97,7 +97,7 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 bin_PROGRAMS = $(am__EXEEXT_1) $(am__EXEEXT_2)
-noinst_PROGRAMS = $(am__EXEEXT_3)
+noinst_PROGRAMS = $(am__EXEEXT_4) $(am__EXEEXT_3)
 check_PROGRAMS = $(am__EXEEXT_3)
 TESTS =
 
@@ -127,8 +127,9 @@ TESTS =
 
 @ENABLE_DDBROKER_TRUE@am__append_6 = src/ddbroker
 @ENABLE_DDCLIENT_TRUE@am__append_7 = src/ddclient
-@ENABLE_DD_SELFTEST_TRUE@am__append_8 = src/dd_selftest
+@ENABLE_DDPERF_TRUE@am__append_8 = src/ddperf
 @ENABLE_DD_SELFTEST_TRUE@am__append_9 = src/dd_selftest
+@ENABLE_DD_SELFTEST_TRUE@am__append_10 = src/dd_selftest
 subdir = .
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/config/libtool.m4 \
@@ -206,6 +207,7 @@ src_libdd_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 @ENABLE_DDBROKER_TRUE@am__EXEEXT_1 = src/ddbroker$(EXEEXT)
 @ENABLE_DDCLIENT_TRUE@am__EXEEXT_2 = src/ddclient$(EXEEXT)
 @ENABLE_DD_SELFTEST_TRUE@am__EXEEXT_3 = src/dd_selftest$(EXEEXT)
+@ENABLE_DDPERF_TRUE@am__EXEEXT_4 = src/ddperf$(EXEEXT)
 PROGRAMS = $(bin_PROGRAMS) $(noinst_PROGRAMS)
 am__src_dd_selftest_SOURCES_DIST = src/dd_selftest.c
 @ENABLE_DD_SELFTEST_TRUE@am_src_dd_selftest_OBJECTS = src/src_dd_selftest-dd_selftest.$(OBJEXT)
@@ -226,6 +228,11 @@ am__src_ddclient_SOURCES_DIST = src/ddclient.c
 src_ddclient_OBJECTS = $(am_src_ddclient_OBJECTS)
 @ENABLE_DDCLIENT_TRUE@src_ddclient_DEPENDENCIES =  \
 @ENABLE_DDCLIENT_TRUE@	$(am__DEPENDENCIES_3)
+am__src_ddperf_SOURCES_DIST = src/ddperf.c
+@ENABLE_DDPERF_TRUE@am_src_ddperf_OBJECTS =  \
+@ENABLE_DDPERF_TRUE@	src/src_ddperf-ddperf.$(OBJEXT)
+src_ddperf_OBJECTS = $(am_src_ddperf_OBJECTS)
+@ENABLE_DDPERF_TRUE@src_ddperf_DEPENDENCIES = $(am__DEPENDENCIES_3)
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
 am__v_P_0 = false
@@ -261,11 +268,13 @@ am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
 SOURCES = $(src_libdd_la_SOURCES) $(src_dd_selftest_SOURCES) \
-	$(src_ddbroker_SOURCES) $(src_ddclient_SOURCES)
+	$(src_ddbroker_SOURCES) $(src_ddclient_SOURCES) \
+	$(src_ddperf_SOURCES)
 DIST_SOURCES = $(am__src_libdd_la_SOURCES_DIST) \
 	$(am__src_dd_selftest_SOURCES_DIST) \
 	$(am__src_ddbroker_SOURCES_DIST) \
-	$(am__src_ddclient_SOURCES_DIST)
+	$(am__src_ddclient_SOURCES_DIST) \
+	$(am__src_ddperf_SOURCES_DIST)
 RECURSIVE_TARGETS = all-recursive check-recursive cscopelist-recursive \
 	ctags-recursive dvi-recursive html-recursive info-recursive \
 	install-data-recursive install-dvi-recursive \
@@ -734,6 +743,9 @@ src_libdd_la_LIBADD = ${project_libs}
 @ENABLE_DDCLIENT_TRUE@src_ddclient_CPPFLAGS = ${AM_CPPFLAGS}
 @ENABLE_DDCLIENT_TRUE@src_ddclient_LDADD = ${program_libs}
 @ENABLE_DDCLIENT_TRUE@src_ddclient_SOURCES = src/ddclient.c
+@ENABLE_DDPERF_TRUE@src_ddperf_CPPFLAGS = ${AM_CPPFLAGS}
+@ENABLE_DDPERF_TRUE@src_ddperf_LDADD = ${program_libs}
+@ENABLE_DDPERF_TRUE@src_ddperf_SOURCES = src/ddperf.c
 @ENABLE_DD_SELFTEST_TRUE@src_dd_selftest_CPPFLAGS = ${AM_CPPFLAGS}
 @ENABLE_DD_SELFTEST_TRUE@src_dd_selftest_LDADD = ${program_libs}
 @ENABLE_DD_SELFTEST_TRUE@src_dd_selftest_SOURCES = src/dd_selftest.c
@@ -958,6 +970,12 @@ src/src_ddclient-ddclient.$(OBJEXT): src/$(am__dirstamp) \
 src/ddclient$(EXEEXT): $(src_ddclient_OBJECTS) $(src_ddclient_DEPENDENCIES) $(EXTRA_src_ddclient_DEPENDENCIES) src/$(am__dirstamp)
 	@rm -f src/ddclient$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(src_ddclient_OBJECTS) $(src_ddclient_LDADD) $(LIBS)
+src/src_ddperf-ddperf.$(OBJEXT): src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+
+src/ddperf$(EXEEXT): $(src_ddperf_OBJECTS) $(src_ddperf_DEPENDENCIES) $(EXTRA_src_ddperf_DEPENDENCIES) src/$(am__dirstamp)
+	@rm -f src/ddperf$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(src_ddperf_OBJECTS) $(src_ddperf_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -970,6 +988,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/src_dd_selftest-dd_selftest.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/src_ddbroker-ddbroker.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/src_ddclient-ddclient.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/src_ddperf-ddperf.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/src_libdd_la-base64.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/src_libdd_la-dd_broker.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/src_libdd_la-dd_broker_keys.Plo@am__quote@
@@ -1100,6 +1119,20 @@ src/src_ddclient-ddclient.obj: src/ddclient.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/ddclient.c' object='src/src_ddclient-ddclient.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_ddclient_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o src/src_ddclient-ddclient.obj `if test -f 'src/ddclient.c'; then $(CYGPATH_W) 'src/ddclient.c'; else $(CYGPATH_W) '$(srcdir)/src/ddclient.c'; fi`
+
+src/src_ddperf-ddperf.o: src/ddperf.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_ddperf_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT src/src_ddperf-ddperf.o -MD -MP -MF src/$(DEPDIR)/src_ddperf-ddperf.Tpo -c -o src/src_ddperf-ddperf.o `test -f 'src/ddperf.c' || echo '$(srcdir)/'`src/ddperf.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/$(DEPDIR)/src_ddperf-ddperf.Tpo src/$(DEPDIR)/src_ddperf-ddperf.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/ddperf.c' object='src/src_ddperf-ddperf.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_ddperf_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o src/src_ddperf-ddperf.o `test -f 'src/ddperf.c' || echo '$(srcdir)/'`src/ddperf.c
+
+src/src_ddperf-ddperf.obj: src/ddperf.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_ddperf_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT src/src_ddperf-ddperf.obj -MD -MP -MF src/$(DEPDIR)/src_ddperf-ddperf.Tpo -c -o src/src_ddperf-ddperf.obj `if test -f 'src/ddperf.c'; then $(CYGPATH_W) 'src/ddperf.c'; else $(CYGPATH_W) '$(srcdir)/src/ddperf.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/$(DEPDIR)/src_ddperf-ddperf.Tpo src/$(DEPDIR)/src_ddperf-ddperf.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/ddperf.c' object='src/src_ddperf-ddperf.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_ddperf_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o src/src_ddperf-ddperf.obj `if test -f 'src/ddperf.c'; then $(CYGPATH_W) 'src/ddperf.c'; else $(CYGPATH_W) '$(srcdir)/src/ddperf.c'; fi`
 
 mostlyclean-libtool:
 	-rm -f *.lo
@@ -1781,6 +1814,7 @@ uninstall-am: uninstall-binPROGRAMS uninstall-dist_apiDATA \
 src:
 	src/ddbroker \
 	src/ddclient \
+	src/ddperf \
 	src/dd_selftest \
 	src/libdd.la
 

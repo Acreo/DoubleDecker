@@ -1528,8 +1528,8 @@ static int s_on_router_msg(zloop_t *loop, zsock_t *handle, void *arg) {
     proto_frame = zmsg_pop(msg);
     uint32_t *pver;
     pver = (uint32_t *) zframe_data(proto_frame);
-    if (*pver != DD_VERSION) {
-        dd_error("Wrong version, expected 0x%x, got 0x%x", DD_VERSION, *pver);
+    if (*pver != DD_PRO_VERSION) {
+        dd_error("Wrong version, expected 0x%x, got 0x%x", DD_PRO_VERSION, *pver);
         zsock_send(self->rsock, "fbbbs", source_frame, pver, 4, &dd_cmd_error, 4,
                    &dd_error_version, 4, "Different versions in use");
         goto cleanup;
@@ -1685,8 +1685,8 @@ static int s_on_dealer_msg(zloop_t *loop, zsock_t *handle, void *arg) {
 
     zframe_t *proto_frame = zmsg_pop(msg);
 
-    if (*((uint32_t *) zframe_data(proto_frame)) != DD_VERSION) {
-        dd_error("Wrong version, expected 0x%x, got 0x%x", DD_VERSION,
+    if (*((uint32_t *) zframe_data(proto_frame)) != DD_PRO_VERSION) {
+        dd_error("Wrong version, expected 0x%x, got 0x%x", DD_PRO_VERSION,
                  *zframe_data(proto_frame));
         zframe_destroy(&proto_frame);
         zmsg_destroy(&msg);

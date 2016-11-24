@@ -554,6 +554,16 @@ AC_ARG_ENABLE([ddclient],
 AM_CONDITIONAL([ENABLE_DDCLIENT], [test x$enable_ddclient != xno])
 AM_COND_IF([ENABLE_DDCLIENT], [AC_MSG_NOTICE([ENABLE_DDCLIENT defined])])
 
+# Check for ddperf intent
+AC_ARG_ENABLE([ddperf],
+    AS_HELP_STRING([--enable-ddperf],
+        [Compile 'ddperf' in src [default=yes]]),
+    [enable_ddperf=$enableval],
+    [enable_ddperf=yes])
+
+AM_CONDITIONAL([ENABLE_DDPERF], [test x$enable_ddperf != xno])
+AM_COND_IF([ENABLE_DDPERF], [AC_MSG_NOTICE([ENABLE_DDPERF defined])])
+
 # Check for dd_selftest intent
 AC_ARG_ENABLE([dd_selftest],
     AS_HELP_STRING([--enable-dd_selftest],

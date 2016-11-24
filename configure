@@ -646,6 +646,8 @@ ENABLE_DRAFTS_TRUE
 pkgconfigdir
 ENABLE_DD_SELFTEST_FALSE
 ENABLE_DD_SELFTEST_TRUE
+ENABLE_DDPERF_FALSE
+ENABLE_DDPERF_TRUE
 ENABLE_DDCLIENT_FALSE
 ENABLE_DDCLIENT_TRUE
 ENABLE_DDBROKER_FALSE
@@ -825,6 +827,7 @@ with_urcu_cds
 with_docs
 enable_ddbroker
 enable_ddclient
+enable_ddperf
 enable_dd_selftest
 with_pkgconfigdir
 '
@@ -1495,6 +1498,7 @@ Optional Features:
   --disable-libtool-lock  avoid locking (might break parallel builds)
   --enable-ddbroker       Compile and install 'ddbroker' [default=yes]
   --enable-ddclient       Compile and install 'ddclient' [default=yes]
+  --enable-ddperf         Compile 'ddperf' in src [default=yes]
   --enable-dd_selftest    Compile 'dd_selftest' in src [default=yes]
 
 Optional Packages:
@@ -15590,6 +15594,28 @@ if test -z "$ENABLE_DDCLIENT_TRUE"; then :
 $as_echo "$as_me: ENABLE_DDCLIENT defined" >&6;}
 fi
 
+# Check for ddperf intent
+# Check whether --enable-ddperf was given.
+if test "${enable_ddperf+set}" = set; then :
+  enableval=$enable_ddperf; enable_ddperf=$enableval
+else
+  enable_ddperf=yes
+fi
+
+
+ if test x$enable_ddperf != xno; then
+  ENABLE_DDPERF_TRUE=
+  ENABLE_DDPERF_FALSE='#'
+else
+  ENABLE_DDPERF_TRUE='#'
+  ENABLE_DDPERF_FALSE=
+fi
+
+if test -z "$ENABLE_DDPERF_TRUE"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: ENABLE_DDPERF defined" >&5
+$as_echo "$as_me: ENABLE_DDPERF defined" >&6;}
+fi
+
 # Check for dd_selftest intent
 # Check whether --enable-dd_selftest was given.
 if test "${enable_dd_selftest+set}" = set; then :
@@ -15883,6 +15909,10 @@ Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${ENABLE_DDCLIENT_TRUE}" && test -z "${ENABLE_DDCLIENT_FALSE}"; then
   as_fn_error $? "conditional \"ENABLE_DDCLIENT\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${ENABLE_DDPERF_TRUE}" && test -z "${ENABLE_DDPERF_FALSE}"; then
+  as_fn_error $? "conditional \"ENABLE_DDPERF\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${ENABLE_DD_SELFTEST_TRUE}" && test -z "${ENABLE_DD_SELFTEST_FALSE}"; then

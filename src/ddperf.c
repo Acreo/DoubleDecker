@@ -28,14 +28,19 @@
  * Sköldström <ponsko@acreo.se> Created: fre mar 27 00:34:10 2015
  * (+0100) Last-Updated: By:
  */
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE 1
+#endif
 #include <czmq.h>
-#include <zmq.h>
+//#include <zmq.h>
 #include <locale.h>
+//#include <dd.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <time.h>
-#include "dd.h"
+//#include <stdio.h>
+//#include <stdlib.h>
+//#include <unistd.h>
+//#include <time.h>
+#include "doubledecker.h"
 
 #define SERVER 1
 #define CLIENT 2
@@ -58,7 +63,7 @@ int verbose = 0;
 FILE *logfile;
 
 char *keyfile = "/etc/doubledecker/public-keys.json";
-void s_sendmsg(dd_t *dd);
+void s_sendmsg(dd_client_t *dd);
 void usage() {
   printf("ddperf - test DoubleDecker throughput\n");
   printf("  -c <address> - Act as client\n");
@@ -134,7 +139,7 @@ static int s_print_throughput() {
 
   if (msgs > 0) {
     char *tstr = zclock_timestr();
-    printf("%s -- %'ld MSG/s, %.2lf %s (%.2lf %s)\n", tstr, msgs, dbyte,
+    printf("%s -- %ld MSG/s, %.2lf %s (%.2lf %s)\n", tstr, msgs, dbyte,
            bytesym, dbits, bitsym);
     zstr_free(&tstr);
   }
@@ -146,56 +151,56 @@ static int s_print_throughput() {
 }
 
 static int s_print_stats() {
-  printf("total messages: %'ld , bytes: %'ld\n", n_msg, b_msg);
+  printf("total messages: %ld , bytes: %ld\n", n_msg, b_msg);
   return 0;
 }
 
-void on_reg_server(void *args) {
-  dd_t *dd = (dd_t *)args;
-  printf("DDPerf server registered with broker %s!\n", dd_get_endpoint(dd));
+void on_reg_server(dd_client_t *args) {
+  dd_client_t *dd = (dd_client_t *)args;
+  printf("DDPerf server registered with broker %s!\n", dd_client_get_endpoint(dd));
 }
 
 static int s_interval_send(void *args) {
   int i = 0;
-  dd_t *dd = (dd_t *)args;
+  dd_client_t *dd = (dd_client_t *)args;
 
   for (i = 0; i < burst; i++) {
     s_sendmsg(dd);
     if (zsys_interrupted)
-      dd_destroy(&dd);
+      dd_client_destroy(&dd);
   }
   mnum -= burst;
   if (zsys_interrupted)
-    dd_destroy(&dd);
+    dd_client_destroy(&dd);
 
   if (mnum <= 0) {
     printf("Test completed, waiting 2s before shutdown..\n");
     zclock_sleep(2000);
-    dd_destroy(&dd);
+    dd_client_destroy(&dd);
   }
   return 1;
 }
 
 char *rndstr;
-void s_sendmsg(dd_t *dd) {
-  struct timespec sendt, recvt;
+void s_sendmsg(dd_client_t *dd) {
+  struct timespec sendt;
   if (latency) {
     clock_gettime(CLOCK_MONOTONIC, &sendt);
     if (verbose)
       printf("sending clock: s:%ld ns:%ld ", sendt.tv_sec, sendt.tv_nsec);
       
-    dd_notify(dd, "ddperfsrv", (char *)&sendt, sizeof(struct timespec));
+      dd_client_notify(dd, "ddperfsrv",(const byte*) &sendt, sizeof(struct timespec));
   } else {
     if (verbose)
       printf("sending message to ddperfsrv, size %d\n", msize);
 
-    dd_notify(dd, "ddperfsrv", rndstr, msize);
+    dd_client_notify(dd, (const  char*) "ddperfsrv", (const byte*) rndstr, msize);
   }
 }
-void on_reg_client(void *args) {
-  dd_t *dd = (dd_t *)args;
-  printf("DDPerf client registered with broker %s\n", dd_get_endpoint(dd));
-  rndstr = malloc(msize + 1);
+void on_reg_client(dd_client_t *args) {
+  dd_client_t *dd = (dd_client_t *)args;
+  printf("DDPerf client registered with broker %s\n", dd_client_get_endpoint(dd));
+    rndstr = (char*) malloc(msize + 1);
   int i;
   for (i = 0; i < msize; i++) {
     rndstr[i] = 'a';
@@ -208,7 +213,7 @@ void on_reg_client(void *args) {
     for (i = 0; i != mnum; i++) {
       s_sendmsg(dd);
       if (zsys_interrupted) {
-        dd_destroy(&dd);
+        dd_client_destroy(&dd);
         break;
       }
       if(latency)	
@@ -218,7 +223,7 @@ void on_reg_client(void *args) {
     // Shutdown down
     printf("Test completed, waiting 2s before shutdown..\n");
     zclock_sleep(2000);
-    dd_destroy(&dd);
+    dd_client_destroy(&dd);
 
   } else {
     // start a timer with interval based on pps
@@ -240,20 +245,18 @@ void on_reg_client(void *args) {
   }
 }
 
-void on_discon(void *args) {
-  dd_t *dd = (dd_t *)args;
-  printf("\nGot disconnected from broker %s!\n", dd_get_endpoint(dd));
+void on_discon(dd_client_t *args) {
+    dd_client_t *dd = (dd_client_t *)args;
+  printf("\nGot disconnected from broker %s!\n", dd_client_get_endpoint(dd));
 }
 
-void on_pub(char *source, char *topic, unsigned char *data, unsigned long length,
-            void *args) {
-  dd_t *dd = (dd_t *)args;
-  printf("\nPUB S: %s T: %s L: %d D: '%s'\n", source, topic, length, data);
+void on_pub(const char *source, const char *topic, const byte *data, unsigned long length,
+            dd_client_t *args) {
+  printf("\nPUB S: %s T: %s L: %lu D: '%s'\n", source, topic, length, data);
 }
 
-void on_data_server(char *source, unsigned char *data, int length, void *args) {
-  dd_t *dd = (dd_t *)args;
-  struct timespec sendt, recvt;
+void on_data_server(const char *source, const byte *data, size_t length, dd_client_t *args) {
+    struct timespec sendt, recvt;
   if (latency) {
     memcpy(&sendt, data, sizeof(struct timespec));
     clock_gettime(CLOCK_MONOTONIC, &recvt);
@@ -266,22 +269,22 @@ void on_data_server(char *source, unsigned char *data, int length, void *args) {
   b_msg += length;
   n_msg++;
   if (verbose)
-    printf("DATA S: %s L: %d D: '%s'\n", source, length, data);
+    printf("DATA S: %s L: %zu D: '%s'\n", source, length, data);
 }
 
 // void on_nodst(char *source, void *args) {
-//   dd_t *dd = (dd_t *)args;
+//   dd_client_t *dd = (dd_client_t *)args;
 //   printf("\nNODST T: %s\n", source);
 // }
 
-void on_error(int error_code, char *error_message, void *args) {
+void on_error(int error_code, const char *error_message, dd_client_t *args) {
   printf("Error %d : %s", error_code, error_message);
 }
 
 void start_server(char *address) {
   setlocale(LC_NUMERIC, "en_US.utf-8"); /* important */
 
-  dd_t *client = dd_new("ddperfsrv", address, keyfile, on_reg_server, on_discon,
+  dd_client_t *client = dd_client_new("ddperfsrv", address, keyfile, on_reg_server, on_discon,
                         on_data_server, on_pub, on_error); // on_nodst);
   //  int timer_id = zloop_timer (client->loop, 1000, 0,
   //  s_print_throughput, NULL);
@@ -289,7 +292,7 @@ void start_server(char *address) {
   //  NULL);
 
   int i = 0;
-  while (dd_get_state(client) != DD_STATE_EXIT && !zsys_interrupted) {
+  while (dd_client_get_state(client) != DD_STATE_EXIT && !zsys_interrupted) {
     sleep(1);
     s_print_throughput();
     if (i == 10) {
@@ -297,14 +300,14 @@ void start_server(char *address) {
       i = 0;
     }
   }
-  dd_destroy(&client);
+  dd_client_destroy(&client);
 }
 
 void start_client(char *address, int message_num, int message_size) {
   mnum = message_num;
   msize = message_size;
   // uint64_t sendt;
-  struct timespec sendt;
+//  struct timespec sendt;
   setlocale(LC_NUMERIC, "en_US.utf-8"); /* important */
 
   printf("Starting ddperf client (num=%d, size=%d), registering at %s..\n",
@@ -313,10 +316,11 @@ srand(time(NULL));
 int r = rand();
 
   char *cliname;
-  asprintf(&cliname, "ddperfcli%d", r);
-  dd_t *client = dd_new(cliname, address, keyfile, on_reg_client, on_discon,
+  int retval = asprintf(&cliname, "ddperfcli%d", r);
+    assert(retval != -1);
+  dd_client_t *client = dd_client_new(cliname, address, keyfile, on_reg_client, on_discon,
                         on_data_server, on_pub, on_error); // on_nodst);
-  while (dd_get_state(client) != DD_STATE_EXIT && !zsys_interrupted) {
+  while (dd_client_get_state(client) != DD_STATE_EXIT && !zsys_interrupted) {
     sleep(1);
   }
 }
@@ -327,7 +331,7 @@ int main(int argc, char **argv) {
   char *address = NULL;
   int message_num = 1000;
   int message_size = 1000;
-  int index;
+  //int index;
   int c;
 
   opterr = 0;
@@ -338,7 +342,7 @@ int main(int argc, char **argv) {
 
   logfile = fopen("ddperf.log", "w+");
 
-  while ((c = getopt(argc, argv, "m:n:s:c:vlp:")) != -1)
+  while ((c = getopt(argc, argv, "m:n:s:c:vlp:k:")) != -1)
     switch (c) {
     case 'm':
       message_num = atoi(optarg);

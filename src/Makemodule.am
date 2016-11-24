@@ -75,6 +75,13 @@ src_ddclient_LDADD = ${program_libs}
 src_ddclient_SOURCES = src/ddclient.c
 endif #ENABLE_DDCLIENT
 
+if ENABLE_DDPERF
+noinst_PROGRAMS += src/ddperf
+src_ddperf_CPPFLAGS = ${AM_CPPFLAGS}
+src_ddperf_LDADD = ${program_libs}
+src_ddperf_SOURCES = src/ddperf.c
+endif #ENABLE_DDPERF
+
 if ENABLE_DD_SELFTEST
 check_PROGRAMS += src/dd_selftest
 noinst_PROGRAMS += src/dd_selftest
@@ -96,6 +103,7 @@ dist_api_DATA = \
 src:
 	src/ddbroker \
 	src/ddclient \
+	src/ddperf \
 	src/dd_selftest \
 	src/libdd.la
 

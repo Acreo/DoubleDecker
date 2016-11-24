@@ -21,7 +21,6 @@
 #include "dd_classes.h"
 
 //  Structure of our class
-
 struct _dd_topic_t {
     char *topic;
     char *scope;

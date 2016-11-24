@@ -281,6 +281,25 @@ set_target_properties(
     PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${SOURCE_DIR}/src"
 )
 add_executable(
+    ddperf
+    "${SOURCE_DIR}/src/ddperf.c"
+)
+target_link_libraries(
+    ddperf
+    dd
+    ${LIBZMQ_LIBRARIES}
+    ${CZMQ_LIBRARIES}
+    ${LIBSODIUM_LIBRARIES}
+    ${JSON-C_LIBRARIES}
+    ${URCU_LIBRARIES}
+    ${URCU-CDS_LIBRARIES}
+    ${OPTIONAL_LIBRARIES}
+)
+set_target_properties(
+    ddperf
+    PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${SOURCE_DIR}/src"
+)
+add_executable(
     dd_selftest
     "${SOURCE_DIR}/src/dd_selftest.c"
 )
@@ -361,6 +380,7 @@ set(cmake_generated ${CMAKE_BINARY_DIR}/CMakeCache.txt
                     ${CMAKE_BINARY_DIR}/src/doubledecker_selftest
                     ${CMAKE_BINARY_DIR}/src/ddbroker
                     ${CMAKE_BINARY_DIR}/src/ddclient
+                    ${CMAKE_BINARY_DIR}/src/ddperf
                     ${CMAKE_BINARY_DIR}/src/dd_selftest
 )
 

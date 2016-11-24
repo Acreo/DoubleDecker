@@ -28,6 +28,7 @@
 
   <main name = "ddbroker" private = "0" />  
   <main name = "ddclient" private = "0" />
+  <main name = "ddperf" private = "1" />
   
   
   <class name = "dd_broker"> DoubleDecker broker class </class>
