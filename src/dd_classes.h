@@ -92,7 +92,7 @@ typedef struct _lcl_broker local_broker;
 typedef struct _dist_node dist_client;
 typedef struct _lcl_node local_client;
 typedef struct _subscription_node subscribe_node;
-
+void del_cli_up(dd_broker_t *self, char *prefix_name);
 //  *** To avoid double-definitions, only define if building without draft ***
 #ifndef DD_BUILD_DRAFT_API
 

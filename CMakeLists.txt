@@ -261,6 +261,13 @@ set_target_properties(
     ddbroker
     PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${SOURCE_DIR}/src"
 )
+
+install(TARGETS ddbroker
+    LIBRARY DESTINATION "lib${LIB_SUFFIX}" # .so file
+    ARCHIVE DESTINATION "lib${LIB_SUFFIX}" # .lib file
+    RUNTIME DESTINATION bin              # .dll file
+)
+
 add_executable(
     ddclient
     "${SOURCE_DIR}/src/ddclient.c"
@@ -280,6 +287,13 @@ set_target_properties(
     ddclient
     PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${SOURCE_DIR}/src"
 )
+
+install(TARGETS ddclient
+    LIBRARY DESTINATION "lib${LIB_SUFFIX}" # .so file
+    ARCHIVE DESTINATION "lib${LIB_SUFFIX}" # .lib file
+    RUNTIME DESTINATION bin              # .dll file
+)
+
 add_executable(
     ddperf
     "${SOURCE_DIR}/src/ddperf.c"
@@ -299,6 +313,13 @@ set_target_properties(
     ddperf
     PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${SOURCE_DIR}/src"
 )
+
+install(TARGETS ddperf
+    LIBRARY DESTINATION "lib${LIB_SUFFIX}" # .so file
+    ARCHIVE DESTINATION "lib${LIB_SUFFIX}" # .lib file
+    RUNTIME DESTINATION bin              # .dll file
+)
+
 add_executable(
     dd_selftest
     "${SOURCE_DIR}/src/dd_selftest.c"
@@ -318,6 +339,13 @@ set_target_properties(
     dd_selftest
     PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${SOURCE_DIR}/src"
 )
+
+install(TARGETS dd_selftest
+    LIBRARY DESTINATION "lib${LIB_SUFFIX}" # .so file
+    ARCHIVE DESTINATION "lib${LIB_SUFFIX}" # .lib file
+    RUNTIME DESTINATION bin              # .dll file
+)
+
 
 ########################################################################
 # tests

@@ -43,6 +43,7 @@
     </callback_type>
     <callback_type name="on_con">
         Callback called when connection with broker is established.
+        <argument name="client_name" type="string"/>
         <argument name="self" type="dd_client"/>
         <return type="nothing"/>
     </callback_type>

@@ -1,5 +1,5 @@
 //#include "../include/dd.h"
-//#include "../include/dd_classes.h"
+#include "dd_classes.h"
 #include "xxhash.h"
 static int match_lcl_node_prename(struct cds_lfht_node *ht_node,
                                   const void *_key) {
@@ -180,7 +180,7 @@ void delete_dist_clients(dd_broker_t *self, local_broker *br) {
     //    zframe_print(mp->broker, "client");
     if (zframe_eq(mp->broker, br->sockid)) {
       char buf[256] = "";
-      dd_debug("Was under missing broker %s", zframe_tostr(br->sockid, buf));
+//      dd_debug("Was under missing broker %s", zframe_tostr(br->sockid, buf));
       del_cli_up(self, mp->name);
       rcu_read_lock();
         int ret = cds_lfht_del(self->dist_cli_ht, ht_node);
@@ -644,7 +644,7 @@ void print_broker_ht(dd_broker_t *self) {
   while (ht_node != NULL) {
     mp = caa_container_of(ht_node, local_broker, node);
     char buf[256];
-    dd_debug("\tname: %s", zframe_tostr(mp->sockid, buf));
+//    dd_debug("\tname: %s", zframe_tostr(mp->sockid, buf));
     cds_lfht_next(self->lcl_cli_ht, &iter);
     ht_node = cds_lfht_iter_get_node(&iter);
   }

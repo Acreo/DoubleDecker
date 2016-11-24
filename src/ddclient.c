@@ -55,8 +55,6 @@ In the CLI interface use the menu to select actions, e.g. to subscribe,
 #include <unistd.h>
 #include <string.h>
 #include "cparser.h"
-#include "cparser_priv.h"
-#include "cparser_token.h"
 #include "cparser_tree.h"
 // hack to get around bug (?) in zproject
 // <extra> seems not to allow .c files to be added to build
@@ -68,16 +66,18 @@ In the CLI interface use the menu to select actions, e.g. to subscribe,
 #include "cparser_token_tbl.c"
 #include "cparser_tree.c"
 
+
 #include "doubledecker.h"
 
 static dd_client_t *client;
+cparser_t parser;
 
 cparser_result_t
 cparser_cmd_show_subscriptions(cparser_context_t *context) {
     printf("List of subscriptions:\n");
     const zlistx_t *subs = dd_client_get_subscriptions(client);
     dd_topic_t *item;
-    while ((item = (dd_topic_t*) zlistx_next((zlistx_t *) subs))) {
+    while ((item = (dd_topic_t *) zlistx_next((zlistx_t *) subs))) {
         printf("Topic: %s Scope: %s Active: %d\n", dd_topic_get_topic(item), dd_topic_get_scope(item),
                dd_topic_get_active(item));
     }
@@ -110,20 +110,6 @@ cparser_result_t cparser_cmd_show_keys(cparser_context_t *context) {
     printf("Pub public key: \t%s\n", publickey);
     free(pubkey);
 
-    /*
-     zlist_t *precalc = zhash_keys(client->keys->clientkeys);
-    unsigned char *sharedk;
-    char *k = NULL;
-    k = zlist_first(precalc);
-    while (k) {
-      sharedk = zhash_lookup(client->keys->clientkeys, k);
-      if (sharedk) {
-        printf("Pub-Ten %s shared key: \t%s\n", k,
-            sodium_bin2hex(hex, 100, sharedk, crypto_box_BEFORENMBYTES));
-      }
-      k = zlist_next(precalc);
-    }
-    */
     return CPARSER_OK;
 }
 
@@ -192,7 +178,7 @@ cparser_result_t cparser_cmd_publish_topic_message(cparser_context_t *context,
         return CPARSER_NOT_OK;
     }
     // +1 for \0 in strlen
-    dd_client_publish(client, topic, (byte*) message, strlen(message));
+    dd_client_publish(client, topic, (byte *) message, strlen(message));
     return CPARSER_OK;
 }
 
@@ -212,7 +198,7 @@ cparser_result_t cparser_cmd_notify_destination_message(
         printf("error: notify 'destination' 'message'\n");
         return CPARSER_NOT_OK;
     }
-    dd_client_notify(client, destination, (byte*) message, strlen(message));
+    dd_client_notify(client, destination, (byte *) message, strlen(message));
 
     return CPARSER_OK;
 }
@@ -229,8 +215,11 @@ cparser_result_t cparser_cmd_help(cparser_context_t *context) {
 }
 
 // callback functions
-void on_reg(dd_client_t *dd) {
-    printf("\nRegistered with broker %s!\n", dd_client_get_endpoint(dd));
+void on_reg(const char *client_name, dd_client_t *dd) {
+    printf("\nRegistered with broker %s with name %s!\n", dd_client_get_endpoint(dd), client_name);
+    snprintf(parser.prompt[0], sizeof(parser.prompt[0]), "%s>>",
+             client_name);
+    free((char*)client_name);
     fflush(stdout);
 }
 
@@ -269,12 +258,7 @@ void on_error(int error_code, const char *error_message, dd_client_t *args) {
 }
 
 int main(int argc, char *argv[]) {
-    cparser_t parser;
-
     int debug = 0;
-
-
-
     int c;
     char *keyfile = NULL;
     char *connect_to = NULL;
@@ -318,7 +302,6 @@ int main(int argc, char *argv[]) {
 
     parser.cfg.root = &cparser_root;
     parser.cfg.ch_complete = '\t';
-
     parser.cfg.ch_erase = '\b';
     parser.cfg.ch_del = 127;
     parser.cfg.ch_help = '?';

@@ -54,8 +54,8 @@
   <constant name = "dd_error_version"   value = "3" 
         description = "Error message - Wrong protocol version" />
 
-  <constant name = "dd_pro_version" value = "218955779"
-    description = "Protocol version 0x0d0d0003" />
+  <constant name = "dd_pro_version" value = "218955780"
+    description = "Protocol version 0x0d0d0004" />
   
   <target name = "cmake" />	
   <target name = "autotools" />

@@ -373,6 +373,15 @@ static void cb_regok(dd_client_t *self, zmsg_t *msg, zloop_t *loop) {
         fprintf(stderr, "DD: Misformed REGOK message, missing COOKIE!\n");
         return;
     }
+    char * client_name = zmsg_popstr(msg);
+    if(client_name == NULL){
+        fprintf(stderr, "DD: Misformed REGOK message, missing client name!\n");
+        return;
+    }
+
+    free(self->client_name);
+    self->client_name = client_name;
+
     uint64_t *cookie2 = (uint64_t *) zframe_data(cookie_frame);
     self->cookie = *cookie2;
     zframe_destroy(&cookie_frame);
@@ -384,7 +393,7 @@ static void cb_regok(dd_client_t *self, zmsg_t *msg, zloop_t *loop) {
     zloop_timer_end(loop, self->registration_loop);
     // if this is re-registration, we should try to subscribe again
     sublist_resubscribe(self);
-    self->on_reg(self);
+    self->on_reg(strdup(client_name), self);
 }
 
 static void cb_pong(dd_client_t *self, zmsg_t *msg, zloop_t *loop) {
@@ -762,8 +771,8 @@ static void dd_keys_print(dd_keys_t *keys) {
 
 //  --------------------------------------------------------------------------
 //  Self test of this class
-void test_on_reg(dd_client_t *dd) {
-    zsys_info("Registered with broker %s!\n", dd_client_get_endpoint(dd));
+void test_on_reg(const char *client_name, dd_client_t *dd) {
+    zsys_info("Client %s registered with broker %s!\n", client_name, dd_client_get_endpoint(dd));
 }
 
 void test_on_discon(dd_client_t *dd) {

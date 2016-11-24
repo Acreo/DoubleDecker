@@ -38,93 +38,6 @@
 #define IPC_REGEX "(ipc://)(.+)"
 #define TCP_REGEX "(tcp://[^:]+:)(\\d+)"
 
-// predefined static functions
-static void add_cli_up(dd_broker_t *self, char *prefix_name, int distance);
-
-static void forward_locally(dd_broker_t *self, zframe_t *dest_sockid, char *src_string, zmsg_t *msg);
-
-static int s_on_subN_msg(zloop_t *loop, zsock_t *handle, void *arg);
-
-static int s_on_subS_msg(zloop_t *loop, zsock_t *handle, void *arg);
-
-static int s_on_pubN_msg(zloop_t *loop, zsock_t *handle, void *arg);
-
-static int s_on_pubS_msg(zloop_t *loop, zsock_t *handle, void *arg);
-
-static int s_on_router_msg(zloop_t *loop, zsock_t *handle, void *arg);
-
-static int s_on_dealer_msg(zloop_t *loop, zsock_t *handle, void *arg);
-
-static int s_register(zloop_t *loop, int timer_id, void *arg);
-
-static int s_heartbeat(zloop_t *loop, int timer_id, void *arg);
-
-static int s_check_cli_timeout(zloop_t *loop, int timer_fd, void *arg);
-
-static int s_check_br_timeout(zloop_t *loop, int timer_fd, void *arg);
-
-static void s_cb_high_error(dd_broker_t *self, zmsg_t *msg);
-
-static void s_cb_addbr(dd_broker_t *self, zframe_t *sockid, zmsg_t *msg);
-
-static void s_cb_addlcl(dd_broker_t *self, zframe_t *sockid, zmsg_t *msg);
-
-static void s_cb_adddcl(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie_frame, zmsg_t *msg);
-
-static void s_cb_chall(dd_broker_t *self, zmsg_t *msg);
-
-static void s_cb_challok(dd_broker_t *self, zframe_t *sockid, zmsg_t *msg);
-
-static void s_cb_forward_dsock(dd_broker_t *self, zmsg_t *msg);
-
-static void s_cb_forward_rsock(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie_frame, zmsg_t *msg);
-
-/*static void s_cb_nodst_dsock(dd_broker_t *self, zmsg_t *msg);
-
-static void s_cb_nodst_rsock(dd_broker_t *self, zmsg_t *msg);
-*/
-static void s_cb_pub(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie, zmsg_t *msg);
-
-static void s_cb_ping(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie);
-
-static void s_cb_regok(dd_broker_t *self, zmsg_t *msg);
-
-static void s_cb_send(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie, zmsg_t *msg);
-
-static void s_cb_sub(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie,
-                     zmsg_t *msg);
-
-static void s_cb_unreg_br(dd_broker_t *self, char *name, zmsg_t *msg);
-
-static void s_cb_unreg_cli(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie, zmsg_t *msg);
-
-static void s_cb_unreg_dist_cli(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie_frame, zmsg_t *msg);
-
-static void s_cb_unsub(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie,
-                       zmsg_t *msg);
-
-static void s_self_destroy(dd_broker_t **self_p);
-
-static void print_ddbrokerkeys(dd_broker_keys_t *keys);
-
-static void dest_invalid_rsock(dd_broker_t *self, zframe_t *sockid, char *src_string, char *dst_string);
-
-static void dest_invalid_dsock(dd_broker_t *self, char *src_string, char *dst_string);
-
-static void del_cli_up(dd_broker_t *self, char *prefix_name);
-
-static void forward_down(dd_broker_t *self, char *src_string, char *dst_string, zframe_t *br_sockid, zmsg_t *msg);
-
-static void forward_up(dd_broker_t *self, char *src_string, char *dst_string, zmsg_t *msg);
-
-static void bind_router(dd_broker_t *self);
-
-static void connect_pubsubN(dd_broker_t *self);
-
-static void unreg_cli(dd_broker_t *self, zframe_t *sockid, uint64_t cookie);
-
-static char *zframe_tostr(zframe_t *self, char *buffer);
-static char *zframe_tojson(zframe_t *self, char *buffer);
 
 
 //  Structure of our class
@@ -198,8 +111,97 @@ struct _dd_broker_t {
 
 #include "htable.c"
 
-//  --------------------------------------------------------------------------
-//  Create a new dd_broker
+
+
+// predefined static functions
+static void add_cli_up(dd_broker_t *self, char *prefix_name, int distance);
+
+static void forward_locally(dd_broker_t *self, zframe_t *dest_sockid, char *src_string, zmsg_t *msg);
+
+static int s_on_subN_msg(zloop_t *loop, zsock_t *handle, void *arg);
+
+static int s_on_subS_msg(zloop_t *loop, zsock_t *handle, void *arg);
+
+static int s_on_pubN_msg(zloop_t *loop, zsock_t *handle, void *arg);
+
+static int s_on_pubS_msg(zloop_t *loop, zsock_t *handle, void *arg);
+
+static int s_on_router_msg(zloop_t *loop, zsock_t *handle, void *arg);
+
+static int s_on_dealer_msg(zloop_t *loop, zsock_t *handle, void *arg);
+
+static int s_register(zloop_t *loop, int timer_id, void *arg);
+
+static int s_heartbeat(zloop_t *loop, int timer_id, void *arg);
+
+static int s_check_cli_timeout(zloop_t *loop, int timer_fd, void *arg);
+
+static int s_check_br_timeout(zloop_t *loop, int timer_fd, void *arg);
+
+static void s_cb_high_error(dd_broker_t *self, zmsg_t *msg);
+
+static void s_cb_addbr(dd_broker_t *self, zframe_t *sockid, zmsg_t *msg);
+
+static void s_cb_addlcl(dd_broker_t *self, zframe_t *sockid, zmsg_t *msg);
+
+static void s_cb_adddcl(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie_frame, zmsg_t *msg);
+
+static void s_cb_chall(dd_broker_t *self, zmsg_t *msg);
+
+static void s_cb_challok(dd_broker_t *self, zframe_t *sockid, zmsg_t *msg);
+
+static void s_cb_forward_dsock(dd_broker_t *self, zmsg_t *msg);
+
+static void s_cb_forward_rsock(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie_frame, zmsg_t *msg);
+
+/*static void s_cb_nodst_dsock(dd_broker_t *self, zmsg_t *msg);
+
+static void s_cb_nodst_rsock(dd_broker_t *self, zmsg_t *msg);
+*/
+static void s_cb_pub(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie, zmsg_t *msg);
+
+static void s_cb_ping(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie);
+
+static void s_cb_regok(dd_broker_t *self, zmsg_t *msg);
+
+static void s_cb_send(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie, zmsg_t *msg);
+
+static void s_cb_sub(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie,
+                     zmsg_t *msg);
+
+static void s_cb_unreg_br(dd_broker_t *self, char *name, zmsg_t *msg);
+
+static void s_cb_unreg_cli(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie, zmsg_t *msg);
+
+static void s_cb_unreg_dist_cli(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie_frame, zmsg_t *msg);
+
+static void s_cb_unsub(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie,
+                       zmsg_t *msg);
+
+static void s_self_destroy(dd_broker_t **self_p);
+
+static void print_ddbrokerkeys(dd_broker_keys_t *keys);
+
+static void dest_invalid_rsock(dd_broker_t *self, zframe_t *sockid, char *src_string, char *dst_string);
+
+static void dest_invalid_dsock(dd_broker_t *self, char *src_string, char *dst_string);
+
+//void del_cli_up(dd_broker_t *self, char *prefix_name);
+
+static void forward_down(dd_broker_t *self, char *src_string, char *dst_string, zframe_t *br_sockid, zmsg_t *msg);
+
+static void forward_up(dd_broker_t *self, char *src_string, char *dst_string, zmsg_t *msg);
+
+static void bind_router(dd_broker_t *self);
+
+static void connect_pubsubN(dd_broker_t *self);
+
+static void unreg_cli(dd_broker_t *self, zframe_t *sockid, uint64_t cookie);
+
+static char *zframe_tostr(zframe_t *self, char *buffer);
+static char *zframe_tojson(zframe_t *self, char *buffer);
+
+
 
 
 //  --------------------------------------------------------------------------
@@ -511,6 +513,7 @@ static void s_cb_challok(dd_broker_t *self, zframe_t *sockid, zmsg_t *msg) {
 #endif
 
     int retval;
+    static int autoname = 0;
     zframe_t *cook = zmsg_pop(msg);
     uint64_t *cookie = (uint64_t *) zframe_data(cook);
     char *hash = zmsg_popstr(msg);
@@ -564,6 +567,18 @@ static void s_cb_challok(dd_broker_t *self, zframe_t *sockid, zmsg_t *msg) {
         dd_error("Client trying to use reserved name 'public'!");
         goto cleanup;
     }
+    
+    if(strcmp(client_name, "auto") == 0) {
+        dd_info("Generating new name for client");
+        dd_info("scope %s", self->broker_scope);
+        char *new_client_name;
+        int ret =  asprintf(&new_client_name, "%s%d", self->broker_scope, autoname);
+        assert(ret != -1);
+        autoname++;
+        dd_info("new name = %s ", new_client_name);
+        free(client_name);
+        client_name = new_client_name;
+    }
 
     retval = insert_local_client(self, sockid, ten, client_name);
     if (retval == -1) {
@@ -572,8 +587,8 @@ static void s_cb_challok(dd_broker_t *self, zframe_t *sockid, zmsg_t *msg) {
         // dd_error("DD_CMD_CHALLOK: Couldn't insert local client!");
         goto cleanup;
     }
-    zsock_send(self->rsock, "fbbb", sockid, &dd_version, 4, &dd_cmd_regok, 4,
-               &ten->cookie, sizeof(ten->cookie));
+    zsock_send(self->rsock, "fbbbs", sockid, &dd_version, 4, &dd_cmd_regok, 4,
+               &ten->cookie, sizeof(ten->cookie), client_name);
     dd_info(" + Added local client: %s.%s", ten->name, client_name);
     char prefix_name[MAXTENANTNAME];
     snprintf(prefix_name, 200, "%s.%s", ten->name, client_name);
@@ -1127,13 +1142,11 @@ static void s_cb_sub(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie,
     ntptr = &newtopic[0];
     if (self->subN) {
         dd_debug("adding subscription for %s to north SUB", &newtopic[1]);
-        retval =
-                zsock_send(self->subN, "b", &newtopic[0], 1 + strlen(&newtopic[1]));
+        retval = zsock_send(self->subN, "b", &newtopic[0], 1 + strlen(&newtopic[1]));
     }
     if (self->subS) {
         dd_debug("adding subscription for %s to south SUB", &newtopic[1]);
-        retval =
-                zsock_send(self->subS, "b", &newtopic[0], 1 + strlen(&newtopic[1]));
+        retval = zsock_send(self->subS, "b", &newtopic[0], 1 + strlen(&newtopic[1]));
     }
 }
 
@@ -1839,7 +1852,7 @@ static int s_check_br_timeout(zloop_t *loop, int timer_fd, void *arg) {
 /* helper functions */
 
 
-static void del_cli_up(dd_broker_t *self, char *prefix_name) {
+void del_cli_up(dd_broker_t *self, char *prefix_name) {
     uint64_t cookie = dd_broker_keys_get_cookie(self->keys);
     if (self->state != DD_STATE_ROOT) {
         dd_debug("del_cli_up %s", prefix_name);
@@ -2464,7 +2477,7 @@ void broker_actor(zsock_t *pipe, void *args) {
     // signal sucessfull initialization
     zsock_signal(pipe, 0);
 
-    dd_info("DoubleDecker version %d.%d.%d ", DD_VERSION_MAJOR, DD_VERSION_MINOR, DD_VERSION_PATCH);
+    dd_info("DoubleDecker version %d.%d.%d (proto: 0x%x)", DD_VERSION_MAJOR, DD_VERSION_MINOR, DD_VERSION_PATCH, DD_PRO_VERSION);
     dd_info("Router at %s", self->router_bind);
     dd_info("Dealer at %s", self->dealer_connect);
 

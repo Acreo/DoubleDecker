@@ -40,7 +40,7 @@ Messages from the actor may be:
     {string "discon", string broker endpoint}
 
   On connection to broker established:
-    {string "reg", string broker endpoint}
+    {string "reg", string broker endpoint, strict client name}
 
   On notification received:
     {string "data", string source, size_t length, byte data}
@@ -79,7 +79,7 @@ struct _dd_client_actor_t {
     bool verbose;               //  Verbose logging enabled?
 };
 
-static void actor_con(dd_client_t *self);
+static void actor_con(const char *client_name, dd_client_t *self);
 static void actor_discon(dd_client_t *self);
 static void actor_pub(const char *source, const char *topic, const byte *data, size_t length, dd_client_t *self);
 static void actor_data(const char *source, const byte *data, size_t length, dd_client_t *self);
@@ -273,6 +273,6 @@ void actor_discon(dd_client_t *self) {
     zsock_send(dd_client_get_pipe(self), "ss", "discon", dd_client_get_endpoint(self));
 }
 
-void actor_con(dd_client_t *self) {
-    zsock_send(dd_client_get_pipe(self), "ss", "reg", dd_client_get_endpoint(self));
+void actor_con(const char *client_name, dd_client_t *self) {
+    zsock_send(dd_client_get_pipe(self), "sss", "reg", dd_client_get_endpoint(self), client_name);
 }

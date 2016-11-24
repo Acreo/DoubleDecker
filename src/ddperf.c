@@ -155,9 +155,9 @@ static int s_print_stats() {
   return 0;
 }
 
-void on_reg_server(dd_client_t *args) {
+void on_reg_server(const char *client_name, dd_client_t *args) {
   dd_client_t *dd = (dd_client_t *)args;
-  printf("DDPerf server registered with broker %s!\n", dd_client_get_endpoint(dd));
+  printf("DDPerf server registered with broker %s - name %s!\n", dd_client_get_endpoint(dd), client_name);
 }
 
 static int s_interval_send(void *args) {
@@ -197,9 +197,9 @@ void s_sendmsg(dd_client_t *dd) {
     dd_client_notify(dd, (const  char*) "ddperfsrv", (const byte*) rndstr, msize);
   }
 }
-void on_reg_client(dd_client_t *args) {
+void on_reg_client(const char *client_name, dd_client_t *args) {
   dd_client_t *dd = (dd_client_t *)args;
-  printf("DDPerf client registered with broker %s\n", dd_client_get_endpoint(dd));
+  printf("DDPerf client registered with broker %s, name %s \n", dd_client_get_endpoint(dd), client_name);
     rndstr = (char*) malloc(msize + 1);
   int i;
   for (i = 0; i < msize; i++) {
