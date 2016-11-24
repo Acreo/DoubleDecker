@@ -53,11 +53,9 @@ struct _dd_broker_t {
     char *sub_bind;
     char *sub_connect;
 
-    /* char *logfile; */
-    /* char *syslog_enabled; */
-
-
     int state, timeout;
+
+    char *config_file;
 
     // Timer IDs
     int br_timeout_loop, cli_timeout_loop, heartbeat_loop, reg_loop;
@@ -73,6 +71,7 @@ struct _dd_broker_t {
     zlist_t *scope;
     zlist_t *rstrings;
     zlist_t *pub_strings, *sub_strings;
+    int scope_gen;
 
     // main loop
     zloop_t *loop;
@@ -110,7 +109,6 @@ struct _dd_broker_t {
 };
 
 #include "htable.c"
-
 
 
 // predefined static functions
@@ -199,8 +197,10 @@ static void connect_pubsubN(dd_broker_t *self);
 static void unreg_cli(dd_broker_t *self, zframe_t *sockid, uint64_t cookie);
 
 static char *zframe_tostr(zframe_t *self, char *buffer);
+
 static char *zframe_tojson(zframe_t *self, char *buffer);
 
+static void start_pubsub(dd_broker_t *self);
 
 
 
@@ -229,7 +229,7 @@ dd_broker_test(bool verbose) {
     //  @selftest
     //  Simple create/destroy test
     dd_broker_t *self = dd_broker_new();
-    
+
     assert (self);
     dd_broker_destroy(&self);
     //  @end
@@ -364,7 +364,7 @@ static void s_cb_addbr(dd_broker_t *self, zframe_t *sockid, zmsg_t *msg) {
     }
 
     size_t enclen = sizeof(uint64_t) + crypto_box_NONCEBYTES + crypto_box_MACBYTES;
-    unsigned char *dest = (unsigned char*) calloc(1, enclen);
+    unsigned char *dest = (unsigned char *) calloc(1, enclen);
     unsigned char *ciphertext = dest; // dest+crypto_box_NONCEBYTES;
 
     // increment nonce
@@ -403,7 +403,7 @@ static void s_cb_addlcl(dd_broker_t *self, zframe_t *sockid, zmsg_t *msg) {
     }
     ddtenant_t *ten;
 
-    ten = (ddtenant_t*) zhash_lookup(dd_broker_keys_get_tenkeys(self->keys), hash);
+    ten = (ddtenant_t *) zhash_lookup(dd_broker_keys_get_tenkeys(self->keys), hash);
     free(hash);
     if (ten == NULL) {
         dd_error("Could not find key for client");
@@ -414,7 +414,7 @@ static void s_cb_addlcl(dd_broker_t *self, zframe_t *sockid, zmsg_t *msg) {
 
     size_t enclen = sizeof(uint64_t) + crypto_box_NONCEBYTES + crypto_box_MACBYTES;
 
-    unsigned char *dest = (unsigned char*) calloc(1, enclen);
+    unsigned char *dest = (unsigned char *) calloc(1, enclen);
     unsigned char *ciphertext = dest; // dest+crypto_box_NONCEBYTES;
 
     // increment nonce
@@ -497,8 +497,9 @@ static void s_cb_chall(dd_broker_t *self, zmsg_t *msg) {
     }
     zframe_t *temp_frame = zframe_new(decrypted, enclen - crypto_box_NONCEBYTES -
                                                  crypto_box_MACBYTES);
+    dd_info("Got challenge, sending my scope %s",self->broker_scope);
     zsock_send(self->dsock, "bbfss", &dd_version, 4, &dd_cmd_challok, 4,
-               temp_frame, dd_broker_keys_get_hash(self->keys), "broker");
+               temp_frame, dd_broker_keys_get_hash(self->keys), self->broker_scope);
     cleanup:
     zframe_destroy(&temp_frame);
     zframe_destroy(&encrypted);
@@ -531,25 +532,70 @@ static void s_cb_challok(dd_broker_t *self, zframe_t *sockid, zmsg_t *msg) {
             // TODO: send error message
             goto cleanup;
         }
-        dd_debug("Authentication of broker %s successful!", client_name);
-        if (NULL == hashtable_has_local_broker(self, sockid, *cookie, 0)) {
-            hashtable_insert_local_broker(self, sockid, *cookie);
 
-            const char *pubs_endpoint = zsock_endpoint(self->pubS);
-            const char *subs_endpoint = zsock_endpoint(self->subS);
-            uint64_t cookie2 = dd_broker_keys_get_cookie(self->keys);
-            zsock_send(self->rsock, "fbbbss", sockid, &dd_version, 4, &dd_cmd_regok,
-                       4, &cookie2, sizeof(cookie2),
-                       pubs_endpoint, subs_endpoint);
-            char buf[256];
-            dd_info(" + Added broker: %s", zframe_tostr(sockid, buf));
+        if (NULL == client_name) {
+            dd_error("DD_CMD_CHALLOK: misformed message, missing brscope!");
             goto cleanup;
         }
+
+        dd_info("Authentication of broker (scope %s) successful!", client_name);
+        if (NULL != hashtable_has_local_broker(self, sockid, *cookie, 0)) {
+            dd_error("Broker already registered!");
+            goto cleanup;
+        }
+        // Auto-generate a subscope
+        // TODO: how to handle cases where some brokers already have names and some autogenerate?
+        // Could be bad if:
+        // 1) root broker is restarted and self->scope_gen reset to zero
+        // 2) we autogenerate a scope that is assigned to another broker
+        //
+        if (streq("auto", client_name)) {
+            int v, done = 0;
+            char *brscope = NULL;
+            int ret = asprintf(&brscope, "%s","/");
+            dd_info("asprintf: %d", ret);
+            assert(ret != -1);
+            char *newscope=NULL;
+            char *token = (char *) zlist_first(self->scope);
+            while (token != NULL) {
+                v = atoi(token);
+                if (v == 0 && done == 0) {
+                    done = 1;
+                    v = self->scope_gen++;
+
+                }
+                ret = asprintf(&newscope, "%s%d/", brscope, v);
+                char *temp = brscope;
+                brscope = newscope;
+                free(temp);
+                assert(ret != -1);
+                token = (char *) zlist_next(self->scope);
+            }
+            if (done == 0) {
+                ret = asprintf(&newscope, "%s%d/", brscope, self->scope_gen++);
+                char *temp = brscope;
+                brscope = newscope;
+                free(temp);
+            }
+            dd_info("Autogenerated scope %s (my scope is %s) ", brscope, self->broker_scope);
+            free(client_name);
+            client_name = brscope;
+        }
+        hashtable_insert_local_broker(self, sockid, *cookie);
+        const char *pubs_endpoint = zsock_endpoint(self->pubS);
+        const char *subs_endpoint = zsock_endpoint(self->subS);
+        uint64_t cookie2 = dd_broker_keys_get_cookie(self->keys);
+        zsock_send(self->rsock, "fbbbsss", sockid, &dd_version, 4, &dd_cmd_regok,
+                   4, &cookie2, sizeof(cookie2),
+                   pubs_endpoint, subs_endpoint, client_name);
+        char buf[256];
+        dd_info(" + Added broker: %s", zframe_tostr(sockid, buf));
         goto cleanup;
+
     }
     // tenant <-> broker authentication
     ddtenant_t *ten;
-    ten = (ddtenant_t*) zhash_lookup(dd_broker_keys_get_tenkeys(self->keys), hash);
+    ten = (ddtenant_t *) zhash_lookup(dd_broker_keys_get_tenkeys(self->keys), hash);
     if (ten == NULL) {
         dd_warning("DD_CHALL_OK: could not find tenant for %s", hash);
         goto cleanup;
@@ -567,15 +613,13 @@ static void s_cb_challok(dd_broker_t *self, zframe_t *sockid, zmsg_t *msg) {
         dd_error("Client trying to use reserved name 'public'!");
         goto cleanup;
     }
-    
-    if(strcmp(client_name, "auto") == 0) {
-        dd_info("Generating new name for client");
-        dd_info("scope %s", self->broker_scope);
+
+    if (strcmp(client_name, "auto") == 0) {
+        dd_info("Generating new client name");
         char *new_client_name;
-        int ret =  asprintf(&new_client_name, "%s%d", self->broker_scope, autoname);
+        int ret = asprintf(&new_client_name, "%s%d", self->broker_scope, autoname);
         assert(ret != -1);
         autoname++;
-        dd_info("new name = %s ", new_client_name);
         free(client_name);
         client_name = new_client_name;
     }
@@ -797,13 +841,13 @@ static void s_cb_pub(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie,
                                   strlen(pubtopic));
 
     if (socks != NULL) {
-        zframe_t *s = (zframe_t*) zlist_first(socks);
+        zframe_t *s = (zframe_t *) zlist_first(socks);
         dd_debug("Local sockids to send to: ");
         while (s) {
             print_zframe(s);
             zsock_send(self->rsock, "fbbssm", s, &dd_version, 4, &dd_cmd_pub, 4, name,
                        topic, msg);
-            s = (zframe_t*) zlist_next(socks);
+            s = (zframe_t *) zlist_next(socks);
         }
         zlist_destroy(&socks);
     } else {
@@ -881,14 +925,50 @@ static void s_cb_regok(dd_broker_t *self, zmsg_t *msg) {
         ht_node = cds_lfht_iter_get_node(&iter);
     };
     rcu_read_unlock();
+    zframe_t *cook = zmsg_pop(msg);
+    if(streq("auto",self->broker_scope)) {
+        char *pubend = zmsg_popstr(msg);
+        char *subend = zmsg_popstr(msg);
+        char *scope = zmsg_popstr(msg);
+        dd_broker_set_scope(self,scope);
 
-    if (3 == zmsg_size(msg)) {
-        zframe_t *cook = zmsg_pop(msg);
-        connect_pubsubN(self);
-        zframe_destroy(&cook);
-    } else {
-        dd_warning("No PUB/SUB interface configured");
+        free(pubend);
+        free(subend);
+        bind_router(self);
+        assert(self->rsock);
+        int rc = zloop_reader(self->loop, self->rsock, s_on_router_msg, self);
+        assert(rc == 0);
+        zloop_reader_set_tolerant(self->loop, self->rsock);
+        // create and attach the pubsub southbound sockets
+        start_pubsub(self);
+
+        // if we have a config file, try to update it with new scope
+        if(self->config_file) {
+            zconfig_t *root = zconfig_load(self->config_file);
+            if (root == NULL) {
+                dd_error("Couldn't open config file!");
+                goto connect;
+            }
+            zconfig_t *child = zconfig_child(root);
+            while (child != NULL) {
+                if (streq(zconfig_name(child), "scope")) {
+                    zconfig_set_value(child, "%s",self->broker_scope);
+                    break;
+                }
+                child = zconfig_next(child);
+            }
+            if(zconfig_save(root,self->config_file)){
+                dd_info("Updated config file");
+            } else {
+                dd_info("Could not update config file");
+            }
+        }
     }
+
+    connect:
+    connect_pubsubN(self);
+    zframe_destroy(&cook);
+
 }
 
 static void s_cb_send(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie,
@@ -956,7 +1036,7 @@ static void s_cb_send(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie,
                     add_prefix = 0;
                     break;
                 }
-                k = (char *)zlist_next(dd_broker_keys_get_tenlist(self->keys));
+                k = (char *) zlist_next(dd_broker_keys_get_tenlist(self->keys));
             }
             *dot = '.';
         }
@@ -1048,7 +1128,7 @@ static void s_cb_sub(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie,
     int j;
     char *str1, *token, *saveptr1;
 
-    char *t = (char *)zlist_first(self->scope);
+    char *t = (char *) zlist_first(self->scope);
     char *scopedup = strdup(scopestr);
     char newtopic[257];
     char *ntptr = &newtopic[1];
@@ -1057,7 +1137,7 @@ static void s_cb_sub(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie,
     size_t len = 128;
     int retval;
     if (strcmp(scopestr, "noscope") == 0) {
-        retval = snprintf(nsptr, len, "%s","");
+        retval = snprintf(nsptr, len, "%s", "");
         len -= retval;
         nsptr += retval;
     } else {
@@ -1079,7 +1159,7 @@ static void s_cb_sub(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie,
                     len -= retval;
                     nsptr += retval;
                 }
-                t = (char *)zlist_next(self->scope);
+                t = (char *) zlist_next(self->scope);
             } else {
                 dd_error("Requested scope is longer than assigned scope!");
 
@@ -1261,7 +1341,7 @@ static void s_cb_unsub(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie,
     // replace * with appropriate scope number assigned to broker
     int j;
     char *str1, *token, *saveptr1;
-    char *t = (char *)zlist_first(self->scope);
+    char *t = (char *) zlist_first(self->scope);
     char *scopedup = strdup(scopestr);
     char newtopic[257];
     char *ntptr = &newtopic[1];
@@ -1270,7 +1350,7 @@ static void s_cb_unsub(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie,
     size_t len = 128;
     int retval;
     if (strcmp(scopestr, "noscope") == 0) {
-        retval = snprintf(nsptr, len, "%s","");
+        retval = snprintf(nsptr, len, "%s", "");
         len -= retval;
         nsptr += retval;
     } else {
@@ -1292,7 +1372,7 @@ static void s_cb_unsub(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie,
                     len -= retval;
                     nsptr += retval;
                 }
-                t = (char *)zlist_next(self->scope);
+                t = (char *) zlist_next(self->scope);
             } else {
                 dd_error("Requested scope is longer than assigned scope!");
 
@@ -1360,7 +1440,7 @@ static int s_on_subN_msg(zloop_t *loop, zsock_t *handle, void *arg) {
                                   strlen(pubtopic));
 
     if (socks != NULL) {
-        zframe_t *s = (zframe_t*)zlist_first(socks);
+        zframe_t *s = (zframe_t *) zlist_first(socks);
         dd_debug("Local sockids to send to: ");
         char *dot = strchr(pubtopic, '.');
         dot++;
@@ -1372,7 +1452,7 @@ static int s_on_subN_msg(zloop_t *loop, zsock_t *handle, void *arg) {
             print_zframe(s);
             zsock_send(self->rsock, "fbbssm", s, &dd_version, 4, &dd_cmd_pub, 4, name,
                        dot, msg);
-            s = (zframe_t*) zlist_next(socks);
+            s = (zframe_t *) zlist_next(socks);
         }
         *slash = '/';
         zlist_destroy(&socks);
@@ -1393,7 +1473,7 @@ static int s_on_subN_msg(zloop_t *loop, zsock_t *handle, void *arg) {
 }
 
 static int s_on_subS_msg(zloop_t *loop, zsock_t *handle, void *arg) {
-    dd_broker_t *self = (dd_broker_t *)arg;
+    dd_broker_t *self = (dd_broker_t *) arg;
     zmsg_t *msg = zmsg_recv(handle);
 #ifdef DEBUG
     dd_debug("s_on_subS_msg called");
@@ -1410,7 +1490,7 @@ static int s_on_subS_msg(zloop_t *loop, zsock_t *handle, void *arg) {
                                   strlen(pubtopic));
 
     if (socks != NULL) {
-        zframe_t *s = (zframe_t*)zlist_first(socks);
+        zframe_t *s = (zframe_t *) zlist_first(socks);
         dd_debug("Local sockids to send to: ");
 
         // TODO, this is a simplification, should take into account
@@ -1425,7 +1505,7 @@ static int s_on_subS_msg(zloop_t *loop, zsock_t *handle, void *arg) {
             print_zframe(s);
             zsock_send(self->rsock, "fbbssm", s, &dd_version, 4, &dd_cmd_pub, 4, name,
                        dot, msg);
-            s = (zframe_t*)zlist_next(socks);
+            s = (zframe_t *) zlist_next(socks);
         }
         *slash = '/';
         zlist_destroy(&socks);
@@ -1479,7 +1559,7 @@ static int s_on_pubN_msg(zloop_t *loop, zsock_t *handle, void *arg) {
 }
 
 static int s_on_pubS_msg(zloop_t *loop, zsock_t *handle, void *arg) {
-    dd_broker_t *self = (dd_broker_t *)arg;
+    dd_broker_t *self = (dd_broker_t *) arg;
     zmsg_t *msg = zmsg_recv(handle);
 #ifdef DEBUG
     dd_debug("s_on_pubS_msg called");
@@ -1512,7 +1592,7 @@ static int s_on_pubS_msg(zloop_t *loop, zsock_t *handle, void *arg) {
 }
 
 static int s_on_router_msg(zloop_t *loop, zsock_t *handle, void *arg) {
-    dd_broker_t *self = (dd_broker_t *)arg;
+    dd_broker_t *self = (dd_broker_t *) arg;
     zmsg_t *msg = zmsg_recv(handle);
 
 #ifdef DEBUG
@@ -1678,7 +1758,7 @@ static int s_on_router_msg(zloop_t *loop, zsock_t *handle, void *arg) {
 }
 
 static int s_on_dealer_msg(zloop_t *loop, zsock_t *handle, void *arg) {
-    dd_broker_t *self = (dd_broker_t *)arg;
+    dd_broker_t *self = (dd_broker_t *) arg;
     self->timeout = 0;
     zmsg_t *msg = zmsg_recv(handle);
 #ifdef DEBUG
@@ -1733,7 +1813,7 @@ static int s_on_dealer_msg(zloop_t *loop, zsock_t *handle, void *arg) {
 }
 
 static int s_register(zloop_t *loop, int timer_id, void *arg) {
-    dd_broker_t *self = (dd_broker_t *)arg;
+    dd_broker_t *self = (dd_broker_t *) arg;
     if (self->state == DD_STATE_UNREG || self->state == DD_STATE_ROOT) {
         if (self->dsock) {
             zsock_set_linger(self->dsock, 0);
@@ -1746,7 +1826,7 @@ static int s_register(zloop_t *loop, int timer_id, void *arg) {
             return -1;
         }
 
-        int rc = zsock_connect(self->dsock, "%s",self->dealer_connect);
+        int rc = zsock_connect(self->dsock, "%s", self->dealer_connect);
         if (rc != 0) {
             dd_error("Error in zmq_connect: %s", zmq_strerror(errno));
             return -1;
@@ -1760,7 +1840,7 @@ static int s_register(zloop_t *loop, int timer_id, void *arg) {
 }
 
 static int s_heartbeat(zloop_t *loop, int timer_id, void *arg) {
-    dd_broker_t *self = (dd_broker_t *)arg;
+    dd_broker_t *self = (dd_broker_t *) arg;
     // how to pass self? socket = dsock
     uint64_t cookie = dd_broker_keys_get_cookie(self->keys);
 
@@ -1781,7 +1861,7 @@ static int s_heartbeat(zloop_t *loop, int timer_id, void *arg) {
 // Either lock the socket, or skip the separate thread, or have some signaling thread
 // between them.
 static int s_check_cli_timeout(zloop_t *loop, int timer_fd, void *arg) {
-    dd_broker_t *self =(dd_broker_t *) arg;
+    dd_broker_t *self = (dd_broker_t *) arg;
     // iterate through local clients and check if they should time out
     struct cds_lfht_iter iter;
     local_client *np;
@@ -1810,7 +1890,7 @@ static int s_check_cli_timeout(zloop_t *loop, int timer_fd, void *arg) {
 // Either lock the socket, or skip the separate thread, or have some signaling thread
 // between them.
 static int s_check_br_timeout(zloop_t *loop, int timer_fd, void *arg) {
-    dd_broker_t *self = (dd_broker_t *)arg;
+    dd_broker_t *self = (dd_broker_t *) arg;
     // iterate through local brokers and check if they should time out
     struct cds_lfht_iter iter;
     local_broker *np;
@@ -1863,7 +1943,7 @@ void del_cli_up(dd_broker_t *self, char *prefix_name) {
 
 
 static void forward_down(dd_broker_t *self, char *src_string, char *dst_string,
-                  zframe_t *br_sockid, zmsg_t *msg) {
+                         zframe_t *br_sockid, zmsg_t *msg) {
 #ifdef DEBUG
     dd_info("Sending CMD_FORWARD to broker with sockid");
   print_zframe(br_sockid);
@@ -1873,7 +1953,7 @@ static void forward_down(dd_broker_t *self, char *src_string, char *dst_string,
 }
 
 static void forward_up(dd_broker_t *self, char *src_string, char *dst_string,
-                zmsg_t *msg) {
+                       zmsg_t *msg) {
 #ifdef DEBUG
     dd_debug("forward_up called s: %s d: %s", src_string, dst_string);
   zmsg_print(msg);
@@ -1887,7 +1967,7 @@ static void forward_up(dd_broker_t *self, char *src_string, char *dst_string,
 }
 
 static void dest_invalid_rsock(dd_broker_t *self, zframe_t *sockid, char *src_string,
-                        char *dst_string) {
+                               char *dst_string) {
     zsock_send(self->rsock, "fbbbss", sockid, &dd_version, 4, &dd_cmd_error, 4,
                &dd_error_nodst, 4, dst_string, src_string);
 }
@@ -1915,8 +1995,8 @@ static void connect_pubsubN(dd_broker_t *self) {
     assert(zrex_valid(rexipc));
     zrex_t *rextcp = zrex_new(TCP_REGEX);
     assert(zrex_valid(rextcp));
-    self->sub_connect = (char*) malloc(strlen(self->dealer_connect) + 5);
-    self->pub_connect = (char*) malloc(strlen(self->dealer_connect) + 5);
+    self->sub_connect = (char *) malloc(strlen(self->dealer_connect) + 5);
+    self->pub_connect = (char *) malloc(strlen(self->dealer_connect) + 5);
 
 
     if (zrex_matches(rexipc, self->dealer_connect)) {
@@ -1959,6 +2039,7 @@ static void connect_pubsubN(dd_broker_t *self) {
     assert(rc == 0);
     zloop_reader_set_tolerant(self->loop, self->subN);
 }
+
 /*
 static char *str_replace(const char *string, const char *substr,
                   const char *replacement) {
@@ -2006,16 +2087,16 @@ static void print_ddbrokerkeys(dd_broker_keys_t *keys) {
     dd_debug("Loaded %d tenant keys: ", siz);
 
     char *k = NULL;
-    k = (char*) zlist_first(dd_broker_keys_get_tenlist(keys));
+    k = (char *) zlist_first(dd_broker_keys_get_tenlist(keys));
 
     dd_debug("Tenant keys: ");
     zlist_t *precalc = zhash_keys(dd_broker_keys_get_tenkeys(keys));
     ddtenant_t *ten;
-    k = (char*) zlist_first(precalc);
+    k = (char *) zlist_first(precalc);
     while (k) {
-        ten = (ddtenant_t *)  zhash_lookup(dd_broker_keys_get_tenkeys(keys), k);
+        ten = (ddtenant_t *) zhash_lookup(dd_broker_keys_get_tenkeys(keys), k);
         dd_debug("\t name: %s \tcookie: %llu", ten->name, ten->cookie);
-        k = (char*)  zlist_next(precalc);
+        k = (char *) zlist_next(precalc);
     }
     zlist_destroy(&precalc);
     //  free(hex);
@@ -2032,155 +2113,7 @@ static void change_permission(char *t) {
     }
 }
 
-static void start_pubsub(dd_broker_t *self) {
-    zrex_t *rexipc = zrex_new(IPC_REGEX);
-    assert(zrex_valid(rexipc));
-    zrex_t *rextcp = zrex_new(TCP_REGEX);
-    assert(zrex_valid(rextcp));
 
-    self->pub_strings = zlist_new();
-    self->sub_strings = zlist_new();
-    char *t = (char*) zlist_first(self->rstrings);
-    char tmpfile[1024];
-    while (t != NULL) {
-        if (zrex_matches(rexipc, t)) {
-            sprintf(tmpfile, "%s.pub", zrex_hit(rexipc, 2));
-            if (zfile_exists(tmpfile)) {
-                dd_error("File %s already exists, aborting.", tmpfile);
-                exit(EXIT_FAILURE);
-            }
-            sprintf(tmpfile, "%s.sub", zrex_hit(rexipc, 2));
-            if (zfile_exists(tmpfile)) {
-                dd_error("File %s already exists, aborting.", tmpfile);
-                exit(EXIT_FAILURE);
-            }
-            char *sub_ipc = (char*) malloc(strlen(t) + 5);
-            char *pub_ipc = (char*) malloc(strlen(t) + 5);
-            sprintf(sub_ipc, "%s.sub", t);
-            sprintf(pub_ipc, "%s.pub", t);
-            zlist_append(self->sub_strings, sub_ipc);
-            zlist_append(self->pub_strings, pub_ipc);
-            // Should not be necessary, but weird results otherwise..
-            zrex_destroy(&rexipc);
-            rexipc = zrex_new(IPC_REGEX);
-        } else if (zrex_matches(rextcp, t)) {
-            int port = atoi(zrex_hit(rextcp, 2));
-            char *sub_tcp; // = malloc(strlen(t) + 1);
-            char *pub_tcp; // = malloc(strlen(t) + 1);
-            int retval = asprintf(&pub_tcp, "%s%d", zrex_hit(rextcp, 1), port + 1);
-            assert(retval != -1);
-            retval = asprintf(&sub_tcp, "%s%d", zrex_hit(rextcp, 1), port + 2);
-            assert(retval != -1);
-            zlist_append(self->sub_strings, sub_tcp);
-            zlist_append(self->pub_strings, pub_tcp);
-            // Should not be necessary, but weird results otherwise..
-            zrex_destroy(&rextcp);
-            rextcp = zrex_new(TCP_REGEX);
-        } else {
-            dd_error("%s doesnt match anything!");
-            exit(EXIT_FAILURE);
-        }
-        t = (char*) zlist_next(self->rstrings);
-    }
-
-    zrex_destroy(&rextcp);
-    zrex_destroy(&rexipc);
-
-    t = (char*) zlist_first(self->pub_strings);
-    size_t pub_strings_len = 0;
-    while (t != NULL) {
-        pub_strings_len += strlen(t) + 1;
-        t = (char*)zlist_next(self->pub_strings);
-    }
-
-    size_t sub_strings_len = 0;
-    t = (char*)zlist_first(self->sub_strings);
-    while (t != NULL) {
-        sub_strings_len += strlen(t) + 1;
-        t = (char*)zlist_next(self->sub_strings);
-    }
-
-    if (zlist_size(self->pub_strings) < 1) {
-        dd_error("pub_strings zlist empty!");
-        exit(EXIT_FAILURE);
-    }
-    if (zlist_size(self->sub_strings) < 1) {
-        dd_error("sub_strings zlist empty!");
-        exit(EXIT_FAILURE);
-    }
-
-    self->pub_bind = (char*) malloc(pub_strings_len);
-    self->sub_bind = (char*) malloc(sub_strings_len);
-
-    int i, written = 0;
-    size_t num_len = zlist_size(self->pub_strings);
-
-    for (i = 0; i < num_len; i++) {
-        if (i == 0) {
-            t = (char*) zlist_first(self->pub_strings);
-        } else {
-            t = (char*)zlist_next(self->pub_strings);
-        }
-        written += snprintf(self->pub_bind + written, pub_strings_len - written,
-                            (i != 0 ? ",%s" : "%s"), t);
-        if (written == pub_strings_len)
-            break;
-    }
-
-    written = 0;
-    num_len = zlist_size(self->sub_strings);
-
-    for (i = 0; i < num_len; i++) {
-        if (i == 0) {
-            t = (char*)zlist_first(self->sub_strings);
-        } else {
-            t = (char*) zlist_next(self->sub_strings);
-        }
-        written += snprintf(self->sub_bind + written, sub_strings_len - written,
-                            (i != 0 ? ",%s" : "%s"), t);
-        if (written == sub_strings_len)
-            break;
-    }
-
-    self->pubS = zsock_new(ZMQ_XPUB);
-    self->subS = zsock_new(ZMQ_XSUB);
-    int rc = zsock_attach(self->pubS, self->pub_bind, true);
-    if (rc < 0) {
-        dd_error("Unable to attach pubS to %s", self->pub_bind);
-        perror("Error: ");
-        exit(EXIT_FAILURE);
-    }
-    rc = zsock_attach(self->subS, self->sub_bind, true);
-    if (rc < 0) {
-        dd_error("Unable to attach subS to %s", self->sub_bind);
-        perror("Error: ");
-        exit(EXIT_FAILURE);
-    }
-
-    t = (char*)zlist_first(self->pub_strings);
-    while (t != NULL) {
-        if (strcasestr(t, "ipc://")) {
-            change_permission(t + 6);
-        }
-        t = (char*)zlist_next(self->pub_strings);
-    }
-
-    t =(char*) zlist_first(self->sub_strings);
-    while (t != NULL) {
-        if (strcasestr(t, "ipc://")) {
-            change_permission(t + 6);
-        }
-        t = (char*)zlist_next(self->sub_strings);
-    }
-
-    rc = zloop_reader(self->loop, self->pubS, s_on_pubS_msg, self);
-    assert(rc == 0);
-    zloop_reader_set_tolerant(self->loop, self->pubS);
-
-    rc = zloop_reader(self->loop, self->subS, s_on_subS_msg, self);
-    assert(rc == 0);
-    zloop_reader_set_tolerant(self->loop, self->subS);
-}
 
 
 static json_object *json_get_stats(dd_broker_t *self) {
@@ -2235,10 +2168,10 @@ static json_object *json_get_stats(dd_broker_t *self) {
         sn = caa_container_of(ht_node, subscribe_node, node);
         json_object *jsub_array = json_object_new_array();
         if (sn->topics) {
-            char *str = (char*)zlist_first(sn->topics);
+            char *str = (char *) zlist_first(sn->topics);
             while (str) {
                 json_object_array_add(jsub_array, json_object_new_string(str));
-                str = (char*) zlist_next(sn->topics);
+                str = (char *) zlist_next(sn->topics);
             }
         } else {
             json_object_array_add(jsub_array, json_object_new_string("empty!"));
@@ -2279,7 +2212,7 @@ static json_object *json_get_keys(dd_broker_t *self) {
                            json_object_new_string(dd_broker_keys_get_hash(self->keys)));
 
     json_object *jten = json_object_new_object();
-    ddtenant_t *ten = (ddtenant_t*) zhash_first(dd_broker_keys_get_tenkeys(self->keys));
+    ddtenant_t *ten = (ddtenant_t *) zhash_first(dd_broker_keys_get_tenkeys(self->keys));
 
     while (ten) {
         sodium_bin2hex(hex, 100, (const unsigned char *const) ten->boxk, 32);
@@ -2293,7 +2226,7 @@ static json_object *json_get_keys(dd_broker_t *self) {
 
 // seperate to a different thread?
 static int s_on_http(zloop_t *loop, zsock_t *handle, void *arg) {
-    dd_broker_t *self = (dd_broker_t*) arg;
+    dd_broker_t *self = (dd_broker_t *) arg;
     zmsg_t *msg = zmsg_recv(handle);
     zframe_t *id = zmsg_pop(msg);
     zframe_t *data = zmsg_pop(msg);
@@ -2448,7 +2381,7 @@ static int s_gc_pipe_msg(zloop_t *loop, zsock_t *handle, void *args) {
 
 // separate actor for handling timeouts and REST API
 static void broker_gc_rest(zsock_t *pipe, void *args) {
-    dd_broker_t *self = (dd_broker_t*) args;
+    dd_broker_t *self = (dd_broker_t *) args;
     assert(self);
     zsock_signal(pipe, 0);
     zloop_t *gc_loop;
@@ -2456,7 +2389,7 @@ static void broker_gc_rest(zsock_t *pipe, void *args) {
     gc_loop = zloop_new();
     assert(gc_loop);
     int rc = zloop_reader(gc_loop, pipe, s_gc_pipe_msg, self);
-    assert(rc==0);
+    assert(rc == 0);
     /* self->cli_timeout_loop = */
     /*     zloop_timer(gc_loop, 3000, 0, s_check_cli_timeout, self); */
     /* self->br_timeout_loop = */
@@ -2470,16 +2403,18 @@ static void broker_gc_rest(zsock_t *pipe, void *args) {
     zloop_destroy(&gc_loop);
 }
 
+// TODO: merge this with dd_broker_start
 void broker_actor(zsock_t *pipe, void *args) {
-    dd_broker_t *self = (dd_broker_t*) args;
+    dd_broker_t *self = (dd_broker_t *) args;
     assert(self);
 
     // signal sucessfull initialization
     zsock_signal(pipe, 0);
 
-    dd_info("DoubleDecker version %d.%d.%d (proto: 0x%x)", DD_VERSION_MAJOR, DD_VERSION_MINOR, DD_VERSION_PATCH, DD_PRO_VERSION);
-    dd_info("Router at %s", self->router_bind);
-    dd_info("Dealer at %s", self->dealer_connect);
+    dd_info("DoubleDecker version %d.%d.%d (proto: 0x%x)", DD_VERSION_MAJOR, DD_VERSION_MINOR, DD_VERSION_PATCH,
+            DD_PRO_VERSION);
+    dd_info("Starting actor broker, router at %s, dealer at %s",
+            self->router_bind, self->dealer_connect);
 
     randombytes_buf(self->nonce, crypto_box_NONCEBYTES);
     // needs to be called for each thread using RCU lib
@@ -2487,12 +2422,26 @@ void broker_actor(zsock_t *pipe, void *args) {
     self->loop = zloop_new();
     assert(self->loop);
     int rc = zloop_reader(self->loop, pipe, s_on_pipe_msg, self);
-    bind_router(self);
-    assert(self->rsock);
-    rc = zloop_reader(self->loop, self->rsock, s_on_router_msg, self);
-    assert(rc == 0);
-    zloop_reader_set_tolerant(self->loop, self->rsock);
 
+    if (streq(self->broker_scope,"auto") && self->dealer_connect == NULL) {
+        dd_warning("Automatic scope assignment as root, setting scope /0/0/0/!");
+        dd_broker_set_scope(self, "/0/0/0/");
+    }
+
+    if(streq(self->broker_scope,"auto") && self->dealer_connect) {
+        dd_info("Postponing router start until scope has been assigned.")
+        if(zfile_exists(".(ddbroker-auto")){
+            zfile_new(".","ddbroker-auto");
+        }
+    } else {
+        bind_router(self);
+        assert(self->rsock);
+        rc = zloop_reader(self->loop, self->rsock, s_on_router_msg, self);
+        assert(rc == 0);
+        zloop_reader_set_tolerant(self->loop, self->rsock);
+        // create and attach the pubsub southbound sockets
+        start_pubsub(self);
+    }
     if (self->dealer_connect) {
         rc = zloop_reader(self->loop, self->dsock, s_on_dealer_msg, self);
         assert(rc == 0);
@@ -2513,8 +2462,7 @@ void broker_actor(zsock_t *pipe, void *args) {
     self->br_timeout_loop =
             zloop_timer(self->loop, 1000, 0, s_check_br_timeout, self);
 
-    // create and attach the pubsub southbound sockets
-    start_pubsub(self);
+
 
     if (self->http)
         zsock_set_linger(self->http, 0);
@@ -2555,24 +2503,36 @@ zactor_t *dd_broker_actor(dd_broker_t *self) {
 
     return NULL;
 }
-
+// TODO: merge this with dd_broker_actor
 int dd_broker_start(dd_broker_t *self) {
-    dd_info("DoubleDecker %d %d %d", DD_VERSION_MAJOR, DD_VERSION_MINOR, DD_VERSION_PATCH);
-    dd_info("Starting actor broker, router at %s, dealer at %s",
-            self->router_bind, self->dealer_connect);
+    dd_info("DoubleDecker version %d.%d.%d (proto: 0x%x)", DD_VERSION_MAJOR, DD_VERSION_MINOR, DD_VERSION_PATCH,
+            DD_PRO_VERSION);
 
+    dd_info("Starting broker, router at %s, dealer at %s",
+            self->router_bind, self->dealer_connect);
+    int rc;
     randombytes_buf(self->nonce, crypto_box_NONCEBYTES);
     // needs to be called for each thread using RCU lib
     rcu_register_thread();
     self->loop = zloop_new();
     assert(self->loop);
 
-    bind_router(self);
-    assert(self->rsock);
-    int rc = zloop_reader(self->loop, self->rsock, s_on_router_msg, self);
-    assert(rc == 0);
-    zloop_reader_set_tolerant(self->loop, self->rsock);
+    if (streq(self->broker_scope,"auto") && self->dealer_connect == NULL) {
+        dd_warning("Automatic scope assignment as root, setting scope /0/0/0/!");
+        dd_broker_set_scope(self, "/0/0/0/");
+    }
 
+    if(streq(self->broker_scope,"auto") && self->dealer_connect) {
+        dd_info("Postponing router start until scope has been assigned.")
+    } else {
+        bind_router(self);
+        assert(self->rsock);
+        rc = zloop_reader(self->loop, self->rsock, s_on_router_msg, self);
+        assert(rc == 0);
+        zloop_reader_set_tolerant(self->loop, self->rsock);
+        // create and attach the pubsub southbound sockets
+        start_pubsub(self);
+    }
     if (self->dealer_connect) {
         rc = zloop_reader(self->loop, self->dsock, s_on_dealer_msg, self);
         assert(rc == 0);
@@ -2588,8 +2548,7 @@ int dd_broker_start(dd_broker_t *self) {
     self->br_timeout_loop =
             zloop_timer(self->loop, 1000, 0, s_check_br_timeout, self);
 
-    // create and attach the pubsub southbound sockets
-    start_pubsub(self);
+
 
     if (self->reststr)
         start_httpd(self);
@@ -2695,10 +2654,10 @@ static void bind_router(dd_broker_t *self) {
         token = strtok(NULL, ",");
     }
 
-    char *t = (char*)  zlist_first(self->rstrings);
+    char *t = (char *) zlist_first(self->rstrings);
     while (t != NULL) {
         dd_debug("Found router string %s", t);
-        t = (char*) zlist_next(self->rstrings);
+        t = (char *) zlist_next(self->rstrings);
     }
     self->rsock = zsock_new(ZMQ_ROUTER);
     // Look for IPC strings in the rstrings list, check if the files already exist
@@ -2712,7 +2671,7 @@ static void bind_router(dd_broker_t *self) {
                 exit(EXIT_FAILURE);
             }
         }
-        t = (char*) zlist_next(self->rstrings);
+        t = (char *) zlist_next(self->rstrings);
     }
 
     int rc;
@@ -2731,18 +2690,26 @@ static void bind_router(dd_broker_t *self) {
     }
 
     // change the permission on the IPC sockets to allow anyone to connect
-    t = (char*) zlist_first(self->rstrings);
+    t = (char *) zlist_first(self->rstrings);
     while (t != NULL) {
         needle = strcasestr(t, "ipc://");
         if (needle) {
             change_permission(t + 6);
         }
-        t = (char*)  zlist_next(self->rstrings);
+        t = (char *) zlist_next(self->rstrings);
     }
 }
 
-int dd_broker_set_scope(dd_broker_t *self, const char *scopestr) {
+int dd_broker_set_config (dd_broker_t *self, const char *configfile){
+    self->config_file = strdup(configfile);
+}
 
+int dd_broker_set_scope(dd_broker_t *self, const char *scopestr) {
+    if(streq(scopestr, "auto")){
+        self->broker_scope = "auto";
+        dd_info("Broker scope set to: \"%s\"", self->broker_scope);
+        return 0;
+    }
     zrex_t *rexscope = zrex_new("^/*(\\d+)/(\\d+)/(\\d+)/*$");
     int i = 0;
     assert(zrex_valid(rexscope));
@@ -2772,18 +2739,18 @@ int dd_broker_set_scope(dd_broker_t *self, const char *scopestr) {
     /* } */
 
     size_t max_len = 256;
-    char *brokerscope = (char*) malloc(max_len);
+    char *brokerscope = (char *) malloc(max_len);
     self->broker_scope = &brokerscope[0];
     int retval = snprintf(self->broker_scope, max_len, "/");
     self->broker_scope += retval;
     max_len -= retval;
 
-    char *t = (char*) zlist_first(self->scope);
+    char *t = (char *) zlist_first(self->scope);
     while (t != NULL) {
         retval = snprintf(self->broker_scope, max_len, "%s/", t);
         self->broker_scope += retval;
         max_len -= retval;
-        t = (char*) zlist_next(self->scope);
+        t = (char *) zlist_next(self->scope);
     }
     self->broker_scope = &brokerscope[0];
     dd_info("Broker scope set to: \"%s\"", self->broker_scope);
@@ -2815,7 +2782,7 @@ int dd_broker_set_loglevel(dd_broker_t *self, const char *logstr) {
 }
 
 dd_broker_t *dd_broker_new() {
-    dd_broker_t *self = (dd_broker_t*) calloc(1, sizeof(dd_broker_t));
+    dd_broker_t *self = (dd_broker_t *) calloc(1, sizeof(dd_broker_t));
     assert(self);
     self->dealer_connect = NULL;
     self->router_bind = NULL;
@@ -2825,6 +2792,8 @@ dd_broker_t *dd_broker_new() {
     self->sub_bind = NULL;
     self->sub_connect = NULL;
     self->keys = NULL;
+
+    self->config_file = NULL;
 
     // timer IDs
     self->br_timeout_loop = -1;
@@ -2846,7 +2815,7 @@ dd_broker_t *dd_broker_new() {
     self->broker_scope = NULL;
     self->rstrings = zlist_new();
     assert(self->rstrings);
-
+    self->scope_gen = 1;
     // Broker sockets
     self->loop = NULL;
     self->pubN = NULL;
@@ -2878,8 +2847,10 @@ static void s_self_destroy(dd_broker_t **self_p) {
         dd_broker_t *self = *self_p;
 
         if (self->broker_scope) {
-            free(self->broker_scope);
-            self->broker_scope = NULL;
+            if(!streq(self->broker_scope,"auto")) {
+                free(self->broker_scope);
+                self->broker_scope = NULL;
+            }
         }
         if (self->router_bind) {
             free(self->router_bind);
@@ -2918,38 +2889,38 @@ static void s_self_destroy(dd_broker_t **self_p) {
         zframe_destroy(&self->broker_id_null);
 
         if (self->scope) {
-            char *t = (char*)zlist_first(self->scope);
+            char *t = (char *) zlist_first(self->scope);
             while (t) {
                 free(t);
-                t = (char*)zlist_next(self->scope);
+                t = (char *) zlist_next(self->scope);
             }
             zlist_destroy(&self->scope);
             self->scope = NULL;
         }
 
         if (self->rstrings) {
-            char *t = (char*)zlist_first(self->rstrings);
+            char *t = (char *) zlist_first(self->rstrings);
             while (t) {
                 free(t);
-                t = (char*)zlist_next(self->rstrings);
+                t = (char *) zlist_next(self->rstrings);
             }
             zlist_destroy(&self->rstrings);
             self->rstrings = NULL;
         }
         if (self->pub_strings) {
-            char *t = (char*) zlist_first(self->pub_strings);
+            char *t = (char *) zlist_first(self->pub_strings);
             while (t) {
                 free(t);
-                t = (char*) zlist_next(self->pub_strings);
+                t = (char *) zlist_next(self->pub_strings);
             }
             zlist_destroy(&self->pub_strings);
             self->pub_strings = NULL;
         }
         if (self->sub_strings) {
-            char *t = (char*) zlist_first(self->sub_strings);
+            char *t = (char *) zlist_first(self->sub_strings);
             while (t) {
                 free(t);
-                t = (char*) zlist_next(self->sub_strings);
+                t = (char *) zlist_next(self->sub_strings);
             }
             zlist_destroy(&self->sub_strings);
             self->sub_strings = NULL;
@@ -2970,20 +2941,20 @@ static void s_self_destroy(dd_broker_t **self_p) {
         }
         if (self->rev_lcl_cli_ht) {
             int rc = cds_lfht_destroy(self->rev_lcl_cli_ht, NULL);
-            if(rc != 0)
+            if (rc != 0)
                 dd_error("s_self_destroy, cds_lfht_destroy(self->rev_lcl_cli_ht) ->  * %d", rc);
             self->lcl_cli_ht = NULL;
         }
 
         if (self->dist_cli_ht) {
             int rc = cds_lfht_destroy(self->dist_cli_ht, NULL);
-            if(rc != 0)
+            if (rc != 0)
                 dd_error("s_self_destroy, cds_lfht_destroy(self->dist_cli_ht) -> %d", rc);
             self->dist_cli_ht = NULL;
         }
         if (self->lcl_br_ht) {
             int rc = cds_lfht_destroy(self->lcl_br_ht, NULL);
-            if(rc != 0)
+            if (rc != 0)
                 dd_error("s_self_destroy, cds_lfht_destroy(self->lcl_br_ht) -> %d", rc);
             self->lcl_br_ht = NULL;
         }
@@ -3084,11 +3055,161 @@ char *zframe_tojson(zframe_t *self, char *buffer) {
     }
     for (char_nbr = 0; char_nbr < size; char_nbr++) {
         if (is_bin)
-            sprintf(buffer + strlen(buffer), "%02X", (unsigned char)data[char_nbr]);
+            sprintf(buffer + strlen(buffer), "%02X", (unsigned char) data[char_nbr]);
         else
             sprintf(buffer + strlen(buffer), "%c", data[char_nbr]);
     }
     strcat(buffer, ellipsis);
     return buffer;
+}
+
+void start_pubsub(dd_broker_t *self) {
+    zrex_t *rexipc = zrex_new(IPC_REGEX);
+    assert(zrex_valid(rexipc));
+    zrex_t *rextcp = zrex_new(TCP_REGEX);
+    assert(zrex_valid(rextcp));
+
+    self->pub_strings = zlist_new();
+    self->sub_strings = zlist_new();
+    char *t = (char *) zlist_first(self->rstrings);
+    char tmpfile[1024];
+    while (t != NULL) {
+        if (zrex_matches(rexipc, t)) {
+            sprintf(tmpfile, "%s.pub", zrex_hit(rexipc, 2));
+            if (zfile_exists(tmpfile)) {
+                dd_error("File %s already exists, aborting.", tmpfile);
+                exit(EXIT_FAILURE);
+            }
+            sprintf(tmpfile, "%s.sub", zrex_hit(rexipc, 2));
+            if (zfile_exists(tmpfile)) {
+                dd_error("File %s already exists, aborting.", tmpfile);
+                exit(EXIT_FAILURE);
+            }
+            char *sub_ipc = (char *) malloc(strlen(t) + 5);
+            char *pub_ipc = (char *) malloc(strlen(t) + 5);
+            sprintf(sub_ipc, "%s.sub", t);
+            sprintf(pub_ipc, "%s.pub", t);
+            zlist_append(self->sub_strings, sub_ipc);
+            zlist_append(self->pub_strings, pub_ipc);
+            // Should not be necessary, but weird results otherwise..
+            zrex_destroy(&rexipc);
+            rexipc = zrex_new(IPC_REGEX);
+        } else if (zrex_matches(rextcp, t)) {
+            int port = atoi(zrex_hit(rextcp, 2));
+            char *sub_tcp; // = malloc(strlen(t) + 1);
+            char *pub_tcp; // = malloc(strlen(t) + 1);
+            int retval = asprintf(&pub_tcp, "%s%d", zrex_hit(rextcp, 1), port + 1);
+            assert(retval != -1);
+            retval = asprintf(&sub_tcp, "%s%d", zrex_hit(rextcp, 1), port + 2);
+            assert(retval != -1);
+            zlist_append(self->sub_strings, sub_tcp);
+            zlist_append(self->pub_strings, pub_tcp);
+            // Should not be necessary, but weird results otherwise..
+            zrex_destroy(&rextcp);
+            rextcp = zrex_new(TCP_REGEX);
+        } else {
+            dd_error("%s doesnt match anything!");
+            exit(EXIT_FAILURE);
+        }
+        t = (char *) zlist_next(self->rstrings);
+    }
+
+    zrex_destroy(&rextcp);
+    zrex_destroy(&rexipc);
+
+    t = (char *) zlist_first(self->pub_strings);
+    size_t pub_strings_len = 0;
+    while (t != NULL) {
+        pub_strings_len += strlen(t) + 1;
+        t = (char *) zlist_next(self->pub_strings);
+    }
+
+    size_t sub_strings_len = 0;
+    t = (char *) zlist_first(self->sub_strings);
+    while (t != NULL) {
+        sub_strings_len += strlen(t) + 1;
+        t = (char *) zlist_next(self->sub_strings);
+    }
+
+    if (zlist_size(self->pub_strings) < 1) {
+        dd_error("pub_strings zlist empty!");
+        exit(EXIT_FAILURE);
+    }
+    if (zlist_size(self->sub_strings) < 1) {
+        dd_error("sub_strings zlist empty!");
+        exit(EXIT_FAILURE);
+    }
+
+    self->pub_bind = (char *) malloc(pub_strings_len);
+    self->sub_bind = (char *) malloc(sub_strings_len);
+
+    int i, written = 0;
+    size_t num_len = zlist_size(self->pub_strings);
+
+    for (i = 0; i < num_len; i++) {
+        if (i == 0) {
+            t = (char *) zlist_first(self->pub_strings);
+        } else {
+            t = (char *) zlist_next(self->pub_strings);
+        }
+        written += snprintf(self->pub_bind + written, pub_strings_len - written,
+                            (i != 0 ? ",%s" : "%s"), t);
+        if (written == pub_strings_len)
+            break;
+    }
+
+    written = 0;
+    num_len = zlist_size(self->sub_strings);
+
+    for (i = 0; i < num_len; i++) {
+        if (i == 0) {
+            t = (char *) zlist_first(self->sub_strings);
+        } else {
+            t = (char *) zlist_next(self->sub_strings);
+        }
+        written += snprintf(self->sub_bind + written, sub_strings_len - written,
+                            (i != 0 ? ",%s" : "%s"), t);
+        if (written == sub_strings_len)
+            break;
+    }
+
+    self->pubS = zsock_new(ZMQ_XPUB);
+    self->subS = zsock_new(ZMQ_XSUB);
+    int rc = zsock_attach(self->pubS, self->pub_bind, true);
+    if (rc < 0) {
+        dd_error("Unable to attach pubS to %s", self->pub_bind);
+        perror("Error: ");
+        exit(EXIT_FAILURE);
+    }
+    rc = zsock_attach(self->subS, self->sub_bind, true);
+    if (rc < 0) {
+        dd_error("Unable to attach subS to %s", self->sub_bind);
+        perror("Error: ");
+        exit(EXIT_FAILURE);
+    }
+
+    t = (char *) zlist_first(self->pub_strings);
+    while (t != NULL) {
+        if (strcasestr(t, "ipc://")) {
+            change_permission(t + 6);
+        }
+        t = (char *) zlist_next(self->pub_strings);
+    }
+
+    t = (char *) zlist_first(self->sub_strings);
+    while (t != NULL) {
+        if (strcasestr(t, "ipc://")) {
+            change_permission(t + 6);
+        }
+        t = (char *) zlist_next(self->sub_strings);
+    }
+
+    rc = zloop_reader(self->loop, self->pubS, s_on_pubS_msg, self);
+    assert(rc == 0);
+    zloop_reader_set_tolerant(self->loop, self->pubS);
+
+    rc = zloop_reader(self->loop, self->subS, s_on_subS_msg, self);
+    assert(rc == 0);
+    zloop_reader_set_tolerant(self->loop, self->subS);
 }
 
