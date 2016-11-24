@@ -22,7 +22,7 @@
    License for more details.  You should have received a copy of the
    GNU Lesser General Public License along with this program.  If not,
    see <http://www.gnu.org/licenses/>.
-   */
+ */
 /*
  * ddperf.c --- Filename: ddperf.c Description: Author: Pontus
  * Sköldström <ponsko@acreo.se> Created: fre mar 27 00:34:10 2015
@@ -72,7 +72,7 @@ void usage() {
   printf("  -n <int>     - Size of messages sent (client only)\n");
   printf("  -k <file>    - File containing public/private keys\n");
   printf("  -l           - Enable latency measurements (server and client "
-         "on same machine!)\n");
+      "on same machine!)\n");
   printf("  -v           - Verbose\n");
 }
 
@@ -140,7 +140,7 @@ static int s_print_throughput() {
   if (msgs > 0) {
     char *tstr = zclock_timestr();
     printf("%s -- %ld MSG/s, %.2lf %s (%.2lf %s)\n", tstr, msgs, dbyte,
-           bytesym, dbits, bitsym);
+        bytesym, dbits, bitsym);
     zstr_free(&tstr);
   }
   tot_msg += n_msg;
@@ -187,12 +187,12 @@ void s_sendmsg(dd_client_t *dd) {
   if (latency) {
     clock_gettime(CLOCK_MONOTONIC, &sendt);
     if (verbose)
-      printf("sending clock: s:%ld ns:%ld ", sendt.tv_sec, sendt.tv_nsec);
-      
-      dd_client_notify(dd, "ddperfsrv",(const byte*) &sendt, sizeof(struct timespec));
+    {printf("sending clock: s:%ld ns:%ld ", sendt.tv_sec, sendt.tv_nsec);}
+
+    dd_client_notify(dd, "ddperfsrv",(const byte*) &sendt, sizeof(struct timespec));
   } else {
     if (verbose)
-      printf("sending message to ddperfsrv, size %d\n", msize);
+    {printf("sending message to ddperfsrv, size %d\n", msize);}
 
     dd_client_notify(dd, (const  char*) "ddperfsrv", (const byte*) rndstr, msize);
   }
@@ -200,7 +200,7 @@ void s_sendmsg(dd_client_t *dd) {
 void on_reg_client(dd_client_t *args) {
   dd_client_t *dd = (dd_client_t *)args;
   printf("DDPerf client registered with broker %s\n", dd_client_get_endpoint(dd));
-    rndstr = (char*) malloc(msize + 1);
+  rndstr = (char*) malloc(msize + 1);
   int i;
   for (i = 0; i < msize; i++) {
     rndstr[i] = 'a';
@@ -216,8 +216,8 @@ void on_reg_client(dd_client_t *args) {
         dd_client_destroy(&dd);
         break;
       }
-      if(latency)	
-        zclock_sleep(100);	
+      if(latency)
+        zclock_sleep(100);
     }
 
     // Shutdown down
@@ -246,24 +246,24 @@ void on_reg_client(dd_client_t *args) {
 }
 
 void on_discon(dd_client_t *args) {
-    dd_client_t *dd = (dd_client_t *)args;
+  dd_client_t *dd = (dd_client_t *)args;
   printf("\nGot disconnected from broker %s!\n", dd_client_get_endpoint(dd));
 }
 
 void on_pub(const char *source, const char *topic, const byte *data, unsigned long length,
-            dd_client_t *args) {
+    dd_client_t *args) {
   printf("\nPUB S: %s T: %s L: %lu D: '%s'\n", source, topic, length, data);
 }
 
 void on_data_server(const char *source, const byte *data, size_t length, dd_client_t *args) {
-    struct timespec sendt, recvt;
+  struct timespec sendt, recvt;
   if (latency) {
     memcpy(&sendt, data, sizeof(struct timespec));
     clock_gettime(CLOCK_MONOTONIC, &recvt);
 
     uint64_t a = recvt.tv_sec - sendt.tv_sec;
     printf("%f ms\n",
-           (((a * 1000000000) + recvt.tv_nsec) - sendt.tv_nsec) / 1e6);
+        (((a * 1000000000) + recvt.tv_nsec) - sendt.tv_nsec) / 1e6);
   }
   //  free (source);
   b_msg += length;
@@ -285,7 +285,7 @@ void start_server(char *address) {
   setlocale(LC_NUMERIC, "en_US.utf-8"); /* important */
 
   dd_client_t *client = dd_client_new("ddperfsrv", address, keyfile, on_reg_server, on_discon,
-                        on_data_server, on_pub, on_error); // on_nodst);
+      on_data_server, on_pub, on_error); // on_nodst);
   //  int timer_id = zloop_timer (client->loop, 1000, 0,
   //  s_print_throughput, NULL);
   //  int timer_id2 = zloop_timer (client->loop, 10000, 0, s_print_stat,
@@ -307,19 +307,19 @@ void start_client(char *address, int message_num, int message_size) {
   mnum = message_num;
   msize = message_size;
   // uint64_t sendt;
-//  struct timespec sendt;
+  //  struct timespec sendt;
   setlocale(LC_NUMERIC, "en_US.utf-8"); /* important */
 
   printf("Starting ddperf client (num=%d, size=%d), registering at %s..\n",
-         message_num, message_size, address);
-srand(time(NULL));
-int r = rand();
+      message_num, message_size, address);
+  srand(time(NULL));
+  int r = rand();
 
   char *cliname;
   int retval = asprintf(&cliname, "ddperfcli%d", r);
-    assert(retval != -1);
+  assert(retval != -1);
   dd_client_t *client = dd_client_new(cliname, address, keyfile, on_reg_client, on_discon,
-                        on_data_server, on_pub, on_error); // on_nodst);
+      on_data_server, on_pub, on_error); // on_nodst);
   while (dd_client_get_state(client) != DD_STATE_EXIT && !zsys_interrupted) {
     sleep(1);
   }
@@ -344,50 +344,50 @@ int main(int argc, char **argv) {
 
   while ((c = getopt(argc, argv, "m:n:s:c:vlp:k:")) != -1)
     switch (c) {
-    case 'm':
-      message_num = atoi(optarg);
-      break;
-    case 'n':
-      message_size = atoi(optarg);
-      break;
-    case 'c':
-      if (role != 0) {
-        usage();
+      case 'm':
+        message_num = atoi(optarg);
+        break;
+      case 'n':
+        message_size = atoi(optarg);
+        break;
+      case 'c':
+        if (role != 0) {
+          usage();
+          return 1;
+        }
+        address = optarg;
+        role = CLIENT;
+        break;
+      case 's':
+        if (role != 0) {
+          usage();
+          return 1;
+        }
+        address = optarg;
+        role = SERVER;
+        break;
+      case 'k':
+        keyfile = optarg;
+        break;
+      case 'v':
+        verbose = 1;
+        break;
+      case 'l':
+        latency = 1;
+        break;
+      case 'p':
+        pps = atoi(optarg);
+        break;
+      case '?':
+        if (optopt == 'c' || optopt == 's')
+          fprintf(stderr, "Option -%c requires an argument.\n", optopt);
+        else if (isprint(optopt))
+          fprintf(stderr, "Unknown option `-%c'.\n", optopt);
+        else
+          fprintf(stderr, "Unknown option character `\\x%x'.\n", optopt);
         return 1;
-      }
-      address = optarg;
-      role = CLIENT;
-      break;
-    case 's':
-      if (role != 0) {
-        usage();
-        return 1;
-      }
-      address = optarg;
-      role = SERVER;
-      break;
-    case 'k':
-      keyfile = optarg;
-      break;
-    case 'v':
-      verbose = 1;
-      break;
-    case 'l':
-      latency = 1;
-      break;
-    case 'p':
-      pps = atoi(optarg);
-      break;
-    case '?':
-      if (optopt == 'c' || optopt == 's')
-        fprintf(stderr, "Option -%c requires an argument.\n", optopt);
-      else if (isprint(optopt))
-        fprintf(stderr, "Unknown option `-%c'.\n", optopt);
-      else
-        fprintf(stderr, "Unknown option character `\\x%x'.\n", optopt);
-      return 1;
-    default:
-      abort();
+      default:
+        abort();
     }
 
   if (address == NULL) {
