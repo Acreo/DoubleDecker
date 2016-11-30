@@ -2700,8 +2700,9 @@ static void bind_router(dd_broker_t *self) {
     }
 }
 
-int dd_broker_set_config (dd_broker_t *self, const char *configfile){
+void dd_broker_set_config (dd_broker_t *self, const char *configfile){
     self->config_file = strdup(configfile);
+    assert(self->config_file);
 }
 
 int dd_broker_set_scope(dd_broker_t *self, const char *scopestr) {
