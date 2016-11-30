@@ -1,6 +1,6 @@
 # DoubleDecker messaging system
 [![Build Status](https://travis-ci.org/Acreo/DoubleDecker.svg?branch=master)](https://travis-ci.org/Acreo/DoubleDecker)
-DoubleDecker is an hierarchical distributed message system based on ZeroMQ 
+DoubleDecker is a hierarchical distributed message system based on ZeroMQ 
 which can be used to provide messaging between processes running on a 
 single machine and between processes running on multiple machines. 
 It is hierarchical in the sense that message brokers are connected to 
