@@ -116,7 +116,7 @@ DD_EXPORT int
 
 //  *** Draft method, for development use, may change without warning ***
 //  Set the configuration file for the broker, given in CZMQ style format
-DD_EXPORT int
+DD_EXPORT void
     dd_broker_set_config (dd_broker_t *self, const char *configfile);
 
 //  *** Draft method, for development use, may change without warning ***
