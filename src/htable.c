@@ -45,20 +45,12 @@ unsigned long int string_hash(char *string){
 }
 
 unsigned long int sockid_cookie_hash(zframe_t *sockid_f, uint64_t cookie){
-    byte* data;
-    size_t length;
     unsigned long int * hash = (unsigned long int*) zframe_data(sockid_f);
-
-
-//    zframe_print(sockid_f,"dbg");
-
-  //  printf("calculated %lu from cookie %lu sockid %lu\n", (*hash)+cookie, cookie,*hash);
     return (*hash) + cookie;
 }
 
 int insert_local_client(dd_broker_t *self, zframe_t *sockid, ddtenant_t *ten,
                         char *client_name) {
-  XXH64_state_t hash1;
   char prefix_name[MAXTENANTNAME];
   struct cds_lfht_iter iter;
   local_client *np;
@@ -69,27 +61,17 @@ int insert_local_client(dd_broker_t *self, zframe_t *sockid, ddtenant_t *ten,
   np->tenant = ten->name;
   np->name = strdup(client_name);
 
-  int prelen =
-      snprintf(prefix_name, MAXTENANTNAME, "%s.%s", ten->name, client_name);
+    snprintf(prefix_name, MAXTENANTNAME, "%s.%s", ten->name, client_name);
 
   /* dd_debug("insert_local_client: prefix_name %s", prefix_name); */
   np->prefix_name = strdup(prefix_name);
 
   // Calculate the sockid_cookie hash
-/*  XXH64_reset(&hash1, XXHSEED);
-  XXH64_update(&hash1, zframe_data(sockid), zframe_size(sockid));
-  XXH64_update(&hash1, &ten->cookie, sizeof(uint64_t));
-  unsigned long int sockid_cookie = XXH64_digest(&hash1);
-*/
-    unsigned long int co = ten->cookie;
-    printf("insert_local_client: cookie %lu\n",co);
-    unsigned long int sockid_cookie = sockid_cookie_hash(sockid, ten->cookie);
+  unsigned long int co = ten->cookie;
+  printf("insert_local_client: cookie %lu\n",co);
+  unsigned long int sockid_cookie = sockid_cookie_hash(sockid, ten->cookie);
   // Calculate the prefix_name hash
-  /*XXH64_reset(&hash1, XXHSEED);
-  XXH64_update(&hash1, prefix_name, prelen + 1);
-  unsigned long int prename = XXH64_digest(&hash1);
-*/
-    unsigned long int prename = string_hash(prefix_name);
+  unsigned long int prename = string_hash(prefix_name);
   dist_client *dn;
   if ((dn = hashtable_has_dist_node(self, np->prefix_name))) {
     goto cleanup;
@@ -203,7 +185,7 @@ void delete_dist_clients(dd_broker_t *self, local_broker *br) {
     dd_debug("Distclient %s", mp->name);
     //    zframe_print(mp->broker, "client");
     if (zframe_eq(mp->broker, br->sockid)) {
-      char buf[256] = "";
+//      char buf[256] = "";
 //      dd_debug("Was under missing broker %s", zframe_tostr(br->sockid, buf));
       del_cli_up(self, mp->name);
       rcu_read_lock();
@@ -680,8 +662,7 @@ void print_broker_ht(dd_broker_t *self) {
   dd_debug("Hashtable: lcl_br_ht");
   while (ht_node != NULL) {
     mp = caa_container_of(ht_node, local_broker, node);
-    char buf[256];
-//    dd_debug("\tname: %s", zframe_tostr(mp->sockid, buf));
+    zframe_print(mp->sockid,"\tname:");
     cds_lfht_next(self->lcl_cli_ht, &iter);
     ht_node = cds_lfht_iter_get_node(&iter);
   }

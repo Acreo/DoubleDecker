@@ -11,7 +11,7 @@ Messages from the actor may be:
 {string "discon", string broker endpoint}
 
   On connection to broker established:
-{string "reg", string broker endpoint}
+{string "reg", string broker endpoint, strict client name}
 
   On notification received:
 {string "data", string source, size_t length, byte data}

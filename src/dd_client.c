@@ -380,7 +380,7 @@ static void cb_regok(dd_client_t *self, zmsg_t *msg, zloop_t *loop) {
     }
 
     free(self->client_name);
-    self->client_name = client_name;
+    self->client_name = (unsigned char*) client_name;
 
     uint64_t *cookie2 = (uint64_t *) zframe_data(cookie_frame);
     self->cookie = *cookie2;

@@ -33,7 +33,7 @@ This is the class interface:
     
     // Callback called when connection with broker is established.
     typedef void (dd_client_on_con) (
-        dd_client_t *self);
+        const char *client_name, dd_client_t *self);
     
     // Callback called when connection with broker is lost.
     typedef void (dd_client_on_discon) (
