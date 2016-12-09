@@ -282,7 +282,8 @@ int main(int argc, char *argv[]) {
                 client_name = optarg;
                 break;
             default:
-                abort();
+                printf("Unknown option \"%c\", aborting..\n", c);
+                exit(EXIT_FAILURE);
         }
     }
     if (client_name == NULL || keyfile == NULL ||

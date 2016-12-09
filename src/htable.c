@@ -1,5 +1,7 @@
 //#include "../include/dd.h"
 #include "dd_classes.h"
+
+// Testing locally showed XXH64 to be about 20% faster than XXH64
 #include "xxhash.h"
 static int match_lcl_node_prename(struct cds_lfht_node *ht_node,
                                   const void *_key) {
@@ -34,14 +36,29 @@ static int match_subscribe_node(struct cds_lfht_node *ht_node,
   return memcmp(zframe_data(node->sockid), zframe_data(key),
                 zframe_size(key)) == 0;
 }
+unsigned long int string_hash(char *string){
+    unsigned long int key_hash = 0;
+    while (*string)
+        key_hash = 33 * key_hash ^ *string++;
 
-// what lookups are needed?
-// sockid + cookie -> data || NULL  (local_cli / registered_client)
-// "tenant.client_name" -> data || NULL (reverse_local_cli)
-// any more?
+    return key_hash;
+}
+
+unsigned long int sockid_cookie_hash(zframe_t *sockid_f, uint64_t cookie){
+    byte* data;
+    size_t length;
+    unsigned long int * hash = (unsigned long int*) zframe_data(sockid_f);
+
+
+//    zframe_print(sockid_f,"dbg");
+
+  //  printf("calculated %lu from cookie %lu sockid %lu\n", (*hash)+cookie, cookie,*hash);
+    return (*hash) + cookie;
+}
+
 int insert_local_client(dd_broker_t *self, zframe_t *sockid, ddtenant_t *ten,
                         char *client_name) {
-  XXH32_state_t hash1;
+  XXH64_state_t hash1;
   char prefix_name[MAXTENANTNAME];
   struct cds_lfht_iter iter;
   local_client *np;
@@ -59,16 +76,20 @@ int insert_local_client(dd_broker_t *self, zframe_t *sockid, ddtenant_t *ten,
   np->prefix_name = strdup(prefix_name);
 
   // Calculate the sockid_cookie hash
-  XXH32_reset(&hash1, XXHSEED);
-  XXH32_update(&hash1, zframe_data(sockid), zframe_size(sockid));
-  XXH32_update(&hash1, &ten->cookie, sizeof(uint64_t));
-  unsigned long int sockid_cookie = XXH32_digest(&hash1);
-
+/*  XXH64_reset(&hash1, XXHSEED);
+  XXH64_update(&hash1, zframe_data(sockid), zframe_size(sockid));
+  XXH64_update(&hash1, &ten->cookie, sizeof(uint64_t));
+  unsigned long int sockid_cookie = XXH64_digest(&hash1);
+*/
+    unsigned long int co = ten->cookie;
+    printf("insert_local_client: cookie %lu\n",co);
+    unsigned long int sockid_cookie = sockid_cookie_hash(sockid, ten->cookie);
   // Calculate the prefix_name hash
-  XXH32_reset(&hash1, XXHSEED);
-  XXH32_update(&hash1, prefix_name, prelen + 1);
-  unsigned long int prename = XXH32_digest(&hash1);
-
+  /*XXH64_reset(&hash1, XXHSEED);
+  XXH64_update(&hash1, prefix_name, prelen + 1);
+  unsigned long int prename = XXH64_digest(&hash1);
+*/
+    unsigned long int prename = string_hash(prefix_name);
   dist_client *dn;
   if ((dn = hashtable_has_dist_node(self, np->prefix_name))) {
     goto cleanup;
@@ -113,7 +134,8 @@ cleanup:
 
 void hashtable_remove_dist_node(dd_broker_t *self, char *prefix_name) {
   struct cds_lfht_iter iter;
-  int hash = XXH32(prefix_name, strlen(prefix_name), XXHSEED);
+  //int hash = XXH64(prefix_name, strlen(prefix_name), XXHSEED);
+    unsigned long int hash = string_hash(prefix_name);
   rcu_read_lock();
   cds_lfht_lookup(self->dist_cli_ht, hash, match_dist_node, prefix_name, &iter);
   struct cds_lfht_node *ht_node = cds_lfht_iter_get_node(&iter);
@@ -139,7 +161,8 @@ dist_client *hashtable_has_dist_node(dd_broker_t *self, char *prefix_name) {
    */
   struct cds_lfht_iter iter;
   dist_client *np;
-  int hash = XXH32(prefix_name, strlen(prefix_name), XXHSEED);
+  //int hash = XXH64(prefix_name, strlen(prefix_name), XXHSEED);
+    unsigned long int hash = string_hash(prefix_name);
   rcu_read_lock();
   cds_lfht_lookup(self->dist_cli_ht, hash, match_dist_node, prefix_name, &iter);
   struct cds_lfht_node *ht_node = cds_lfht_iter_get_node(&iter);
@@ -157,7 +180,8 @@ void hashtable_insert_dist_node(dd_broker_t *self, char *prefix_name,
                                 zframe_t *sockid, int dist) {
   // add to has table
   dist_client *mp = (dist_client*) malloc(sizeof(dist_client));
-  int hash = XXH32(prefix_name, strlen(prefix_name), XXHSEED);
+  //int hash = XXH64(prefix_name, strlen(prefix_name), XXHSEED);
+    unsigned long int hash = string_hash(prefix_name);
   cds_lfht_node_init(&mp->node);
   mp->name = prefix_name;
   mp->broker = zframe_dup(sockid);
@@ -201,12 +225,13 @@ local_broker *hashtable_has_local_broker(dd_broker_t *self, zframe_t *sockid,
    */
   struct cds_lfht_iter iter;
   local_broker *np;
-  XXH32_state_t hash1;
-  XXH32_reset(&hash1, XXHSEED);
-  XXH32_update(&hash1, zframe_data(sockid), zframe_size(sockid));
-  XXH32_update(&hash1, &cookie, sizeof(uint64_t));
-  unsigned long int sockid_cookie = XXH32_digest(&hash1);
-
+  /*XXH64_state_t hash1;
+  XXH64_reset(&hash1, XXHSEED);
+  XXH64_update(&hash1, zframe_data(sockid), zframe_size(sockid));
+  XXH64_update(&hash1, &cookie, sizeof(uint64_t));
+  unsigned long int sockid_cookie = XXH64_digest(&hash1);
+*/
+    unsigned long int sockid_cookie = sockid_cookie_hash(sockid,cookie);
   rcu_read_lock();
   cds_lfht_lookup(self->lcl_br_ht, sockid_cookie, match_lcl_broker, sockid,
                   &iter);
@@ -226,11 +251,13 @@ local_broker *hashtable_has_local_broker(dd_broker_t *self, zframe_t *sockid,
 void hashtable_insert_local_broker(dd_broker_t *self, zframe_t *sockid,
                                    uint64_t cookie) {
   local_broker *mp = (local_broker*) malloc(sizeof(local_broker));
-  XXH32_state_t hash1;
-  XXH32_reset(&hash1, XXHSEED);
-  XXH32_update(&hash1, zframe_data(sockid), zframe_size(sockid));
-  XXH32_update(&hash1, &cookie, sizeof(uint64_t));
-  unsigned long int sockid_cookie = XXH32_digest(&hash1);
+  /*XXH64_state_t hash1;
+  XXH64_reset(&hash1, XXHSEED);
+  XXH64_update(&hash1, zframe_data(sockid), zframe_size(sockid));
+  XXH64_update(&hash1, &cookie, sizeof(uint64_t));
+  unsigned long int sockid_cookie = XXH64_digest(&hash1);
+    */
+    unsigned long int sockid_cookie = sockid_cookie_hash(sockid, cookie);
   cds_lfht_node_init(&mp->node);
   mp->cookie = cookie;
   mp->sockid = zframe_dup(sockid);
@@ -246,11 +273,13 @@ local_client *hashtable_has_rev_local_node(dd_broker_t *self, char *prefix_name,
                                            int update) {
   struct cds_lfht_iter iter;
   local_client *np;
-  XXH32_state_t hash1;
-  XXH32_reset(&hash1, XXHSEED);
+  /*XXH64_state_t hash1;
+  XXH64_reset(&hash1, XXHSEED);
   int prelen = strlen(prefix_name);
-  XXH32_update(&hash1, prefix_name, prelen + 1);
-  unsigned long int prename = XXH32_digest(&hash1);
+  XXH64_update(&hash1, prefix_name, prelen + 1);
+  unsigned long int prename = XXH64_digest(&hash1);
+    */
+    unsigned long int prename = string_hash(prefix_name);
   dd_debug("hashtable_has_rev_local_node\nprefix_name: %s hash: %lu",
            prefix_name, prename);
   rcu_read_lock();
@@ -273,11 +302,16 @@ local_client *hashtable_has_local_node(dd_broker_t *self, zframe_t *sockid,
                                        zframe_t *cookie, int update) {
   struct cds_lfht_iter iter;
   local_client *np;
-  XXH32_state_t hash1;
-  XXH32_reset(&hash1, XXHSEED);
-  XXH32_update(&hash1, zframe_data(sockid), zframe_size(sockid));
-  XXH32_update(&hash1, zframe_data(cookie), zframe_size(cookie));
-  unsigned long int sockid_cookie = XXH32_digest(&hash1);
+  /*XXH64_state_t hash1;
+  XXH64_reset(&hash1, XXHSEED);
+  XXH64_update(&hash1, zframe_data(sockid), zframe_size(sockid));
+  XXH64_update(&hash1, zframe_data(cookie), zframe_size(cookie));
+  unsigned long int sockid_cookie = XXH64_digest(&hash1)
+    */
+    uint64_t *cook = (uint64_t *) zframe_data(cookie);
+    //uint64_t *cookie = (uint64_t *) zframe_data(cook);
+    unsigned long int sockid_cookie = sockid_cookie_hash(sockid, (uint64_t ) *cook);
+
 
   rcu_read_lock();
   cds_lfht_lookup(self->lcl_cli_ht, sockid_cookie, match_lcl_node_sockid,
@@ -297,11 +331,12 @@ void hashtable_unlink_rev_local_node(dd_broker_t *self, char *prefix_name) {
 
   struct cds_lfht_iter iter;
   local_client *np;
-  XXH32_state_t hash1;
-  XXH32_reset(&hash1, XXHSEED);
+  /* XXH64_state_t hash1;
+  XXH64_reset(&hash1, XXHSEED);
   int prelen = strlen(prefix_name);
-  XXH32_update(&hash1, prefix_name, prelen + 1);
-  unsigned long int prename = XXH32_digest(&hash1);
+  XXH64_update(&hash1, prefix_name, prelen + 1);
+  unsigned long int prename = XXH64_digest(&hash1);*/
+    unsigned long int prename = string_hash(prefix_name);
   dd_debug("hashtable_has_rev_local_node\nprefix_name: %s hash: %lu",
            prefix_name, prename);
   rcu_read_lock();
@@ -333,12 +368,14 @@ void hashtable_unlink_local_node(dd_broker_t *self, zframe_t *sockid,
                                  uint64_t cookie) {
   struct cds_lfht_iter iter;
   local_client *np;
-  XXH32_state_t hash1;
-  XXH32_reset(&hash1, XXHSEED);
-  XXH32_update(&hash1, zframe_data(sockid), zframe_size(sockid));
-  XXH32_update(&hash1, &cookie, sizeof cookie);
+/*  XXH64_state_t hash1;
+  XXH64_reset(&hash1, XXHSEED);
+  XXH64_update(&hash1, zframe_data(sockid), zframe_size(sockid));
+  XXH64_update(&hash1, &cookie, sizeof cookie);
 
-  unsigned long int sockid_cookie = XXH32_digest(&hash1);
+  unsigned long int sockid_cookie = XXH64_digest(&hash1);
+*/
+    unsigned long int sockid_cookie = sockid_cookie_hash(sockid, cookie);
 
   rcu_read_lock();
   cds_lfht_lookup(self->lcl_cli_ht, sockid_cookie, match_lcl_node_sockid,
@@ -372,7 +409,7 @@ void hashtable_insert_local_node(dd_broker_t *self, zframe_t *sockid,
                                  char *name) {
   // add to hash table
   local_client *mp = (local_client*) malloc(sizeof(local_client));
-  int hash = XXH32(zframe_data(sockid), zframe_size(sockid), XXHSEED);
+  int hash = XXH64(zframe_data(sockid), zframe_size(sockid), XXHSEED);
   cds_lfht_node_init(&mp->lcl_node);
   mp->sockid = sockid;
   mp->name = name;
@@ -386,7 +423,7 @@ void hashtable_insert_local_node(dd_broker_t *self, zframe_t *sockid,
 // otherwise , return how many was removed
 int remove_subscriptions(dd_broker_t *self, zframe_t *sockid) {
   struct cds_lfht_iter iter;
-  int hash = XXH32(zframe_data(sockid), zframe_size(sockid), XXHSEED);
+  int hash = XXH64(zframe_data(sockid), zframe_size(sockid), XXHSEED);
   subscribe_node *sn;
 
   rcu_read_lock();
@@ -427,7 +464,7 @@ int remove_subscriptions(dd_broker_t *self, zframe_t *sockid) {
 // otherwise , return how many was removed
 int remove_subscription(dd_broker_t *self, zframe_t *sockid, char *topic) {
   struct cds_lfht_iter iter;
-  int hash = XXH32(zframe_data(sockid), zframe_size(sockid), XXHSEED);
+  int hash = XXH64(zframe_data(sockid), zframe_size(sockid), XXHSEED);
   subscribe_node *sn;
 
   rcu_read_lock();
@@ -470,7 +507,7 @@ int remove_subscription(dd_broker_t *self, zframe_t *sockid, char *topic) {
 // return 2 if new entry was created
 int insert_subscription(dd_broker_t *self, zframe_t *sockid, char *topic) {
   struct cds_lfht_iter iter;
-  int hash = XXH32(zframe_data(sockid), zframe_size(sockid), XXHSEED);
+  int hash = XXH64(zframe_data(sockid), zframe_size(sockid), XXHSEED);
   subscribe_node *sn;
 
   rcu_read_lock();

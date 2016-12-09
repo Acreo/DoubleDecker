@@ -72,11 +72,45 @@
 
 @end
 */
-#ifndef _GNU_SOURCE
+
+#define __USE_GNU 1
+#define GNU_SOURCE 1
 #define _GNU_SOURCE 1
-#endif
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/errno.h>
+#include <dlfcn.h>
 
 #include "doubledecker.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/errno.h>
+
+#ifdef PROFILE 
+#define PTRACE_PIPENAME "TRACE"
+#define PTRACE_REFERENCE_FUNCTION printf
+#define REFERENCE_OFFSET "REFERENCE:"
+#define FUNCTION_ENTRY "enter"
+#define FUNCTION_EXIT "exit"
+#define END_TRACE "EXIT"
+#define __NON_INSTRUMENT_FUNCTION__ __attribute__((__no_instrument_function__))
+#define PTRACE_OFF __NON_INSTRUMENT_FUNCTION__
+#define STR(_x) #_x
+#define DEF(_x) _x
+#define GET(_x, _y) _x(_y)
+#define TRACE __GNU_PTRACE_FILE__
+FILE *trace_out;
+
+#endif
 
 FILE *logfp;
 int daemonize = 0;
@@ -177,13 +211,21 @@ int get_config(dd_broker_t *self, char *conffile) {
 
 int main(int argc, char **argv) {
 
+#ifdef PROFILE
+  if ((trace_out = fopen("tracefile", "w+")) == NULL) {
+        char *msg = strerror(errno);
+        perror(msg);
+        printf("[gnu_ptrace error]\n");
+        return 0;
+    }
+#endif 
     int c;
     //  char *configfile = NULL;
     zsys_init();
     zsys_set_logident("DD");
     dd_broker_t *broker = dd_broker_new();
     opterr = 0;
-    while ((c = getopt(argc, argv, "d:r:l:k:s:h:f:w:DSL")) != -1)
+    while ((c = getopt(argc, argv, "d:r:l:k:s:h:f:w:DSL:")) != -1)
         switch (c) {
             case 'r':
                 dd_broker_add_router(broker, optarg);
@@ -279,3 +321,164 @@ int main(int argc, char **argv) {
 void ddbroker_test() {
     return;
 }
+
+//#define PROFILE
+#ifdef PROFILE
+void __cyg_profile_func_enter (void *this_fn, void *call_site) __attribute__((no_instrument_function));
+void __cyg_profile_func_exit  (void *this_fn, void *call_site) __attribute__((no_instrument_function));
+
+
+
+
+
+/** Final trace close */
+static void __attribute__((__no_instrument_function__)) gnu_ptrace_close(void) {
+    fprintf(stderr, "gnu_ptrace_close\n");
+    fprintf(TRACE, END_TRACE " %ld\n", (long)getpid());
+
+    if (TRACE != NULL)
+        fclose(TRACE);
+    return;
+}
+
+/** Trace initialization */
+static int  __attribute__((__no_instrument_function__)) gnu_ptrace_init(void) {
+    fprintf(stderr, "gnu_ptrace_init\n");
+    struct stat sta;
+    __GNU_PTRACE_FILE__ = NULL;
+
+    /* See if a trace file exists */
+    if (stat(PTRACE_PIPENAME, &sta) != 0) {
+        /* No trace file: do not trace at all */
+        return 0;
+    } else {
+        /* trace file: open up trace file */
+        if ((TRACE = fopen(PTRACE_PIPENAME, "a")) == NULL) {
+            char *msg = strerror(errno);
+            perror(msg);
+            printf("[gnu_ptrace error]\n");
+            return 0;
+        }
+
+        fprintf(stderr, "%s %s %p\n", REFERENCE_OFFSET,
+                GET(STR, PTRACE_REFERENCE_FUNCTION),
+                (void *)GET(DEF, PTRACE_REFERENCE_FUNCTION));
+
+        /* Tracing requested: a trace file was found */
+        atexit(gnu_ptrace_close);
+        return 1;
+    }
+}
+
+/** Function called by every function event */
+void  __attribute__((__no_instrument_function__)) gnu_ptrace(char *what, void *p) {
+    static int first = 1;
+    static int active = 1;
+  fprintf(stderr, "gnu_ptrace %s %p\n", what, p);
+    if (active == 0)
+        return;
+
+    if (first) {
+        active = gnu_ptrace_init();
+        first = 0;
+
+        if (active == 0)
+            return;
+    }
+
+    fprintf(TRACE, "%s %p\n", what, p);
+    fflush(TRACE);
+    return;
+}
+int call_depth = 0;
+/** According to gcc documentation: called upon function entry */
+struct timespec timers[100];
+struct timespec temp;
+__attribute__((__no_instrument_function__)) struct timespec diff(struct timespec start, struct timespec end)
+{
+    if ((end.tv_nsec-start.tv_nsec)<0) {
+        temp.tv_sec = end.tv_sec-start.tv_sec-1;
+        temp.tv_nsec = 1000000000+end.tv_nsec-start.tv_nsec;
+    } else {
+        temp.tv_sec = end.tv_sec-start.tv_sec;
+        temp.tv_nsec = end.tv_nsec-start.tv_nsec;
+    }
+    return temp;
+}
+__attribute__((__no_instrument_function__)) void __cyg_profile_func_enter(void *this_fn, void *call_site) {
+    Dl_info finfo;
+
+    if(this_fn == fopen)
+        return;
+    if(this_fn == main)
+        return;
+    if(this_fn == printf)
+        return;
+    if(this_fn == stat)
+        return;
+    if(this_fn == fprintf)
+        return;
+    if(this_fn == dladdr)
+        return;
+    if(this_fn == __cyg_profile_func_enter)
+        return;
+    if(this_fn == __cyg_profile_func_exit)
+        return;
+    call_depth++;
+    dladdr(this_fn, &finfo);
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &timers[call_depth]);
+
+   if(finfo.dli_sname != NULL) {
+       // print csv
+       //fprintf(trace_out,"%2d,exit,%s, %li, %li\n", call_depth, finfo.dli_sname,tot.tv_sec, tot.tv_nsec);
+        //fprintf(trace_out,"[%2d] \t->%*s%s \n", call_depth, call_depth*2," ",finfo.dli_sname);
+    }
+
+    //gnu_ptrace(FUNCTION_ENTRY, this_fn);
+    (void)call_site;
+}
+
+/** According to gcc documentation: called upon function exit */
+__attribute__((__no_instrument_function__)) void
+__cyg_profile_func_exit(void *this_fn, void *call_site)  {
+    Dl_info finfo;
+    if(this_fn == fopen)
+        return;
+    if(this_fn == main)
+        return;
+    if(this_fn == printf)
+        return;
+    if(this_fn == fprintf)
+        return;
+    if(this_fn == dladdr)
+        return;
+    if(this_fn == stat)
+        return;
+    if(this_fn == __cyg_profile_func_enter)
+        return;
+    if(this_fn == __cyg_profile_func_exit)
+        return;
+    if(this_fn == diff)
+        return;
+    if(this_fn == clock_gettime)
+        return;
+
+
+    dladdr(this_fn, &finfo);
+    struct timespec stop_t;
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &stop_t);
+    struct timespec tot = diff(timers[call_depth],stop_t);
+
+
+    if(finfo.dli_sname != NULL) {
+        // print CSV
+        fprintf(trace_out,"%2d,exit,%s, %li, %li\n", call_depth, finfo.dli_sname,tot.tv_sec, tot.tv_nsec);
+        //fprintf(trace_out,"[%2d] \t<-%*s%s %'lis %'lins \n", call_depth, call_depth*2," ", finfo.dli_sname,tot.tv_sec, tot.tv_nsec);
+   }
+    call_depth--;
+    //gnu_ptrace(FUNCTION_EXIT, this_fn);
+    (void)call_site;
+}
+
+#endif // ifdef PROFILE
+
