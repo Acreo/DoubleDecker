@@ -183,6 +183,9 @@ void delete_dist_clients(dd_broker_t *self, local_broker *br) {
       del_cli_up(self, mp->name);
       rcu_read_lock();
       int ret = cds_lfht_del(self->dist_cli_ht, ht_node);
+      if (ret < 0) {
+        dd_error("Could not delete distclient hashtable entry!");
+      }
       rcu_read_unlock();
     }
     cds_lfht_next(self->dist_cli_ht, &iter);
@@ -520,6 +523,9 @@ void hashtable_subscribe_destroy(struct cds_lfht **self_p) {
     }
     rcu_read_unlock();
     int rc = cds_lfht_destroy(self, NULL);
+    if (rc != 0) {
+      dd_error("Could not delete hashtable!");
+    }
 
     *self_p = NULL;
   }
@@ -551,6 +557,9 @@ void hashtable_local_client_destroy(struct cds_lfht **self_p) {
     rcu_read_unlock();
 
     int rc = cds_lfht_destroy(self, NULL);
+    if (rc != 0) {
+      dd_error("Could not destroy hashtable!");
+    }
     *self_p = NULL;
   }
 }
@@ -633,8 +642,7 @@ void print_broker_ht(dd_broker_t *self) {
   dd_debug("Hashtable: lcl_br_ht");
   while (ht_node != NULL) {
     mp = caa_container_of(ht_node, local_broker, node);
-    char buf[256];
-    dd_debug("\tname: %s", zframe_tostr(mp->sockid, buf));
+    zframe_print(mp->sockid, "\tname:");
     cds_lfht_next(self->lcl_cli_ht, &iter);
     ht_node = cds_lfht_iter_get_node(&iter);
   }
