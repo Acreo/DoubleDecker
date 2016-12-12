@@ -212,19 +212,25 @@ int get_config(dd_broker_t *self, char *conffile) {
 int main(int argc, char **argv) {
 
 #ifdef PROFILE
-  if ((trace_out = fopen("tracefile", "w+")) == NULL) {
-        char *msg = strerror(errno);
-        perror(msg);
-        printf("[gnu_ptrace error]\n");
-        return 0;
-    }
-#endif 
+    if ((trace_out = fopen("tracefile", "w+")) == NULL) {
+          char *msg = strerror(errno);
+          perror(msg);
+          printf("[gnu_ptrace error]\n");
+          return 0;
+      }
+#endif
     int c;
     //  char *configfile = NULL;
     zsys_init();
     zsys_set_logident("DD");
     dd_broker_t *broker = dd_broker_new();
     opterr = 0;
+
+    for(int i = 0; i < argc; i++){
+        if(streq(argv[i],"-D")){
+            zsys_daemonize("/");
+        }
+    }
     while ((c = getopt(argc, argv, "d:r:l:k:s:h:f:w:DSL:")) != -1)
         switch (c) {
             case 'r':
@@ -285,9 +291,7 @@ int main(int argc, char **argv) {
                 printf("unknown argument %c\n", optopt);
         }
 
-    if (daemonize == 1) {
-        zsys_daemonize("/");
-    }
+
 
     zactor_t *actor = dd_broker_actor(broker);
     if (actor == NULL) {
