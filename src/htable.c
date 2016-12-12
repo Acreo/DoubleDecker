@@ -61,14 +61,12 @@ int insert_local_client(dd_broker_t *self, zframe_t *sockid, ddtenant_t *ten,
   np->tenant = ten->name;
   np->name = strdup(client_name);
 
-    snprintf(prefix_name, MAXTENANTNAME, "%s.%s", ten->name, client_name);
+  snprintf(prefix_name, MAXTENANTNAME, "%s.%s", ten->name, client_name);
 
   /* dd_debug("insert_local_client: prefix_name %s", prefix_name); */
   np->prefix_name = strdup(prefix_name);
 
   // Calculate the sockid_cookie hash
-  unsigned long int co = ten->cookie;
-  printf("insert_local_client: cookie %lu\n",co);
   unsigned long int sockid_cookie = sockid_cookie_hash(sockid, ten->cookie);
   // Calculate the prefix_name hash
   unsigned long int prename = string_hash(prefix_name);

@@ -118,13 +118,12 @@ int daemonize = 0;
 void usage() {
     char *t = "Usage: broker [OPTIONS] ...\n"
             "REQUIRED OPTIONS\n"
-            "-r [ADDR]\n"
+            "-r [ADDR]   Listen for clients/brokers on this port\n"
             "       For example tcp://127.0.0.1:5555\n"
             "       Multiple addresses with comma tcp://127.0.0.1:5555,ipc:///file\n"
-            "       Router is where clients connect\n"
-            "-k [FILE]\n"
+            "-k [FILE]   File with keys\n"
             "       JSON file containing the broker keys\n"
-            "-s [SCOPE]\n"
+            "-s [SCOPE]  Broker scope\n"
             "       Scope of the broker, e.g. for region 1, cluster 2, node 3\n"
             "       \"1/2/3\"\n"
             "       Can be set to \"auto\", in this case the broker will ask a higher level\n"
@@ -133,21 +132,20 @@ void usage() {
             "       you need to use a config file (which is updated to hold the assigned scope)\n"
             "\n"
             "OPTIONAL OPTIONS\n"
-            "-d [ADDR]\n"
+            "-d [ADDR]   Connect to other broker\n"
             "       For example tcp://1.2.3.4:5555\n"
             "       Dealer should be connected to Router of another broker\n"
-            "-l [CHAR]\n"
+            "-l [CHAR]   Set loglevel, default is n for NOTICE\n"
             "       e:ERROR,w:WARNING,n:NOTICE,i:INFO,d:DEBUG,q:QUIET\n"
-            "-w [ADDR]\n"
+            "-w [ADDR]   Debugging REST interface\n"
             "       Open a REST socket, eg tcp://*:8080\n"
-            "-f [FILE]\n"
-            "       Read configuration file\n"
-            "-L [FILE]\n"
+            "-f [FILE]   Configuration file\n"
+            "       Read configuration file, formatted in zconfig format\n"
+            "-L [FILE]   Logging file\n"
             "       Log to file\n"
-            "-D\n"
-            "       Daemonize\n"
-            "-S\n"
-            "       Log to system log\n";
+            "-D     Daemonize the process\n"
+            "-S     Log to system log\n";
+
 
     printf("%s",t);
 }

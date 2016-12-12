@@ -237,7 +237,7 @@ dd_broker_test(bool verbose) {
 }
 
 
-int loglevel = DD_LOG_INFO;
+int loglevel = DD_LOG_NOTICE;
 
 bool dd_broker_ready(dd_broker_t *self) {
     bool start = true;
@@ -313,9 +313,9 @@ static void s_cb_high_error(dd_broker_t *self, zmsg_t *msg) {
             ln = hashtable_has_rev_local_node(self, cli_name, 0);
             // is cli_name a local client?
             if ((ln = hashtable_has_rev_local_node(self, cli_name, 0))) {
-                dd_info(" - Removed local client: %s", ln->prefix_name);
+                dd_notice(" - Removed local client: %s", ln->prefix_name);
                 int a = remove_subscriptions(self, ln->sockid);
-                dd_info("   - Removed %d subscriptions", a);
+                dd_notice("   - Removed %d subscriptions", a);
                 hashtable_unlink_local_node(self, ln->sockid, ln->cookie);
                 hashtable_unlink_rev_local_node(self, ln->prefix_name);
                 remote_reg_failed(self, ln->sockid, "remote");
@@ -324,7 +324,7 @@ static void s_cb_high_error(dd_broker_t *self, zmsg_t *msg) {
                 free(ln->name);
                 free(ln);
             } else if ((dn = hashtable_has_dist_node(self, cli_name))) {
-                dd_info(" - Removed distant client: %s", cli_name);
+                dd_notice(" - Removed distant client: %s", cli_name);
                 remote_reg_failed(self, dn->broker, cli_name);
                 hashtable_remove_dist_node(self, cli_name);
             } else {
@@ -456,18 +456,18 @@ static void s_cb_adddcl(dd_broker_t *self, zframe_t *sockid,
     local_client *ln;
 
     if ((ln = hashtable_has_rev_local_node(self, name, 0))) {
-        dd_info(" - Local client '%s' already exists!", name);
+        dd_notice(" - Local client '%s' already exists!", name);
         remote_reg_failed(self, sockid, name);
         free(name);
 
     } else if ((dn = hashtable_has_dist_node(self, name))) {
-        dd_info(" - Remote client '%s' already exists!", name);
+        dd_notice(" - Remote client '%s' already exists!", name);
         remote_reg_failed(self, sockid, name);
         free(name);
 
     } else {
         hashtable_insert_dist_node(self, name, sockid, *dist);
-        dd_info(" + Added remote client: %s (%d)", name, *dist);
+        dd_notice(" + Added remote client: %s (%d)", name, *dist);
         add_cli_up(self, name, *dist);
     }
     zframe_destroy(&dist_frame);
@@ -497,7 +497,7 @@ static void s_cb_chall(dd_broker_t *self, zmsg_t *msg) {
     }
     zframe_t *temp_frame = zframe_new(decrypted, enclen - crypto_box_NONCEBYTES -
                                                  crypto_box_MACBYTES);
-    dd_info("Got challenge, sending my scope %s",self->broker_scope);
+    dd_info(" + Got challenge, sending my scope %s",self->broker_scope);
     zsock_send(self->dsock, "bbfss", &dd_version, 4, &dd_cmd_challok, 4,
                temp_frame, dd_broker_keys_get_hash(self->keys), self->broker_scope);
     cleanup:
@@ -538,7 +538,7 @@ static void s_cb_challok(dd_broker_t *self, zframe_t *sockid, zmsg_t *msg) {
             goto cleanup;
         }
 
-        dd_info("Authentication of broker (scope %s) successful!", client_name);
+        dd_notice("+ Authentication of broker (scope %s) successful!", client_name);
         if (NULL != hashtable_has_local_broker(self, sockid, *cookie, 0)) {
             dd_error("Broker already registered!");
             goto cleanup;
@@ -553,7 +553,6 @@ static void s_cb_challok(dd_broker_t *self, zframe_t *sockid, zmsg_t *msg) {
             int v, done = 0;
             char *brscope = NULL;
             int ret = asprintf(&brscope, "%s","/");
-            dd_info("asprintf: %d", ret);
             assert(ret != -1);
             char *newscope=NULL;
             char *token = (char *) zlist_first(self->scope);
@@ -589,7 +588,7 @@ static void s_cb_challok(dd_broker_t *self, zframe_t *sockid, zmsg_t *msg) {
                    4, &cookie2, sizeof(cookie2),
                    pubs_endpoint, subs_endpoint, client_name);
         char buf[256];
-        dd_info(" + Added broker: %s", zframe_tostr(sockid, buf));
+        dd_notice(" + Added broker: %s", zframe_tostr(sockid, buf));
         goto cleanup;
 
     }
@@ -615,13 +614,13 @@ static void s_cb_challok(dd_broker_t *self, zframe_t *sockid, zmsg_t *msg) {
     }
 
     if (strcmp(client_name, "auto") == 0) {
-        dd_info("Generating new client name");
         char *new_client_name;
-        int ret = asprintf(&new_client_name, "%s%d", self->broker_scope, autoname);
+        int ret = asprintf(&new_client_name, "%s-%d", self->broker_scope, autoname);
         assert(ret != -1);
         autoname++;
         free(client_name);
         client_name = new_client_name;
+        dd_notice(" + Generated client name %s",client_name);
     }
 
     retval = insert_local_client(self, sockid, ten, client_name);
@@ -633,7 +632,7 @@ static void s_cb_challok(dd_broker_t *self, zframe_t *sockid, zmsg_t *msg) {
     }
     zsock_send(self->rsock, "fbbbs", sockid, &dd_version, 4, &dd_cmd_regok, 4,
                &ten->cookie, sizeof(ten->cookie), client_name);
-    dd_info(" + Added local client: %s.%s", ten->name, client_name);
+    dd_notice(" + Added local client: %s.%s", ten->name, client_name);
     char prefix_name[MAXTENANTNAME];
     snprintf(prefix_name, 200, "%s.%s", ten->name, client_name);
     if (self->state != DD_STATE_ROOT)
@@ -797,10 +796,7 @@ static void s_cb_pub(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie,
         free(topic);
         return;
     }
-    //int srcpublic = 0;
     int dstpublic = 0;
-    //if (strcmp("public", ln->tenant) == 0)
-//        srcpublic = 1;
     if (strncmp(topic, "public.", 7) == 0)
         dstpublic = 1;
 
@@ -827,13 +823,12 @@ static void s_cb_pub(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie,
     }
 
     if (self->pubN) {
-        dd_debug("publishing north %s %s ", pubtopic, name);
+        dd_info(" + Publishing to higher broker on %s from %s ", pubtopic, name);
         zsock_send(self->pubN, "ssfm", pubtopic, name, self->broker_id, msg);
     }
 
     if (self->pubS) {
-        dd_debug("publishing south %s %s", pubtopic, name);
-
+        dd_info(" + Publishing to lower broker on %s from %s", pubtopic, name);
         zsock_send(self->pubS, "ssfm", pubtopic, name, self->broker_id_null, msg);
     }
 
@@ -842,9 +837,8 @@ static void s_cb_pub(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie,
 
     if (socks != NULL) {
         zframe_t *s = (zframe_t *) zlist_first(socks);
-        dd_debug("Local sockids to send to: ");
         while (s) {
-            print_zframe(s);
+            dd_info(" + Sending publication on %s from %s to local client", topic, name);
             zsock_send(self->rsock, "fbbssm", s, &dd_version, 4, &dd_cmd_pub, 4, name,
                        topic, msg);
             s = (zframe_t *) zlist_next(socks);
@@ -958,9 +952,9 @@ static void s_cb_regok(dd_broker_t *self, zmsg_t *msg) {
                 child = zconfig_next(child);
             }
             if(zconfig_save(root,self->config_file)){
-                dd_info("Updated config file");
+                dd_notice(" + Updated config file");
             } else {
-                dd_info("Could not update config file");
+                dd_notice(" - Could not update config file");
             }
         }
     }
@@ -994,8 +988,7 @@ static void s_cb_send(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie,
     ln = hashtable_has_local_node(self, sockid, cookie, 1);
     if (!ln) {
         dd_error("Unregistered client trying to send!");
-        // TODO
-        // free some stuff here..
+        free(dest);
         return;
     }
     if (strcmp(ln->tenant, "public") == 0)
@@ -1008,7 +1001,6 @@ static void s_cb_send(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie,
     // if destination is public, add tenant to source_name
     // but not on prefix_dst_name
     if (dstpublic == 1 && srcpublic == 0) {
-
         src_string = ln->prefix_name;
         dst_string = dest;
         dd_debug("s:0 d:1 , s: %s d: %s", src_string, dst_string);
@@ -1050,42 +1042,36 @@ static void s_cb_send(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie,
             dst_string = dest;
             src_string = ln->prefix_name;
         }
-#ifdef DEBUG
-        dd_debug("s:1 d:0, s: %s d: %s", src_string, dst_string);
-#endif
     } else {
         src_string = ln->prefix_name;
         snprintf(dest_buf, MAXTENANTNAME, "%s.%s", ln->tenant, dest);
         dst_string = dest_buf;
-#ifdef DEBUG
-        dd_debug("s:0 d:0, s: %s d: %s", src_string, dst_string);
-#endif
     }
-#ifdef DEBUG
-    dd_debug("s_cb_send: src \"%s\", dst \"%s\"", src_string, dst_string);
-#endif
     dist_client *dn;
     if ((ln = hashtable_has_rev_local_node(self, dst_string, 0))) {
         if ((!srcpublic && !dstpublic) || (srcpublic && dstpublic)) {
             char *dot = strchr(src_string, '.');
+            dd_info(" + Sending message from %s to local client %s", dot+1,dst_string);
             forward_locally(self, ln->sockid, dot + 1, msg);
         } else {
+            dd_info(" + Sending message from %s to local client %s", src_string,dst_string);
             forward_locally(self, ln->sockid, src_string, msg);
         }
     } else if ((dn = hashtable_has_dist_node(self, dst_string))) {
-#ifdef DEBUG
-        dd_debug("calling forward down");
-#endif
+        dd_info(" + Forwarding message from %s to client %s, via lower broker", src_string,dst_string);
         forward_down(self, src_string, dst_string, dn->broker, msg);
     } else if (self->state == DD_STATE_ROOT) {
         if ((!srcpublic && !dstpublic) || (srcpublic && dstpublic)) {
             char *src_dot = strchr(src_string, '.');
             char *dst_dot = strchr(dst_string, '.');
+            dd_info(" - Invalid destination from %s to %s", src_dot + 1, dst_dot + 1);
             dest_invalid_rsock(self, sockid, src_dot + 1, dst_dot + 1);
         } else {
+            dd_info(" - Invalid destination from %s to %s", src_string, dst_string);
             dest_invalid_rsock(self, sockid, src_string, dst_string);
         }
     } else {
+        dd_info(" + Forwarding from %s to %s via higher broker", src_string, dst_string);
         forward_up(self, src_string, dst_string, msg);
     }
 
@@ -1107,7 +1093,7 @@ static void s_cb_sub(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie,
     local_client *ln;
     ln = hashtable_has_local_node(self, sockid, cookie, 1);
     if (!ln) {
-        dd_warning("DD: Unregistered client trying to send!");
+        dd_warning("DD: Unregistered client trying to subscribe!");
         free(topic);
         free(scopestr);
         return;
@@ -1162,7 +1148,6 @@ static void s_cb_sub(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie,
                 t = (char *) zlist_next(self->scope);
             } else {
                 dd_error("Requested scope is longer than assigned scope!");
-
                 free(scopedup);
                 free(scopestr);
                 free(topic);
@@ -1172,12 +1157,12 @@ static void s_cb_sub(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie,
         len -= retval;
         nsptr += retval;
     }
+    dd_info(" + Got subscription to %s on scope %s", topic, scopedup);
     zsock_send(self->rsock, "fbbss", sockid, &dd_version, 4, &dd_cmd_subok, 4,
                topic, scopedup);
     free(scopedup);
 
-    retval =
-            snprintf(ntptr, 256, "%s.%s%s", ln->tenant, topic, (char *) &newscope[0]);
+    retval =  snprintf(ntptr, 256, "%s.%s%s", ln->tenant, topic, (char *) &newscope[0]);
     //  dd_debug("newtopic = %s, len = %d\n", ntptr, retval);
 
     int aNew = 0;
@@ -1198,7 +1183,7 @@ static void s_cb_sub(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie,
                                strlen(ntptr), sockid, 1);
     // doesn't really matter
     if (retval == 0) {
-        dd_info("topic %s already in trie!", ntptr);
+        dd_debug("topic %s already in trie!", ntptr);
     } else if (retval == 1) {
         dd_debug("new topic %s", ntptr);
     } else if (retval == 2) {
@@ -1261,10 +1246,10 @@ static void s_cb_unreg_cli(dd_broker_t *self, zframe_t *sockid,
 
     local_client *ln;
     if ((ln = hashtable_has_local_node(self, sockid, cookie, 0))) {
-        dd_info(" - Removed local client: %s", ln->prefix_name);
+        dd_notice(" - Removed local client: %s", ln->prefix_name);
         del_cli_up(self, ln->prefix_name);
         int a = remove_subscriptions(self, sockid);
-        dd_info("   - Removed %d subscriptions", a);
+        dd_notice("   - Removed %d subscriptions", a);
         hashtable_unlink_local_node(self, ln->sockid, ln->cookie);
         hashtable_unlink_rev_local_node(self, ln->prefix_name);
         zframe_destroy(&ln->sockid);
@@ -1299,7 +1284,7 @@ static void s_cb_unreg_dist_cli(dd_broker_t *self, zframe_t *sockid,
     dd_debug("trying to remove distant client: %s", name);
 
     if ((dn = hashtable_has_dist_node(self, name))) {
-        dd_info(" - Removed distant client: %s", name);
+        dd_notice(" - Removed distant client: %s", name);
         hashtable_remove_dist_node(self, name);
         del_cli_up(self, name);
     }
@@ -1387,10 +1372,8 @@ static void s_cb_unsub(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie,
     }
     free(scopedup);
 
-    retval =
-            snprintf(ntptr, 256, "%s.%s%s", ln->tenant, topic, (char *) &newscope[0]);
-    dd_info("deltopic = %s, len = %d\n", ntptr, retval);
-
+    retval = snprintf(ntptr, 256, "%s.%s%s", ln->tenant, topic, (char *) &newscope[0]);
+    dd_debug("deltopic = %s, len = %d\n", ntptr, retval);
 
     retval = remove_subscription(self, sockid, ntptr);
 
@@ -1405,13 +1388,11 @@ static void s_cb_unsub(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie,
     ntptr = &newtopic[0];
     if (self->subN) {
         dd_debug("deleting 1 subscription for %s to north SUB", &newtopic[1]);
-        retval =
-                zsock_send(self->subN, "b", &newtopic[0], 1 + strlen(&newtopic[1]));
+        retval = zsock_send(self->subN, "b", &newtopic[0], 1 + strlen(&newtopic[1]));
     }
     if (self->subS) {
         dd_debug("deleting 1 subscription for %s to south SUB", &newtopic[1]);
-        retval =
-                zsock_send(self->subS, "b", &newtopic[0], 1 + strlen(&newtopic[1]));
+        retval = zsock_send(self->subS, "b", &newtopic[0], 1 + strlen(&newtopic[1]));
     }
 }
 
@@ -1435,7 +1416,6 @@ static int s_on_subN_msg(zloop_t *loop, zsock_t *handle, void *arg) {
     }
 
     dd_debug("pubtopic: %s source: %s", pubtopic, name);
-    // zframe_print(pathv, "pathv: ");
     zlist_t *socks = nn_trie_tree(&self->topics_trie, (const uint8_t *) pubtopic,
                                   strlen(pubtopic));
 
@@ -1449,7 +1429,7 @@ static int s_on_subN_msg(zloop_t *loop, zsock_t *handle, void *arg) {
             *slash = '\0';
 
         while (s) {
-            print_zframe(s);
+            dd_info(" + Sending publication from %s on topic %s from higher broker to local client", name, dot);
             zsock_send(self->rsock, "fbbssm", s, &dd_version, 4, &dd_cmd_pub, 4, name,
                        dot, msg);
             s = (zframe_t *) zlist_next(socks);
@@ -1461,9 +1441,10 @@ static int s_on_subN_msg(zloop_t *loop, zsock_t *handle, void *arg) {
     }
 
     // If from north, only send south (only one reciever in the north)
-    if (self->pubS)
+    if (self->pubS) {
+        dd_info(" + Sending publications on %s from %s to lower brokers", pubtopic,name);
         zsock_send(self->pubS, "ssfm", pubtopic, name, self->broker_id_null, msg);
-
+    }
     cleanup:
     free(pubtopic);
     free(name);
@@ -1483,15 +1464,11 @@ static int s_on_subS_msg(zloop_t *loop, zsock_t *handle, void *arg) {
     char *pubtopic = zmsg_popstr(msg);
     char *name = zmsg_popstr(msg);
     zframe_t *pathv = zmsg_pop(msg);
-
-    dd_debug("pubtopic: %s source: %s", pubtopic, name);
-    // zframe_print(pathv, "pathv: ");
     zlist_t *socks = nn_trie_tree(&self->topics_trie, (const uint8_t *) pubtopic,
                                   strlen(pubtopic));
 
     if (socks != NULL) {
         zframe_t *s = (zframe_t *) zlist_first(socks);
-        dd_debug("Local sockids to send to: ");
 
         // TODO, this is a simplification, should take into account
         // srcpublic/dstpublic
@@ -1502,7 +1479,7 @@ static int s_on_subS_msg(zloop_t *loop, zsock_t *handle, void *arg) {
             *slash = '\0';
 
         while (s) {
-            print_zframe(s);
+            dd_info(" + Sending publication on %s from %s to local client", dot, name);
             zsock_send(self->rsock, "fbbssm", s, &dd_version, 4, &dd_cmd_pub, 4, name,
                        dot, msg);
             s = (zframe_t *) zlist_next(socks);
@@ -1514,11 +1491,14 @@ static int s_on_subS_msg(zloop_t *loop, zsock_t *handle, void *arg) {
     }
 
     // if from the south, send north & south, multiple recievers south
-    if (self->pubN)
+    if (self->pubN) {
+        dd_info(" + Sending publication on %s from %s to higher brokers", pubtopic, name);
         zsock_send(self->pubN, "ssfm", pubtopic, name, self->broker_id, msg);
-    if (self->pubS)
+    }
+    if (self->pubS) {
+        dd_info(" + Sending publication on %s from %s to lower brokers", pubtopic, name);
         zsock_send(self->pubS, "ssfm", pubtopic, name, pathv, msg);
-
+    }
 
     free(pubtopic);
     free(name);
@@ -1539,12 +1519,12 @@ static int s_on_pubN_msg(zloop_t *loop, zsock_t *handle, void *arg) {
     char *topic = (char *) zframe_data(topic_frame);
 
     if (topic[0] == 1) {
-        dd_info(" + Got subscription for: %s", &topic[1]);
+        dd_notice(" + Got subscription for: %s", &topic[1]);
         nn_trie_add_sub_north(&self->topics_trie, (const uint8_t *) &topic[1],
                               zframe_size(topic_frame) - 1);
     }
     if (topic[0] == 0) {
-        dd_info(" - Got unsubscription for: %s", &topic[1]);
+        dd_notice(" - Got unsubscription for: %s", &topic[1]);
         nn_trie_del_sub_north(&self->topics_trie, (const uint8_t *) &topic[1],
                               zframe_size(topic_frame) - 1);
     }
@@ -1570,12 +1550,12 @@ static int s_on_pubS_msg(zloop_t *loop, zsock_t *handle, void *arg) {
     char *topic = (char *) zframe_data(topic_frame);
 
     if (topic[0] == 1) {
-        dd_info(" + Got subscription for: %s", &topic[1]);
+        dd_notice(" + Got subscription for: %s", &topic[1]);
         nn_trie_add_sub_south(&self->topics_trie, (const uint8_t *) &topic[1],
                               zframe_size(topic_frame) - 1);
     }
     if (topic[0] == 0) {
-        dd_info(" - Got unsubscription for: %s", &topic[1]);
+        dd_notice(" - Got unsubscription for: %s", &topic[1]);
         nn_trie_del_sub_south(&self->topics_trie, (const uint8_t *) &topic[1],
                               zframe_size(topic_frame) - 1);
     }
@@ -1912,12 +1892,12 @@ static int s_check_br_timeout(zloop_t *loop, int timer_fd, void *arg) {
             int ret = cds_lfht_del(self->lcl_br_ht, ht_node);
             rcu_read_unlock();
             if (ret) {
-                dd_info(" - Local broker %s removed (concurrently)",
+                dd_notice(" - Local broker %s removed (concurrently)",
                         zframe_tostr(np->sockid, buf));
                 free(np);
             } else {
                 synchronize_rcu();
-                dd_info(" - Local broker %s removed", zframe_tostr(np->sockid, buf));
+                dd_notice(" - Local broker %s removed", zframe_tostr(np->sockid, buf));
                 free(np);
             }
         }
@@ -1945,7 +1925,7 @@ void del_cli_up(dd_broker_t *self, char *prefix_name) {
 static void forward_down(dd_broker_t *self, char *src_string, char *dst_string,
                          zframe_t *br_sockid, zmsg_t *msg) {
 #ifdef DEBUG
-    dd_info("Sending CMD_FORWARD to broker with sockid");
+    dd_debug("Sending CMD_FORWARD to broker with sockid");
   print_zframe(br_sockid);
 #endif
     zsock_send(self->rsock, "fbbssm", br_sockid, &dd_version, 4, &dd_cmd_forward,
@@ -1989,8 +1969,6 @@ static void unreg_broker(dd_broker_t *self, local_broker *np) {
 }
 */
 static void connect_pubsubN(dd_broker_t *self) {
-    dd_debug("Connect pubsubN");
-
     zrex_t *rexipc = zrex_new(IPC_REGEX);
     assert(zrex_valid(rexipc));
     zrex_t *rextcp = zrex_new(TCP_REGEX);
@@ -2014,7 +1992,7 @@ static void connect_pubsubN(dd_broker_t *self) {
     zrex_destroy(&rexipc);
     zrex_destroy(&rextcp);
 
-    dd_info("pub_connect: %s sub_connect: %s", self->pub_connect,
+    dd_debug("pub_connect: %s sub_connect: %s", self->pub_connect,
             self->sub_connect);
     self->pubN = zsock_new(ZMQ_XPUB);
     self->subN = zsock_new(ZMQ_XSUB);
@@ -2256,10 +2234,10 @@ static int s_on_http(zloop_t *loop, zsock_t *handle, void *arg) {
                 jobj = json_get_stop(self);
                 retval = -1;
             } else {
-                dd_info("GET but weird path %s", route);
+                dd_debug("GET but weird path %s", route);
             }
         } else if (streq(method, "PUT")) {
-            dd_info("PUT = %p", jobj);
+            dd_debug("PUT = %p", jobj);
         }
     }
 
@@ -2342,11 +2320,11 @@ static int s_on_pipe_msg(zloop_t *loop, zsock_t *handle, void *args) {
 
     zmsg_print(msg);
     zframe_t *command = zmsg_pop(msg);
-    dd_info("s_on_pipemsg = %s", command);
+    dd_debug("s_on_pipemsg = %s", command);
     //  All actors must handle $TERM in this way
     // returning -1 should stop zloop_start and terminate the actor
     if (streq((const char *) zframe_data(command), "$TERM")) {
-        dd_info("s_on_pipe_msg, got $TERM, quitting\n");
+        dd_debug("s_on_pipe_msg, got $TERM, quitting\n");
         free(command);
         zmsg_destroy(&msg);
         return -1;
@@ -2367,7 +2345,7 @@ static int s_gc_pipe_msg(zloop_t *loop, zsock_t *handle, void *args) {
     //  All actors must handle $TERM in this way
     // returning -1 should stop zloop_start and terminate the actor
     if (streq(command, "$TERM")) {
-        dd_info("s_gc_pipe_msg, got $TERM, quitting\n");
+        dd_debug("s_gc_pipe_msg, got $TERM, quitting\n");
         free(command);
         zmsg_destroy(&msg);
         return -1;
@@ -2411,9 +2389,9 @@ void broker_actor(zsock_t *pipe, void *args) {
     // signal sucessfull initialization
     zsock_signal(pipe, 0);
 
-    dd_info("DoubleDecker version %d.%d.%d (proto: 0x%x)", DD_VERSION_MAJOR, DD_VERSION_MINOR, DD_VERSION_PATCH,
+    dd_notice("DoubleDecker version %d.%d.%d (proto: 0x%x)", DD_VERSION_MAJOR, DD_VERSION_MINOR, DD_VERSION_PATCH,
             DD_PRO_VERSION);
-    dd_info("Starting actor broker, router at %s, dealer at %s",
+    dd_notice("Starting actor broker, router at %s, dealer at %s",
             self->router_bind, self->dealer_connect);
 
     randombytes_buf(self->nonce, crypto_box_NONCEBYTES);
@@ -2429,7 +2407,7 @@ void broker_actor(zsock_t *pipe, void *args) {
     }
 
     if(streq(self->broker_scope,"auto") && self->dealer_connect) {
-        dd_info("Postponing router start until scope has been assigned.")
+        dd_warning("Postponing router start until scope has been assigned.")
         if(zfile_exists(".(ddbroker-auto")){
             zfile_new(".","ddbroker-auto");
         }
@@ -2448,7 +2426,7 @@ void broker_actor(zsock_t *pipe, void *args) {
         zloop_reader_set_tolerant(self->loop, self->dsock);
         self->reg_loop = zloop_timer(self->loop, 1000, 0, s_register, self);
     } else {
-        dd_info("Will act as ROOT broker");
+        dd_notice("Will act as ROOT broker");
         self->state = DD_STATE_ROOT;
     }
     zactor_t *act = NULL;
@@ -2480,7 +2458,7 @@ void broker_actor(zsock_t *pipe, void *args) {
         zsock_set_linger(self->rsock, 0);
 
     rc = zloop_start(self->loop);
-    //  dd_info("broker.c: zloop_start returned %d\n", rc);
+    //  dd_notice("broker.c: zloop_start returned %d\n", rc);
     zactor_destroy(&act);
     s_self_destroy(&self);
     /* if(pipe) */
@@ -2505,10 +2483,10 @@ zactor_t *dd_broker_actor(dd_broker_t *self) {
 }
 // TODO: merge this with dd_broker_actor
 int dd_broker_start(dd_broker_t *self) {
-    dd_info("DoubleDecker version %d.%d.%d (proto: 0x%x)", DD_VERSION_MAJOR, DD_VERSION_MINOR, DD_VERSION_PATCH,
+    dd_notice("DoubleDecker version %d.%d.%d (proto: 0x%x)", DD_VERSION_MAJOR, DD_VERSION_MINOR, DD_VERSION_PATCH,
             DD_PRO_VERSION);
 
-    dd_info("Starting broker, router at %s, dealer at %s",
+    dd_notice("Starting broker, router at %s, dealer at %s",
             self->router_bind, self->dealer_connect);
     int rc;
     randombytes_buf(self->nonce, crypto_box_NONCEBYTES);
@@ -2523,7 +2501,7 @@ int dd_broker_start(dd_broker_t *self) {
     }
 
     if(streq(self->broker_scope,"auto") && self->dealer_connect) {
-        dd_info("Postponing router start until scope has been assigned.")
+        dd_notice("Postponing router start until scope has been assigned.")
     } else {
         bind_router(self);
         assert(self->rsock);
@@ -2539,7 +2517,7 @@ int dd_broker_start(dd_broker_t *self) {
         zloop_reader_set_tolerant(self->loop, self->dsock);
         self->reg_loop = zloop_timer(self->loop, 1000, 0, s_register, self);
     } else {
-        dd_info("No dealer defined, the broker will act as the root");
+        dd_notice("No dealer defined, the broker will act as the root");
         self->state = DD_STATE_ROOT;
     }
 
@@ -2578,7 +2556,7 @@ int dd_broker_start(dd_broker_t *self) {
     zsock_destroy(&self->subN);
     zsock_destroy(&self->dsock);
     zsock_destroy(&self->rsock);
-    dd_info("Destroyed all open sockets, waiting a second..");
+    dd_notice("Destroyed all open sockets, waiting a second..");
     // TODO:
     // Weird bug here, if run in interactive mode and killed with ctrl-c (SIGINT)
     // All IPC unix domain socket files seems to be removed just fine
@@ -2591,7 +2569,7 @@ int dd_broker_start(dd_broker_t *self) {
 }
 
 int dd_broker_set_dealer(dd_broker_t *self, const char *dealeruri) {
-    dd_info("Setting dealer: %s", dealeruri);
+    dd_notice("Setting dealer: %s", dealeruri);
     if (self->dealer_connect)
         free(self->dealer_connect);
     if (self->dsock)
@@ -2608,7 +2586,7 @@ int dd_broker_set_dealer(dd_broker_t *self, const char *dealeruri) {
 }
 
 int dd_broker_set_keyfile(dd_broker_t *self, const char *keyfile) {
-    dd_info("Setting keys from %s", keyfile);
+    dd_notice("Setting keys from %s", keyfile);
 
     if (self->keys) {
         dd_error("Keys already read!");
@@ -2634,7 +2612,7 @@ int dd_broker_add_router(dd_broker_t *self, const char *routeruri) {
 }
 
 int dd_broker_del_router(dd_broker_t *self, const char *routeruri) {
-    dd_info("Unbinding router %s", routeruri);
+    dd_notice("Unbinding router %s", routeruri);
     dd_error("Not implemented!");
     return -1;
 }
@@ -2677,9 +2655,9 @@ static void bind_router(dd_broker_t *self) {
     int rc;
     rc = zsock_attach(self->rsock, self->router_bind, true);
     if (rc == 0) {
-        dd_info("Successfully bound router to %s", self->router_bind);
+        dd_notice("Successfully bound router to %s", self->router_bind);
     } else {
-        dd_info("Failed to bind router to %s", self->router_bind);
+        dd_notice("Failed to bind router to %s", self->router_bind);
         exit(EXIT_FAILURE);
     }
 
@@ -2708,7 +2686,7 @@ void dd_broker_set_config (dd_broker_t *self, const char *configfile){
 int dd_broker_set_scope(dd_broker_t *self, const char *scopestr) {
     if(streq(scopestr, "auto")){
         self->broker_scope = "auto";
-        dd_info("Broker scope set to: \"%s\"", self->broker_scope);
+        dd_notice("Broker scope set to: \"%s\"", self->broker_scope);
         return 0;
     }
     zrex_t *rexscope = zrex_new("^/*(\\d+)/(\\d+)/(\\d+)/*$");
@@ -2754,7 +2732,7 @@ int dd_broker_set_scope(dd_broker_t *self, const char *scopestr) {
         t = (char *) zlist_next(self->scope);
     }
     self->broker_scope = &brokerscope[0];
-    dd_info("Broker scope set to: \"%s\"", self->broker_scope);
+    dd_notice("Broker scope set to: \"%s\"", self->broker_scope);
     return 0;
 }
 
