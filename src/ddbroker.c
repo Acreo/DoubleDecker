@@ -220,7 +220,7 @@ int main(int argc, char **argv) {
     int c;
     //  char *configfile = NULL;
     zsys_init();
-    zsys_set_logident("DD");
+    zsys_set_logident("ddbroker");
     dd_broker_t *broker = dd_broker_new();
     opterr = 0;
 
