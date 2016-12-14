@@ -223,8 +223,8 @@ int main(int argc, char **argv) {
     zsys_set_logident("ddbroker");
     dd_broker_t *broker = dd_broker_new();
     opterr = 0;
-
-    for(int i = 0; i < argc; i++){
+    int i;
+    for(i = 0; i < argc; i++){
         if(streq(argv[i],"-D")){
             zsys_daemonize("/");
         }
