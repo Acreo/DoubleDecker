@@ -875,6 +875,11 @@ zactor_t *ddactor_new(char *client_name, char *endpoint, char *keyfile) {
   self->on_data = actor_data;
   self->on_pub = actor_pub;
   self->on_error = actor_error;
+  zsys_set_logident("ddclient");
+  dd_set_logfp(self, stdout);
+  if(getenv("DD_DEBUG") != NULL){
+    dd_set_loglevel(self, "i");
+  }
   zactor_t *actor = zactor_new(dd_actor, self);
   return actor;
 }
@@ -901,6 +906,9 @@ dd_t *dd_new(char *client_name, char *endpoint, char *keyfile, dd_on_con con,
   zthread_new(ddthread, self);
   zsys_set_logident("ddclient");
   dd_set_logfp(self, stdout);
+  if(getenv("DD_DEBUG") != NULL){
+    dd_set_loglevel(self, "i");
+  }
   return self;
 }
 
