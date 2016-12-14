@@ -899,7 +899,7 @@ static void s_cb_sub(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie,
   int len = 128;
   int retval;
   if (strcmp(scopestr, "noscope") == 0) {
-    retval = snprintf(nsptr, len, "");
+    retval = snprintf(nsptr, len, "%s","");
     len -= retval;
     nsptr += retval;
   } else {
@@ -1111,7 +1111,7 @@ static void s_cb_unsub(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie,
   int len = 128;
   int retval;
   if (strcmp(scopestr, "noscope") == 0) {
-    retval = snprintf(nsptr, len, "");
+    retval = snprintf(nsptr, len, "%s","");
     len -= retval;
     nsptr += retval;
   } else {
@@ -2285,7 +2285,7 @@ static int s_on_pipe_msg(zloop_t *loop, zsock_t *handle, void *args) {
     zmsg_destroy(&msg);
     return -1;
   } else {
-    fprintf(stderr, "s_on_pipe_msg, got unknown command: %s\n", command);
+    fprintf(stderr, "s_on_pipe_msg, got unknown command: %s\n", zframe_data(command));
   }
   zmsg_destroy(&msg);
   free(command);

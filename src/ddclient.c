@@ -235,6 +235,26 @@ void on_error(int error_code, char *error_message, void *args) {
   fflush(stdout);
 }
 
+void usage() {
+    char *t = "Usage: broker  -k <keyfile> -n <name> -d <tcp/ipc url> [OPTIONS]\n"
+            "REQUIRED OPTIONS\n"
+            "-d [ADDR]   Connect to broker at this ADDR\n"
+            "       ADDR can be a tcp port, for example tcp://127.0.0.1:5555, tcp://server.com:5555\n"
+            "       ADDR can be a ipc file, for example ipc:///var/run/br0\n"
+            "-k [FILE]   File with keys\n"
+            "       JSON file containing the clients tenant keys, e.g. a-keys.json\n"
+            "-n [NAME]  Client name\n"
+            "       Name of the client, has to be unique within the tenant.\n"
+            "\n"
+            "OPTIONAL OPTIONS\n"
+            "-l [CHAR]   Set loglevel, default is n for NOTICE\n"
+            "       e:ERROR,w:WARNING,n:NOTICE,i:INFO,d:DEBUG,q:QUIET\n"
+            "       When set to INFO, additional information about sent messages will be printed\n"
+            "-L [FILE]   Logging file\n"
+            "-S     Log to system log\n";
+    printf("%s",t);
+}
+
 int main(int argc, char *argv[]) {
   cparser_t parser;
   cparser_result_t rc;
@@ -246,43 +266,59 @@ int main(int argc, char *argv[]) {
   int c;
   char *keyfile = NULL;
   char *connect_to = NULL;
-  //  char *customer = NULL;
   char *client_name = NULL;
+  char *logfile = NULL;
+  int syslog = 0;
+  char *loglevel = "n";
 
   opterr = 0;
 
-  while ((c = getopt(argc, argv, "d:k:n:")) != -1) {
+  while ((c = getopt(argc, argv, "d:k:n:SL:l:")) != -1) {
     switch (c) {
-    case 'k':
-      keyfile = optarg;
-      break;
-    case 'd':
-      connect_to = optarg;
-      break;
-      /*    case 'c':
-      customer = optarg;
-      break; */
-    case 'n':
-      client_name = optarg;
-      break;
-    default:
-      abort();
+      case 'k':
+        keyfile = optarg;
+        break;
+      case 'd':
+        connect_to = optarg;
+        break;
+      case 'n':
+        client_name = optarg;
+        break;
+      case 'S':
+        syslog = 1;
+        break;
+      case 'L':
+        logfile = optarg;
+        break;
+      case 'l':
+        loglevel = optarg;
+        break;
+      default:
+        printf("Unknown option \"%c\", aborting..\n", c);
+        exit(EXIT_FAILURE);
     }
   }
   if (client_name == NULL  || keyfile == NULL ||
       connect_to == NULL) {
-    printf("usage: ddclient -k <keyfile> -n <name> -d "
-           "<tcp/ipc url>\n");
-    return 1;
+    usage();
+    exit(EXIT_FAILURE);
   }
   client = dd_new(client_name, connect_to, keyfile, on_reg, on_discon,
                   on_data, on_pub, on_error);
-  if (client == NULL) {
-    printf("DD initialization failed!\n");
-    return -1;
-  } else {
-    printf("DD initalization ok\n");
-  }
+    if(logfile != NULL){
+        dd_set_logfile(client,logfile);
+    }
+    if(syslog == 1){
+        dd_set_syslog(client);
+    }
+    dd_set_loglevel(client, loglevel);
+
+    if (client == NULL) {
+        printf("DD initialization failed!\n");
+        exit(EXIT_FAILURE);
+    } else {
+        printf("DD initalization ok\n");
+    }
 
   parser.cfg.root = &cparser_root;
   parser.cfg.ch_complete = '\t';

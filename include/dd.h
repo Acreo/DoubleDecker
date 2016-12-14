@@ -299,6 +299,30 @@ CZMQ_EXPORT char dd_sub_get_active(ddtopic_t *sub);
 CZMQ_EXPORT zactor_t *ddactor_new(char *client_name, char *endpoint,
                                   char *keyfile);
 
+//  Send logging output to syslog.
+CZMQ_EXPORT void
+    dd_client_set_syslog (dd_t *self);
+
+//  Set the logging file of the client, will default to stdout if not set.
+//  Will try to create/open a file with the provided name.                
+//  Returns 0 on success, -1 on failure                                   
+CZMQ_EXPORT int
+    dd_client_set_logfile (dd_t *self, const char *logfile);
+
+//  Set the logging file of the client, using an already existing FILE
+//  pointer.                                                          
+//  Returns 0 on success, -1 on failure                               
+CZMQ_EXPORT int
+    dd_client_set_logfp (dd_t *self, FILE *logfile);
+
+//  Set the client loglevel, as a single character string.         
+//  Where "e":error,"w":warning,"n":notice,"i":info, and "d":debug.
+//  Default is "n". For no output, "q" will keep it quiet.         
+CZMQ_EXPORT int
+    dd_client_set_loglevel (dd_t *self, const char *loglevel);
+
+
+  
 // Class definitions for a DoubleDecker broker
 typedef struct _dd_broker_t dd_broker_t;
 typedef struct _dd_keys_t dd_keys_t;

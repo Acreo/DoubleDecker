@@ -17,6 +17,8 @@ struct _dd_t {
   zlistx_t *sublist;          // List of subscriptions, and if they're active
   zloop_t *loop;
   int style;
+  FILE *logfp;                // logging file-pointer
+
   unsigned char nonce[crypto_box_NONCEBYTES];
   dd_on_con(*on_reg);
   dd_on_discon(*on_discon);
@@ -102,11 +104,15 @@ int dd_subscribe(dd_t *self, char *topic, char *scope) {
   }
   sublist_add(self, topic, scopestr, 0);
   if (self->state == DD_STATE_REGISTERED) {
+        dd_info("%s: Sending subscription for topic %s", self->client_name, topic);
     zsock_send(self->socket, "bbbss", &dd_version, 4, &dd_cmd_sub, 4,
                &self->cookie, sizeof(self->cookie), topic, scopestr);
     return 0;
-  }
+    } else {
+        dd_warning("%s: Not sending subscription for topic %s, not registered with broker!",
+                   self->client_name, topic);
   return -1;
+    }
 }
 
 int dd_unsubscribe(dd_t *self, char *topic, char *scope) {
@@ -126,11 +132,17 @@ int dd_unsubscribe(dd_t *self, char *topic, char *scope) {
     // check that scope follows re.fullmatch("/((\d)+/)+", scope):
     scopestr = scope;
   }
-  sublist_delete(self, topic, scopestr);
-  if (self->state == DD_STATE_REGISTERED)
+    sublist_delete(self, (char *) topic, scopestr);
+    if (self->state == DD_STATE_REGISTERED) {
+        dd_info("%s: Sending unsubscription for topic %s", self->client_name, topic);
     zsock_send(self->socket, "bbbss", &dd_version, 4, &dd_cmd_unsub, 4,
                &self->cookie, sizeof(self->cookie), topic, scopestr);
   return 0;
+    } else {
+        dd_info("%s: Not sending unsubscription for topic %s, not registered with broker!", self->client_name,
+                topic);
+        return -1;
+    }
 }
 
 int dd_publish(dd_t *self, char *topic, char *message, int mlen) {
@@ -153,7 +165,7 @@ int dd_publish(dd_t *self, char *topic, char *message, int mlen) {
     if (precalck) {
       // TODO: This is not allowed by the broker
       // We should return an error if this is happening
-      fprintf(stderr, "Public client cannot publish to tenants!\n");
+            dd_error("%s: Public client cannot publish to tenants!", self->client_name);
       return -1;
     }
     *dot = '.';
@@ -177,13 +189,17 @@ int dd_publish(dd_t *self, char *topic, char *message, int mlen) {
                                    self->nonce, precalck);
 
   if (retval != 0) {
-    fprintf(stderr, "DD: Unable to encrypt %d bytes!\n", mlen);
+        dd_error("%s: Unable to encrypt %zu bytes!", self->client_name, mlen);
     free(ciphertext);
     return -1;
   }
   if (self->state == DD_STATE_REGISTERED) {
+        dd_info("%s: Publishing message on topic %s", self->client_name, topic);
     zsock_send(self->socket, "bbbszb", &dd_version, 4, &dd_cmd_pub, 4,
                &self->cookie, sizeof(self->cookie), topic, ciphertext, enclen);
+    } else {
+        dd_info("%s: Not publishing message on topic %s, not registered with broker!", self->client_name,
+                topic);
   }
   free(ciphertext);
   return 0;
@@ -239,19 +255,77 @@ int dd_notify(dd_t *self, char *target, char *message, int mlen) {
   /* printf ("ciphertext size %d: %s\n", enclen, hex); */
   /* free (hex); */
 
-  if (retval == 0) {
-  } else {
-    fprintf(stderr, "DD: Unable to encrypt %d bytes!\n", mlen);
+    if (retval != 0) {
+        dd_error("%s: Unable to encrypt %zu bytes!", self->client_name, mlen);
     free(ciphertext);
     return -1;
   }
   if (self->state == DD_STATE_REGISTERED) {
+        dd_info("%s: Sending notification to %s", self->client_name, target);
     zsock_send(self->socket, "bbbsb", &dd_version, 4, &dd_cmd_send, 4,
                &self->cookie, sizeof(self->cookie), target, ciphertext, enclen);
+    } else {
+        dd_info("%s: Not sending notification to %s, not registered with broker", self->client_name, target);
   }
   free(ciphertext);
   return 0;
 }
+
+//  Send logging output to syslog.
+void dd_set_syslog(dd_t *self) {
+    zsys_set_logsystem(true);
+}
+
+//  Set the logging file of the client, will default to stderr if not set.
+//  Will try to create/open a file with the provided name.
+//  Returns 0 on success, -1 on failure
+int dd_set_logfile(dd_t *self, const char *logfile) {
+    self->logfp = fopen(logfile, "w+");
+    if (self->logfp == NULL) {
+      dd_error("Cannot open logfile %s\n", logfile);
+        perror("Logfile open");
+        return -1;
+    }
+    zsys_set_logstream(self->logfp);
+    return 0;
+}
+
+
+//  Set the logging file of the client, using an already existing FILE
+//  pointer.
+//  Returns 0 on success, -1 on failure
+int dd_set_logfp(dd_t *self, FILE *logfile){
+    if(logfile == NULL)
+        return -1;
+
+    self->logfp = logfile;
+    zsys_set_logstream(self->logfp);
+    return 0;
+}
+
+
+
+//  Set the client loglevel, as a single character string.
+//  Where "e":error,"w":warning,"n":notice,"i":info, and "d":debug.
+//  Default is "n". For no output, "q" will keep it quiet.
+int dd_set_loglevel(dd_t *self, const char *logstr) {
+    if (streq(logstr, "e"))
+        loglevel = DD_LOG_ERROR;
+    else if (streq(logstr, "w"))
+        loglevel = DD_LOG_WARNING;
+    else if (streq(logstr, "n"))
+        loglevel = DD_LOG_NOTICE;
+    else if (streq(logstr, "i"))
+        loglevel = DD_LOG_INFO;
+    else if (streq(logstr, "d"))
+        loglevel = DD_LOG_DEBUG;
+    else if (streq(logstr, "q"))
+        loglevel = DD_LOG_NONE;
+    else
+        return -1;
+    return 0;
+}
+
 
 // ////////////////////////
 // callbacks from zloop //
@@ -287,18 +361,18 @@ static int s_ask_registration(zloop_t *loop, int timerid, void *args) {
     zsock_destroy((zsock_t **)&self->socket);
     self->socket = zsock_new_dealer(NULL);
     if (!self->socket) {
-      fprintf(stderr, "DD: Error in zsock_new_dealer: %s\n",
-              zmq_strerror(errno));
+            dd_error("%s: Error in zsock_new_dealer %s", self->client_name, zmq_strerror(errno));
       free(self);
       return -1;
     }
-    int rc = zsock_connect(self->socket, (const char *)self->endpoint);
+        int rc = zsock_connect(self->socket, "%s", (const char *) self->endpoint);
     if (rc != 0) {
-      fprintf(stderr, "DD: Error in zmq_connect: %s\n", zmq_strerror(errno));
+            dd_error("%s: Error in zmq_connect %s", self->client_name, zmq_strerror(errno));
       free(self);
       return -1;
     }
     zloop_reader(loop, self->socket, s_on_dealer_msg, self);
+        dd_info("%s: Trying to register with broker", self->client_name);
     zsock_send(self->socket, "bbs", &dd_version, 4, &dd_cmd_addlcl, 4,
                (char *)dd_keys_hash(self->keys));
   }
@@ -312,7 +386,7 @@ static void cb_regok(dd_t *self, zmsg_t *msg, zloop_t *loop) {
   zframe_t *cookie_frame;
   cookie_frame = zmsg_pop(msg);
   if (cookie_frame == NULL) {
-    fprintf(stderr, "DD: Misformed REGOK message, missing COOKIE!\n");
+        dd_error("%s: Misformed REGOK message, missing COOKIE", self->client_name);
     return;
   }
   uint64_t *cookie2 = (uint64_t *)zframe_data(cookie_frame);
@@ -326,6 +400,7 @@ static void cb_regok(dd_t *self, zmsg_t *msg, zloop_t *loop) {
   zloop_timer_end(loop, self->registration_loop);
   // if this is re-registration, we should try to subscribe again
   sublist_resubscribe(self);
+  dd_info("%s: Registered with broker", self->client_name);
   self->on_reg(self);
 }
 
@@ -344,12 +419,13 @@ static void cb_chall(dd_t *self, zmsg_t *msg) {
                                         enclen - crypto_box_NONCEBYTES, data,
                                         dd_keys_ddboxk(self->keys));
   if (retval != 0) {
-    fprintf(stderr, "Unable to decrypt CHALLENGE from broker\n");
+        dd_error("%s: Unable to decrypt CHALLENGE from broker", self->client_name);
     return;
   }
 
   zframe_t *temp_frame = zframe_new(decrypted, enclen - crypto_box_NONCEBYTES -
                                                    crypto_box_MACBYTES);
+    dd_info("%s: Sending response to broker challenge", self->client_name);
   zsock_send(self->socket, "bbfss", &dd_version, 4, &dd_cmd_challok, 4,
              temp_frame, dd_keys_hash(self->keys), self->client_name);
   zframe_destroy(&temp_frame);
@@ -386,10 +462,11 @@ static void cb_data(dd_t *self, zmsg_t *msg) {
                                         enclen - crypto_box_NONCEBYTES, data,
                                         precalck);
   if (retval == 0) {
+        dd_info("%s: Got notification from %s", self->client_name, source);
     self->on_data(source, decrypted,
                   enclen - crypto_box_NONCEBYTES - crypto_box_MACBYTES, self);
   } else {
-    fprintf(stderr, "DD: Unable to decrypt %d bytes from %s\n",
+        dd_error("%s: Unable to decrypt %zu bytes from %s", self->client_name,
             enclen - crypto_box_NONCEBYTES - crypto_box_MACBYTES, source);
   }
   free(decrypted);
@@ -430,10 +507,11 @@ static void cb_pub(dd_t *self, zmsg_t *msg) {
                                         precalck);
 
   if (retval == 0) {
+        dd_info("%s: Got publication on topic %s", self->client_name, topic);
     self->on_pub(source, topic, decrypted, mlen, self);
   } else {
-    fprintf(stderr, "DD: Unable to decrypt %d bytes from %s, topic %s\n", mlen,
-            source, topic);
+        dd_error("%s: Unable to decrypt %zu bytes from %s, topic %s", self->client_name,
+                 mlen, source, topic);
   }
   free(decrypted);
   free(topic);
@@ -444,6 +522,7 @@ static void cb_subok(dd_t *self, zmsg_t *msg) {
   char *topic = zmsg_popstr(msg);
   char *scope = zmsg_popstr(msg);
   sublist_activate(self, topic, scope);
+    dd_info("%s: Subscription to %s activated", self->client_name, topic);
   free(topic);
   free(scope);
 }
@@ -452,12 +531,13 @@ static void cb_error(dd_t *self, zmsg_t *msg) {
   zframe_t *code_frame;
   code_frame = zmsg_pop(msg);
   if (code_frame == NULL) {
-    fprintf(stderr, "DD: Misformed ERROR message, missing ERROR_CODE!\n");
+        dd_error("%s: Misformed ERROR message, missing ERROR_CODE", self->client_name);
     return;
   }
 
   int32_t *error_code = (int32_t *)zframe_data(code_frame);
   char *error_msg = zmsg_popstr(msg);
+    dd_info("%s: Got error message code %d msg %s", self->client_name, *error_code, error_msg);
   self->on_error(*error_code, error_msg, self);
   zframe_destroy(&code_frame);
   free(error_msg);
@@ -514,7 +594,7 @@ static int s_on_pipe_msg(zloop_t *loop, zsock_t *handle, void *args) {
     free(command);
     zmsg_destroy(&msg);
   } else {
-    fprintf(stderr, "s_on_pipe_msg, got unknown command: %s\n", command);
+    dd_error( "s_on_pipe_msg, got unknown command: %s\n", command);
     free(command);
     zmsg_destroy(&msg);
   }
@@ -555,11 +635,11 @@ static int s_on_dealer_msg(zloop_t *loop, zsock_t *handle, void *args) {
   zmsg_t *msg = zmsg_recv(handle);
 
   if (msg == NULL) {
-    fprintf(stderr, "DD: zmsg_recv returned NULL\n");
+        dd_error("%s: zmsg_recv returned NULL", self->client_name);
     return 0;
   }
   if (zmsg_size(msg) < 2) {
-    fprintf(stderr, "DD: Message length less than 2, error!\n");
+        dd_error("%s: Number of frames less than 2, error!", self->client_name);
     zmsg_destroy(&msg);
     return 0;
   }
@@ -567,7 +647,7 @@ static int s_on_dealer_msg(zloop_t *loop, zsock_t *handle, void *args) {
   zframe_t *proto_frame = zmsg_pop(msg);
 
   if (*((uint32_t *)zframe_data(proto_frame)) != DD_VERSION) {
-    fprintf(stderr, "DD: Wrong version, expected 0x%x, got 0x%x\n", DD_VERSION,
+     dd_error("%s: Wrong version, expected 0x%x, got 0x%x", self->client_name, DD_VERSION,
             *zframe_data(proto_frame));
     zframe_destroy(&proto_frame);
     zmsg_destroy(&msg);
@@ -577,31 +657,31 @@ static int s_on_dealer_msg(zloop_t *loop, zsock_t *handle, void *args) {
   uint32_t cmd = *((uint32_t *)zframe_data(cmd_frame));
   switch (cmd) {
   case DD_CMD_SEND:
-    fprintf(stderr, "DD: Got command DD_CMD_SEND\n");
+            dd_error("%s: Got unexpected command DD_CMD_SEND", self->client_name);
     break;
   case DD_CMD_FORWARD:
-    fprintf(stderr, "DD: Got command DD_CMD_FORWARD\n");
+            dd_error("%s: Got unexpected command DD_CMD_FORWARD", self->client_name);
     break;
   case DD_CMD_PING:
-    fprintf(stderr, "DD: Got command DD_CMD_PING\n");
+            dd_error("%s: Got unexpected command DD_CMD_PING", self->client_name);
     break;
   case DD_CMD_ADDLCL:
-    fprintf(stderr, "DD: Got command DD_CMD_ADDLCL\n");
+            dd_error("%s: Got unexpected command DD_CMD_ADDLCL", self->client_name);
     break;
   case DD_CMD_ADDDCL:
-    fprintf(stderr, "DD: Got command DD_CMD_ADDDCL\n");
+            dd_error("%s: Got unexpected command DD_CMD_ADDDCL", self->client_name);
     break;
   case DD_CMD_ADDBR:
-    fprintf(stderr, "DD: Got command DD_CMD_ADDBR\n");
+            dd_error("%s: Got unexpected command DD_CMD_ADDBR", self->client_name);
     break;
   case DD_CMD_UNREG:
-    fprintf(stderr, "DD: Got command DD_CMD_UNREG\n");
+            dd_error("%s: Got unexpected command DD_CMD_UNREG", self->client_name);
     break;
   case DD_CMD_UNREGDCLI:
-    fprintf(stderr, "DD: Got command DD_CMD_UNREGDCLI\n");
+            dd_error("%s: Got unexpected command DD_CMD_UNREGDCLI", self->client_name);
     break;
   case DD_CMD_UNREGBR:
-    fprintf(stderr, "DD: Got command DD_CMD_UNREGBR\n");
+            dd_error("%s: Got unexpected command DD_CMD_UNREGBR", self->client_name);
     break;
   case DD_CMD_DATA:
     cb_data(self, msg);
@@ -619,37 +699,37 @@ static int s_on_dealer_msg(zloop_t *loop, zsock_t *handle, void *args) {
     cb_chall(self, msg);
     break;
   case DD_CMD_CHALLOK:
-    fprintf(stderr, "DD: Got command DD_CMD_CHALLOK\n");
+            dd_error("%s: Got unexpected command DD_CMD_CHALLOK", self->client_name);
     break;
   case DD_CMD_PUB:
     cb_pub(self, msg);
     break;
   case DD_CMD_SUB:
-    fprintf(stderr, "DD: Got command DD_CMD_SUB\n");
+            dd_error("%s: Got unexpected command DD_CMD_SUB", self->client_name);
     break;
   case DD_CMD_UNSUB:
-    fprintf(stderr, "DD: Got command DD_CMD_UNSUB\n");
+            dd_error("%s: Got unexpected command DD_CMD_UNSUB", self->client_name);
     break;
   case DD_CMD_SENDPUBLIC:
-    fprintf(stderr, "DD: Got command DD_CMD_SENDPUBLIC\n");
+            dd_error("%s: Got unexpected command DD_CMD_SENDPUBLIC", self->client_name);
     break;
   case DD_CMD_PUBPUBLIC:
-    fprintf(stderr, "DD: Got command DD_CMD_PUBPUBLIC\n");
+            dd_error("%s: Got unexpected command DD_CMD_PUBPUBLIC", self->client_name);
     break;
   case DD_CMD_SENDPT:
-    fprintf(stderr, "DD: Got command DD_CMD_SENDPT\n");
+            dd_error("%s: Got unexpected command DD_CMD_SENDPT", self->client_name);
     break;
   case DD_CMD_FORWARDPT:
-    fprintf(stderr, "DD: Got command DD_CMD_FORWARDPT\n");
+            dd_error("%s: Got unexpected command DD_CMD_FORWARDPT", self->client_name);
     break;
   case DD_CMD_DATAPT:
-    fprintf(stderr, "DD: Got command DD_CMD_DATAPT\n");
+            dd_error("%s: Got unexpected command DD_CMD_DATAPT", self->client_name);
     break;
   case DD_CMD_SUBOK:
     cb_subok(self, msg);
     break;
   default:
-    fprintf(stderr, "DD: Unknown command, value: 0x%x\n", cmd);
+            dd_error("%s: Unknown command, value: 0x%x\n", cmd);
     break;
   }
   zframe_destroy(&proto_frame);
@@ -665,21 +745,21 @@ void *ddthread(void *args) {
 
   self->socket = zsock_new_dealer(NULL);
   if (!self->socket) {
-    fprintf(stderr, "DD: Error in zsock_new_dealer: %s\n", zmq_strerror(errno));
+    dd_error("%s: Error in zsock_new_dealer: %s", self->client_name,zmq_strerror(errno));
     free(self);
     return NULL;
   }
 
   rc = zsock_connect(self->socket, (const char *)self->endpoint);
   if (rc != 0) {
-    fprintf(stderr, "DD: Error in zmq_connect: %s\n", zmq_strerror(errno));
+    dd_error("%s: Error in zmq_connect: %s", self->client_name, zmq_strerror(errno));
     free(self);
     return NULL;
   }
 
   self->keys = dd_keys_new(self->keyfile);
   if (self->keys == NULL) {
-    fprintf(stderr, "DD: Error reading keyfile!\n");
+    dd_error("%s: Error reading keyfile!", self->client_name);
     return NULL;
   }
 
@@ -729,19 +809,18 @@ void dd_destroy(dd_t **self_p) {
 void dd_actor(zsock_t *pipe, void *args) {
   dd_t *self = (dd_t *)args;
   int rc;
-//  fprintf(stderr,"dd_actor:zsock_signal(%p,0)\n",pipe);
   zsock_signal(pipe, 0);
   self->pipe = pipe;
   self->socket = zsock_new_dealer(NULL);
   if (!self->socket) {
-    fprintf(stderr, "DD: Error in zsock_new_dealer: %s\n", zmq_strerror(errno));
+    dd_error("%s: Error in zsock_new_dealer: %s\n", self->client_name, zmq_strerror(errno));
     zsock_send(self->pipe, "ss", "$TERM", "Error creating socket");
     dd_destroy(&self);
     return;
   }
   rc = zsock_connect(self->socket, (const char *)self->endpoint);
   if (rc != 0) {
-    fprintf(stderr, "DD: Error in zmq_connect: %s\n", zmq_strerror(errno));
+    dd_error("%s: Error in zmq_connect: %s", self->client_name, zmq_strerror(errno));
     zsock_send(self->pipe, "ss", "$TERM", "Connection failed");
     dd_destroy(&self);
     return;
@@ -749,15 +828,13 @@ void dd_actor(zsock_t *pipe, void *args) {
 
   self->keys = dd_keys_new((const char *)self->keyfile);
   if (self->keys == NULL) {
-    fprintf(stderr, "DD: Error reading keyfile!\n");
+    dd_error("%s: Error reading keyfile!",self->client_name);
     zsock_send(self->pipe, "ss", "$TERM", "Missing keyfile");
     dd_destroy(&self);
     return;
   }
 
   self->sublist = sublist_new();
-//  fprintf(stderr,"Sublist initilized %p\n", self->sublist);
-  
   self->loop = zloop_new();
   assert(self->loop);
   self->registration_loop =
@@ -767,14 +844,12 @@ void dd_actor(zsock_t *pipe, void *args) {
   while (rc == 0){
     rc = zloop_start(self->loop);
     if(rc == 0) {
-     fprintf(stderr,"DD:dd_actor:zloop_start returned 0, interrupted! - terminating(might not be the best choice)\n");
+      dd_error("%s: dd_actor:zloop_start returned 0, interrupted! - terminating(might not be the best choice)", self->client_name);
      // terminate, maybe not always a good choice here :(
      rc = -1;
     } else if (rc == -1) {
-     //fprintf(stderr,"DD:dd_actor:zloop_start returned -1, cancelled by handler!\n");
     }
   }
-   //fprintf(stderr, "DD:dd_actor - calling dd_destroy\n");  
    dd_destroy(&self);
 }
 
@@ -824,6 +899,8 @@ dd_t *dd_new(char *client_name, char *endpoint, char *keyfile, dd_on_con con,
   self->on_pub = pub;
   self->on_error = error;
   zthread_new(ddthread, self);
+  zsys_set_logident("ddclient");
+  dd_set_logfp(self, stdout);
   return self;
 }
 

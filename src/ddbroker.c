@@ -138,7 +138,7 @@ int main(int argc, char **argv) {
   zsys_set_logident("DD");
   dd_broker_t *broker = dd_broker_new();
   opterr = 0;
-  while ((c = getopt(argc, argv, "d:r:l:k:s:h:f:w:DSL")) != -1)
+  while ((c = getopt(argc, argv, "d:r:l:k:s:h:f:w:DSL:")) != -1)
     switch (c) {
     case 'r':
       dd_broker_add_router(broker, optarg);
@@ -169,7 +169,7 @@ int main(int argc, char **argv) {
       zsys_set_logsystem(true);
       break;
     case 'L':
-      logfp = fopen(optarg, "w");
+      logfp = fopen(optarg, "w+");
       if (logfp == NULL) {
         fprintf(stderr, "Cannot open logfile %s\n", optarg);
         perror(errno);
