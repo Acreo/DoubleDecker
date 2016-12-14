@@ -400,8 +400,6 @@ int dd_client_set_loglevel(dd_client_t *self, const char *logstr) {
 }
 
 
-
-
 // ////////////////////////
 // callbacks from zloop //
 // ////////////////////////
@@ -551,7 +549,6 @@ static void cb_data(dd_client_t *self, zmsg_t *msg) {
     } else {
         dd_error("%s: Unable to decrypt %zu bytes from %s", self->client_name,
                  enclen - crypto_box_NONCEBYTES - crypto_box_MACBYTES, source);
-
     }
     free(decrypted);
     free(source);
@@ -848,6 +845,10 @@ dd_client_t *dd_client_new(const char *client_name, const char *endpoint, const 
 
     dd_client_t *self = dd_client_setup(client_name, endpoint, keyfile, con, discon, data, pub, error);
     zsys_set_logident("ddclient");
+    char *debug = getenv("DD_DEBUG");
+    if (debug != NULL){
+      dd_client_set_loglevel(self,"i");
+    }
     zthread_new((void *(*)(void *)) dd_client_thread, self);
     return self;
 }

@@ -37,7 +37,9 @@ In the CLI interface use the menu to select actions, e.g. to subscribe,
  publish, and send notifications.
 
 @discuss
- Required options are -c, -n and -d.
+
+
+Required options are -c, -n and -d.
 
   -d [ADDR] - Which broker to connect to
      Where [ADDR] can be e.g. tcp://127.0.0.1:5555 or ipc:///file
@@ -49,6 +51,12 @@ In the CLI interface use the menu to select actions, e.g. to subscribe,
   -n [NAME] - set the name of the client, this has to be unique
      E.g. -n client2
 
+OPTIONAL OPTIONS                                   
+  -l [CHAR]   Set loglevel, default is n for NOTICE
+        e:ERROR,w:WARNING,n:NOTICE,i:INFO,d:DEBUG,q:QUIET
+        When set to INFO, additional information about sent messages will be printed
+  -L [FILE]   Logging file
+  -S     Log to system log    
 @end
 */
 #include <stdio.h>
@@ -108,7 +116,7 @@ cparser_result_t cparser_cmd_show_keys(cparser_context_t *context) {
     free(pubkey);
     char *publickey = dd_client_get_publickey(client);
     printf("Pub public key: \t%s\n", publickey);
-    free(pubkey);
+    free(publickey);
 
     return CPARSER_OK;
 }
