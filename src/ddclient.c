@@ -217,8 +217,11 @@ cparser_result_t cparser_cmd_help(cparser_context_t *context) {
 // callback functions
 void on_reg(const char *client_name, dd_client_t *dd) {
     printf("\nRegistered with broker %s with name %s!\n", dd_client_get_endpoint(dd), client_name);
-    snprintf(parser.prompt[0], sizeof(parser.prompt[0]), "%s>>",
-             client_name);
+    int retval = snprintf(parser.prompt[0], CPARSER_MAX_PROMPT, "%s>> ", client_name);
+    // String got truncated
+    if (retval > CPARSER_MAX_PROMPT){
+        retval = snprintf(parser.prompt[0], CPARSER_MAX_PROMPT, "%.25s..>> ", client_name);
+    }
     free((char*)client_name);
     fflush(stdout);
 }
@@ -256,6 +259,27 @@ void on_error(int error_code, const char *error_message, dd_client_t *args) {
     }
     fflush(stdout);
 }
+void usage() {
+    char *t = "Usage: broker  -k <keyfile> -n <name> -d <tcp/ipc url> [OPTIONS]\n"
+            "REQUIRED OPTIONS\n"
+            "-d [ADDR]   Connect to broker at this ADDR\n"
+            "       ADDR can be a tcp port, for example tcp://127.0.0.1:5555, tcp://server.com:5555\n"
+            "       ADDR can be a ipc file, for example ipc:///var/run/br0\n"
+            "-k [FILE]   File with keys\n"
+            "       JSON file containing the clients tenant keys, e.g. a-keys.json\n"
+            "-n [NAME]  Client name\n"
+            "       Name of the client, has to be unique within the tenant.\n"
+            "       Can be set to \"auto\", in this case the broker will try to generate a\n"
+            "       to generate a unique name for the client.\n"
+            "\n"
+            "OPTIONAL OPTIONS\n"
+            "-l [CHAR]   Set loglevel, default is n for NOTICE\n"
+            "       e:ERROR,w:WARNING,n:NOTICE,i:INFO,d:DEBUG,q:QUIET\n"
+            "       When set to INFO, additional information about sent messages will be printed\n"
+            "-L [FILE]   Logging file\n"
+            "-S     Log to system log\n";
+    printf("%s",t);
+}
 
 int main(int argc, char *argv[]) {
     int debug = 0;
@@ -264,10 +288,12 @@ int main(int argc, char *argv[]) {
     char *connect_to = NULL;
     //  char *customer = NULL;
     char *client_name = NULL;
-
+    char *logfile = NULL;
+    int syslog = 0;
+    char *loglevel = "n";
     opterr = 0;
 
-    while ((c = getopt(argc, argv, "d:k:n:")) != -1) {
+    while ((c = getopt(argc, argv, "d:k:n:SL:l:")) != -1) {
         switch (c) {
             case 'k':
                 keyfile = optarg;
@@ -275,11 +301,17 @@ int main(int argc, char *argv[]) {
             case 'd':
                 connect_to = optarg;
                 break;
-                /*    case 'c':
-                customer = optarg;
-                break; */
             case 'n':
                 client_name = optarg;
+                break;
+            case 'S':
+                syslog = 1;
+                break;
+            case 'L':
+                logfile = optarg;
+                break;
+            case 'l':
+                loglevel = optarg;
                 break;
             default:
                 printf("Unknown option \"%c\", aborting..\n", c);
@@ -288,12 +320,19 @@ int main(int argc, char *argv[]) {
     }
     if (client_name == NULL || keyfile == NULL ||
         connect_to == NULL) {
-        printf("usage: ddclient -k <keyfile> -n <name> -d "
-                       "<tcp/ipc url>\n");
-        return 1;
+        usage();
+        exit(EXIT_FAILURE);
     }
     client = dd_client_new(client_name, connect_to, keyfile, on_reg, on_discon,
                            on_data, on_pub, on_error);
+    if(logfile != NULL){
+        dd_client_set_logfile(client,logfile);
+    }
+    if(syslog == 1){
+        dd_client_set_syslog(client);
+    }
+    dd_client_set_loglevel(client, loglevel);
+
     if (client == NULL) {
         printf("DD initialization failed!\n");
         return -1;
@@ -307,7 +346,12 @@ int main(int argc, char *argv[]) {
     parser.cfg.ch_del = 127;
     parser.cfg.ch_help = '?';
     parser.cfg.flags = (debug ? CPARSER_FLAGS_DEBUG : 0);
-    sprintf(&parser.cfg.prompt[0], "%s>> ", client_name);
+    int snprintf(char *str, size_t size, const char *format, ...);
+    int retval = snprintf(&parser.cfg.prompt[0], CPARSER_MAX_PROMPT, "%s>> ", client_name);
+    // String got truncated
+    if (retval > CPARSER_MAX_PROMPT){
+        snprintf(&parser.cfg.prompt[0], CPARSER_MAX_PROMPT, "%.25s..>> ", client_name);
+    }
     parser.cfg.fd = STDOUT_FILENO;
     cparser_io_config(&parser);
 
