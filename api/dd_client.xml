@@ -125,12 +125,36 @@
         If no actor is associated with the dd_client_t, return null
         <return type="zsock"/>
     </method>
+    <method name="set_syslog">
+        Send logging output to syslog.
+        <return type="nothing"/>
+    </method>
+    <method name="set_logfile">
+        Set the logging file of the client, will default to stdout if not set.
+        Will try to create/open a file with the provided name.
+        Returns 0 on success, -1 on failure
+        <argument name="logfile" type="string"/>
+        <return type="integer"/>
+    </method>
+    <method name="set_logfp">
+        Set the logging file of the client, using an already existing FILE
+        pointer. 
+        Returns 0 on success, -1 on failure
+        <argument name="logfile" type="FILE"/>
+        <return type="integer"/>
+    </method>
+    <method name="set_loglevel">
+        Set the client loglevel, as a single character string.
+        Where "e":error,"w":warning,"n":notice,"i":info, and "d":debug.
+        Default is "n". For no output, "q" will keep it quiet.
+        <argument name="loglevel" type="string"/>
+        <return type="integer"/>
+    </method>
 
     <method name="thread">
         For dd_client_actor INTERNAL USE ONLY!
         <return type="anything"/>
     </method>
-
     <method name="add_pipe">
         For dd_client_actor INTERNAL USE ONLY!
         <argument name="pipe" type="zsock"/>
@@ -150,5 +174,4 @@
         <argument name="on_error" type="dd_client_on_error" callback="1"/>
         <return type="dd_client" fresh="1"/>
     </method>
-
 </class>

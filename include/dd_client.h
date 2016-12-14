@@ -130,6 +130,32 @@ DD_EXPORT zsock_t *
     dd_client_get_pipe (dd_client_t *self);
 
 //  *** Draft method, for development use, may change without warning ***
+//  Send logging output to syslog.
+DD_EXPORT void
+    dd_client_set_syslog (dd_client_t *self);
+
+//  *** Draft method, for development use, may change without warning ***
+//  Set the logging file of the client, will default to stderr if not set.
+//  Will try to create/open a file with the provided name.                
+//  Returns 0 on success, -1 on failure                                   
+DD_EXPORT int
+    dd_client_set_logfile (dd_client_t *self, const char *logfile);
+
+//  *** Draft method, for development use, may change without warning ***
+//  Set the logging file of the client, using an already existing FILE
+//  pointer.                                                          
+//  Returns 0 on success, -1 on failure                               
+DD_EXPORT int
+    dd_client_set_logfp (dd_client_t *self, FILE *logfile);
+
+//  *** Draft method, for development use, may change without warning ***
+//  Set the client loglevel, as a single character string.         
+//  Where "e":error,"w":warning,"n":notice,"i":info, and "d":debug.
+//  Default is "n". For no output, "q" will keep it quiet.         
+DD_EXPORT int
+    dd_client_set_loglevel (dd_client_t *self, const char *loglevel);
+
+//  *** Draft method, for development use, may change without warning ***
 //  For dd_client_actor INTERNAL USE ONLY!
 DD_EXPORT void *
     dd_client_thread (dd_client_t *self);
