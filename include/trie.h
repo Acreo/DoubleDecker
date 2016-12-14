@@ -142,7 +142,7 @@ int nn_trie_del_sub_south(struct nn_trie *self, const uint8_t *data,
 
 /*  Debugging interface. */
 void nn_trie_dump(struct nn_trie *self);
-
+json_object*  nn_trie_dump_json(struct nn_trie *self);
 void print_zframe(zframe_t *self);
 extern struct nn_trie topics_trie;
 #endif

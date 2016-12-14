@@ -275,7 +275,7 @@ static void remote_reg_failed(dd_broker_t *self, zframe_t *sockid, char *cli_nam
 static void s_cb_high_error(dd_broker_t *self, zmsg_t *msg) {
     zframe_t *code_frame = zmsg_pop(msg);
     if (code_frame == NULL) {
-        dd_error("DD: Misformed ERROR message, missing ERROR_CODE!\n");
+        dd_error("Misformed ERROR message, missing ERROR_CODE!\n");
         return;
     }
     local_client *ln;
@@ -1093,15 +1093,15 @@ static void s_cb_sub(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie,
     local_client *ln;
     ln = hashtable_has_local_node(self, sockid, cookie, 1);
     if (!ln) {
-        dd_warning("DD: Unregistered client trying to subscribe!");
+        dd_warning("Unregistered client trying to subscribe!");
         free(topic);
         free(scopestr);
         return;
     }
 
     if (strcmp(topic, "public") == 0) {
-        zsock_send(self->rsock, "fbbss", sockid, &dd_version, 4, &dd_cmd_data, 4,
-                   "ERROR: protected topic");
+        zsock_send(self->rsock, "fbbbs", sockid, &dd_version,4, &dd_cmd_error, 4,
+                   &dd_error_topic, 4, "Topic \"public\" is protected");
         free(topic);
         free(scopestr);
         return;
@@ -1140,6 +1140,13 @@ static void s_cb_sub(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie,
                 } else {
                     if (is_int(token) == 0) {
                         dd_error("%s in scope string is not an integer", token);
+                        zsock_send(self->rsock, "fbbbs", sockid, &dd_version,4, &dd_cmd_error, 4,
+                                   &dd_error_topic, 4, "Malformed scope string");
+                        free(topic);
+                        free(scopestr);
+                        free(scopedup);
+                        return;
+
                     }
                     retval = snprintf(nsptr, len, "/%s", token);
                     len -= retval;
@@ -1148,9 +1155,12 @@ static void s_cb_sub(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie,
                 t = (char *) zlist_next(self->scope);
             } else {
                 dd_error("Requested scope is longer than assigned scope!");
+                zsock_send(self->rsock, "fbbbs", sockid, &dd_version,4, &dd_cmd_error, 4,
+                           &dd_error_topic, 4, "Malformed scope string");
                 free(scopedup);
                 free(scopestr);
                 free(topic);
+                return;
             }
         }
         retval = snprintf(nsptr, len, "/");
@@ -1185,9 +1195,9 @@ static void s_cb_sub(dd_broker_t *self, zframe_t *sockid, zframe_t *cookie,
     if (retval == 0) {
         dd_debug("topic %s already in trie!", ntptr);
     } else if (retval == 1) {
-        dd_debug("new topic %s", ntptr);
+        dd_notice(" + Added client to topic %s scope %s", topic, scopestr);
     } else if (retval == 2) {
-        dd_debug("inserted new sockid on topic %s", ntptr);
+        dd_notice(" + Added client to new topic %s scope %s", topic, scopestr);
     }
 
     free(scopestr);
@@ -2165,6 +2175,8 @@ static json_object *json_get_stats(dd_broker_t *self) {
     json_object_object_add(jobj, "local", jlocal_obj);
     json_object_object_add(jobj, "distant", jdist_array);
     json_object_object_add(jobj, "subs", jsub_dict);
+    json_object_object_add(jobj, "trie",
+    nn_trie_dump_json(&self->topics_trie));
     return jobj;
 }
 
@@ -2203,6 +2215,7 @@ static json_object *json_get_keys(dd_broker_t *self) {
 }
 
 // seperate to a different thread?
+// TODO: replace with microhttpd!
 static int s_on_http(zloop_t *loop, zsock_t *handle, void *arg) {
     dd_broker_t *self = (dd_broker_t *) arg;
     zmsg_t *msg = zmsg_recv(handle);

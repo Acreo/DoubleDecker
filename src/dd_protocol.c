@@ -66,7 +66,7 @@ const uint32_t dd_version = DD_PRO_VERSION;
 const uint32_t dd_error_regfail = DD_ERROR_REGFAIL;
 const uint32_t dd_error_nodst = DD_ERROR_NODST;
 const uint32_t dd_error_version = DD_ERROR_VERSION;
-
+const uint32_t dd_error_topic = DD_ERROR_TOPIC;
 void
 dd_protocol_test (bool verbose){
     return;

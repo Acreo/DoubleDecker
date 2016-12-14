@@ -3,6 +3,7 @@
 #include <urcu.h>
 #include <urcu/rculfhash.h>
 #include "dd_classes.h"
+// TODO: define these hashtables in the API as well
 int insert_local_client(dd_broker_t *self, zframe_t *sockid, ddtenant_t *ten,
                         char *client_name);
 void hashtable_remove_dist_node(dd_broker_t *self, char *prefix_name);

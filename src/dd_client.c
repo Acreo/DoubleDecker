@@ -621,7 +621,7 @@ static void cb_error(dd_client_t *self, zmsg_t *msg) {
 
     int32_t *error_code = (int32_t *) zframe_data(code_frame);
     char *error_msg = zmsg_popstr(msg);
-    dd_info("%s: Got error message code %d msg %s", self->client_name, error_code, error_msg);
+    dd_info("%s: Got error message code %d msg %s", self->client_name, *error_code, error_msg);
     self->on_error(*error_code, error_msg, self);
     zframe_destroy(&code_frame);
     free(error_msg);

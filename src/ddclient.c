@@ -253,6 +253,9 @@ void on_error(int error_code, const char *error_message, dd_client_t *args) {
         case DD_ERROR_VERSION:
             printf("Error - version: %s\n", error_message);
             break;
+        case DD_ERROR_TOPIC:
+            printf("Error - topic: %s\n", error_message);
+            break;
         default:
             printf("Error - unknown error!\n");
             break;

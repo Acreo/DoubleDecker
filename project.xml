@@ -53,6 +53,8 @@
     description = "Error message - Message destination non existing" />
   <constant name = "dd_error_version"   value = "3" 
         description = "Error message - Wrong protocol version" />
+  <constant name = "dd_error_topic"   value = "4" 
+        description = "Error message - Bad topic specification" />
 
   <constant name = "dd_pro_version" value = "218955780"
     description = "Protocol version 0x0d0d0004" />

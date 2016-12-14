@@ -63,6 +63,7 @@ static int nn_node_unsubscribe(struct nn_trie_node **self, const uint8_t *data,
 static void nn_node_term(struct nn_trie_node *self);
 static int nn_node_has_subscribers(struct nn_trie_node *self);
 static void nn_node_dump(struct nn_trie_node *self, int indent);
+json_object *nn_node_dump_json(struct nn_trie_node *self, int indent);
 static void nn_node_indent(int indent);
 static void nn_node_putchar(uint8_t c);
 
@@ -71,6 +72,9 @@ void nn_trie_init(struct nn_trie *self) { self->root = NULL; }
 void nn_trie_term(struct nn_trie *self) { nn_node_term(self->root); }
 
 void nn_trie_dump(struct nn_trie *self) { nn_node_dump(self->root, 0); }
+json_object* nn_trie_dump_json(struct nn_trie *self) {
+    return nn_node_dump_json(self->root, 0);
+}
 void print_zframe(zframe_t *self) {
   assert(self);
   assert(zframe_is(self));
@@ -100,7 +104,7 @@ void print_zframe(zframe_t *self) {
       sprintf(buffer + strlen(buffer), "%c", data[char_nbr]);
   }
   strcat(buffer, ellipsis);
-  dd_debug("%s", buffer);
+  printf("%s", buffer);
 }
 
 void nn_node_dump(struct nn_trie_node *self, int indent) {
@@ -166,6 +170,60 @@ void nn_node_dump(struct nn_trie_node *self, int indent) {
 
   nn_node_indent(indent);
 }
+
+json_object * nn_node_dump_json(struct nn_trie_node *self, int indent) {
+    json_object *jobj = json_object_new_object();
+    int i;
+    int children;
+
+    if (!self) {
+        return jobj;
+    }
+
+    // add our prefix
+    json_object_object_add(jobj, "_pre", json_object_new_string_len((char*) &self->prefix[0],self->prefix_len));
+
+    // look for subscribers to add
+    json_object *jsubs = json_object_new_array();
+    if (self->sockids != NULL){
+        zframe_t *t = (zframe_t*) zlist_first(self->sockids);
+        while (t) {
+            char *frame = zframe_strhex(t);
+            json_object_array_add(jsubs,json_object_new_string(frame));
+            free(frame);
+            t = (zframe_t*) zlist_next(self->sockids);
+        }
+        json_object_object_add(jobj, "subs", jsubs);
+    }
+
+
+
+    if (self->type <= 8) {
+        children = self->type;
+    } else {
+        nn_node_indent(indent);
+        printf("dense.min='%c' (%d)\n", (char)self->u.dense.min,
+               (int)self->u.dense.min);
+        nn_node_indent(indent);
+        printf("dense.max='%c' (%d)\n", (char)self->u.dense.max,
+               (int)self->u.dense.max);
+        nn_node_indent(indent);
+        printf("dense.nbr=%d\n", (int)self->u.dense.nbr);
+        children = self->u.dense.max - self->u.dense.min + 1;
+    }
+    json_object *jchild = json_object_new_object();
+    char buf[10];
+    for (i = 0; i != children; ++i) {
+        sprintf((char*)&buf[0],"%c",self->u.sparse.children[i]);
+        json_object_object_add(jchild,&buf[0],
+        nn_node_dump_json(((struct nn_trie_node **) (self + 1))[i], indent + 1));
+    }
+    if(children > 0)
+        json_object_object_add(jobj, "child", jchild);
+    //nn_node_indent(indent);
+    return jobj;
+}
+
 
 void nn_node_indent(int indent) {
   int i;

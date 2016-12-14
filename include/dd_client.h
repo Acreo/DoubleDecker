@@ -135,7 +135,7 @@ DD_EXPORT void
     dd_client_set_syslog (dd_client_t *self);
 
 //  *** Draft method, for development use, may change without warning ***
-//  Set the logging file of the client, will default to stderr if not set.
+//  Set the logging file of the client, will default to stdout if not set.
 //  Will try to create/open a file with the provided name.                
 //  Returns 0 on success, -1 on failure                                   
 DD_EXPORT int

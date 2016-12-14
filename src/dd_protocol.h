@@ -89,10 +89,11 @@ extern const uint32_t dd_cmd_forwardpt;
 extern const uint32_t dd_cmd_datapt;
 extern const uint32_t dd_cmd_subok;
 extern const uint32_t dd_version;
+
 extern const uint32_t dd_error_regfail;
 extern const uint32_t dd_error_nodst;
 extern const uint32_t dd_error_version;
-
+extern const uint32_t dd_error_topic;
 DD_EXPORT void
 dd_protocol_test (bool verbose);
 
