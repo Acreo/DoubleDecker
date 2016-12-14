@@ -48,7 +48,7 @@
  * Maximum number of character of a command prompt including the
  * terminating NULL.
  */
-#define CPARSER_MAX_PROMPT (16)
+#define CPARSER_MAX_PROMPT (32)
 
 /**
  * Maximum number of nested sub-mode levels.
