@@ -70,6 +70,8 @@
 
   -S - log to syslog
 
+  -6 - enable IPv6 support
+
 @end
 */
 
@@ -144,7 +146,10 @@ void usage() {
             "-L [FILE]   Logging file\n"
             "       Log to file\n"
             "-D     Daemonize the process\n"
-            "-S     Log to system log\n";
+            "-S     Log to system log\n"
+            "-6     Enable IPv6 endpoints\n"
+            "       ADDR can now be an IPv6 address e.g. tcp://[::1]:5555\n";
+
 
 
     printf("%s",t);
@@ -229,7 +234,7 @@ int main(int argc, char **argv) {
             zsys_daemonize("/");
         }
     }
-    while ((c = getopt(argc, argv, "d:r:l:k:s:h:f:w:DSL:")) != -1)
+    while ((c = getopt(argc, argv, "d:r:l:k:s:h:f:w:DSL:6")) != -1)
         switch (c) {
             case 'r':
                 dd_broker_add_router(broker, optarg);
@@ -270,6 +275,9 @@ int main(int argc, char **argv) {
                 break;
             case 'D':
                 daemonize = 1;
+                break;
+            case '6':
+                dd_broker_enable_ipv6(broker);
                 break;
             case '?':
                 if (optopt == 'c' || optopt == 's') {

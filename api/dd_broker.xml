@@ -76,5 +76,9 @@
         <argument name="keyfile" type="string"/>
         <return type="integer"/>
     </method>
-
+    <method name="enable_ipv6">
+    	Enable IPv6 support, without this only IPv4 is supported.
+        Setting the environment variable ZSYS_IPV6 will have the same effect.
+    	<return type="nothing"/>
+    </method>
 </class>

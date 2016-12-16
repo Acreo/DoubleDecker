@@ -37,7 +37,7 @@
 
 #define IPC_REGEX "(ipc://)(.+)"
 #define TCP_REGEX "(tcp://[^:]+:)(\\d+)"
-
+#define IPV6_REGEX "(tcp://\\[.+\\]:)(\\d+)"
 
 
 //  Structure of our class
@@ -1983,6 +1983,9 @@ static void connect_pubsubN(dd_broker_t *self) {
     assert(zrex_valid(rexipc));
     zrex_t *rextcp = zrex_new(TCP_REGEX);
     assert(zrex_valid(rextcp));
+    zrex_t *rexipv6 = zrex_new(IPV6_REGEX);
+    assert(zrex_valid(rexipv6));
+
     self->sub_connect = (char *) malloc(strlen(self->dealer_connect) + 5);
     self->pub_connect = (char *) malloc(strlen(self->dealer_connect) + 5);
 
@@ -1994,13 +1997,18 @@ static void connect_pubsubN(dd_broker_t *self) {
         int port = atoi(zrex_hit(rextcp, 2));
         sprintf(self->pub_connect, "%s%d", zrex_hit(rextcp, 1), port + 2);
         sprintf(self->sub_connect, "%s%d", zrex_hit(rextcp, 1), port + 1);
-    } else {
+    }  else if (zrex_matches(rexipv6, self->dealer_connect)) {
+        int port = atoi(zrex_hit(rexipv6, 2));
+        sprintf(self->pub_connect, "%s%d", zrex_hit(rexipv6, 1), port + 2);
+        sprintf(self->sub_connect, "%s%d", zrex_hit(rexipv6, 1), port + 1);
+    }  else {
         dd_error("%s doesnt match anything!");
         exit(EXIT_FAILURE);
     }
 
     zrex_destroy(&rexipc);
     zrex_destroy(&rextcp);
+    zrex_destroy(&rexipv6);
 
     dd_debug("pub_connect: %s sub_connect: %s", self->pub_connect,
             self->sub_connect);
@@ -2494,6 +2502,11 @@ zactor_t *dd_broker_actor(dd_broker_t *self) {
 
     return NULL;
 }
+
+void dd_broker_enable_ipv6 (dd_broker_t *self){
+    zsys_set_ipv6(1);
+}
+
 // TODO: merge this with dd_broker_actor
 int dd_broker_start(dd_broker_t *self) {
     dd_notice("DoubleDecker version %d.%d.%d (proto: 0x%x)", DD_VERSION_MAJOR, DD_VERSION_MINOR, DD_VERSION_PATCH,
@@ -3061,6 +3074,9 @@ void start_pubsub(dd_broker_t *self) {
     zrex_t *rextcp = zrex_new(TCP_REGEX);
     assert(zrex_valid(rextcp));
 
+    zrex_t *rexipv6 = zrex_new(IPV6_REGEX);
+    assert(zrex_valid(rexipv6));
+
     self->pub_strings = zlist_new();
     self->sub_strings = zlist_new();
     char *t = (char *) zlist_first(self->rstrings);
@@ -3088,8 +3104,8 @@ void start_pubsub(dd_broker_t *self) {
             rexipc = zrex_new(IPC_REGEX);
         } else if (zrex_matches(rextcp, t)) {
             int port = atoi(zrex_hit(rextcp, 2));
-            char *sub_tcp; // = malloc(strlen(t) + 1);
-            char *pub_tcp; // = malloc(strlen(t) + 1);
+            char *sub_tcp;
+            char *pub_tcp;
             int retval = asprintf(&pub_tcp, "%s%d", zrex_hit(rextcp, 1), port + 1);
             assert(retval != -1);
             retval = asprintf(&sub_tcp, "%s%d", zrex_hit(rextcp, 1), port + 2);
@@ -3099,6 +3115,18 @@ void start_pubsub(dd_broker_t *self) {
             // Should not be necessary, but weird results otherwise..
             zrex_destroy(&rextcp);
             rextcp = zrex_new(TCP_REGEX);
+        }  else if (zrex_matches(rexipv6, t)) {
+            int port = atoi(zrex_hit(rexipv6, 2));
+            char *sub_tcp;
+            char *pub_tcp;
+            int retval = asprintf(&pub_tcp, "%s%d", zrex_hit(rexipv6, 1), port + 1);
+            assert(retval != -1);
+            retval = asprintf(&sub_tcp, "%s%d", zrex_hit(rexipv6, 1), port + 2);
+            assert(retval != -1);
+            zlist_append(self->sub_strings, sub_tcp);
+            zlist_append(self->pub_strings, pub_tcp);
+            zrex_destroy(&rexipv6);
+            rextcp = zrex_new(IPV6_REGEX);
         } else {
             dd_error("%s doesnt match anything!");
             exit(EXIT_FAILURE);
@@ -3108,7 +3136,7 @@ void start_pubsub(dd_broker_t *self) {
 
     zrex_destroy(&rextcp);
     zrex_destroy(&rexipc);
-
+    zrex_destroy(&rexipv6);
     t = (char *) zlist_first(self->pub_strings);
     size_t pub_strings_len = 0;
     while (t != NULL) {

@@ -288,7 +288,9 @@ void usage() {
             "       e:ERROR,w:WARNING,n:NOTICE,i:INFO,d:DEBUG,q:QUIET\n"
             "       When set to INFO, additional information about sent messages will be printed\n"
             "-L [FILE]   Logging file\n"
-            "-S     Log to system log\n";
+            "-S     Log to system log\n"
+            "-6     Enable IPv6 endpoints\n"
+            "       ADDR can now be an IPv6 address e.g. tcp://[::1]:5555\n";
     printf("%s",t);
 }
 
@@ -303,8 +305,9 @@ int main(int argc, char *argv[]) {
     int syslog = 0;
     char *loglevel = "n";
     opterr = 0;
+    int ipv6 = 0;
 
-    while ((c = getopt(argc, argv, "d:k:n:SL:l:")) != -1) {
+    while ((c = getopt(argc, argv, "d:k:n:SL:l:6")) != -1) {
         switch (c) {
             case 'k':
                 keyfile = optarg;
@@ -324,6 +327,9 @@ int main(int argc, char *argv[]) {
             case 'l':
                 loglevel = optarg;
                 break;
+            case '6':
+                ipv6 = 1;
+                break;
             default:
                 printf("Unknown option \"%c\", aborting..\n", c);
                 exit(EXIT_FAILURE);
@@ -342,6 +348,10 @@ int main(int argc, char *argv[]) {
     if(syslog == 1){
         dd_client_set_syslog(client);
     }
+    if(ipv6 == 1){
+        dd_client_enable_ipv6(client);
+    }
+
     dd_client_set_loglevel(client, loglevel);
 
     if (client == NULL) {

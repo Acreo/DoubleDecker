@@ -125,6 +125,12 @@ DD_EXPORT int
     dd_broker_set_keyfile (dd_broker_t *self, const char *keyfile);
 
 //  *** Draft method, for development use, may change without warning ***
+//  Enable IPv6 support, without this only IPv4 is supported.            
+//  Setting the environment variable ZSYS_IPV6 will have the same effect.
+DD_EXPORT void
+    dd_broker_enable_ipv6 (dd_broker_t *self);
+
+//  *** Draft method, for development use, may change without warning ***
 //  Self test of this class.
 DD_EXPORT void
     dd_broker_test (bool verbose);

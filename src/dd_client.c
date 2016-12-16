@@ -349,6 +349,10 @@ void dd_client_set_syslog(dd_client_t *self) {
     zsys_set_logsystem(true);
 }
 
+void dd_client_enable_ipv6 (dd_client_t *self){
+    zsys_set_ipv6(1);
+}
+
 //  Set the logging file of the client, will default to stderr if not set.
 //  Will try to create/open a file with the provided name.
 //  Returns 0 on success, -1 on failure

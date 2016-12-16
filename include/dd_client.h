@@ -156,6 +156,12 @@ DD_EXPORT int
     dd_client_set_loglevel (dd_client_t *self, const char *loglevel);
 
 //  *** Draft method, for development use, may change without warning ***
+//  Enable IPv6 support, without this only IPv4 is supported.            
+//  Setting the environment variable ZSYS_IPV6 will have the same effect.
+DD_EXPORT void
+    dd_client_enable_ipv6 (dd_client_t *self);
+
+//  *** Draft method, for development use, may change without warning ***
 //  For dd_client_actor INTERNAL USE ONLY!
 DD_EXPORT void *
     dd_client_thread (dd_client_t *self);
