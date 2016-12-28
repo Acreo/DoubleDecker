@@ -29,6 +29,12 @@ src_libdd_la_SOURCES = \
     src/dd_protocol.c \
     src/dd_broker_keys.c \
     src/base64.c \
+    src/dist_client.c \
+    src/local_client.c \
+    src/local_broker.c \
+    src/subscription.c \
+    src/client_table.c \
+    src/util.c \
     src/platform.h
 
 if ENABLE_DRAFTS
@@ -97,6 +103,12 @@ dist_api_DATA = \
     api/dd_client.xml \
     api/dd_keys.xml \
     api/dd_topic.xml \
+    api/dist_client.xml \
+    api/local_client.xml \
+    api/local_broker.xml \
+    api/subscription.xml \
+    api/client_table.xml \
+    api/util.xml \
     api/dd_client_actor.xml
 
 # define custom target for all products of /src

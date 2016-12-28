@@ -40,6 +40,12 @@ EXTRA_DIST = \
     src/dd_protocol.h \
     src/dd_broker_keys.h \
     src/base64.h \
+    src/dist_client.h \
+    src/local_client.h \
+    src/local_broker.h \
+    src/subscription.h \
+    src/client_table.h \
+    src/util.h \
     LICENSE \
     README.md \
     src/dd_classes.h

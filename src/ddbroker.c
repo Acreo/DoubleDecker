@@ -97,6 +97,7 @@
 #include <string.h>
 #include <sys/errno.h>
 
+//#define PROFILE 1
 #ifdef PROFILE 
 #define PTRACE_PIPENAME "TRACE"
 #define PTRACE_REFERENCE_FUNCTION printf
@@ -109,7 +110,7 @@
 #define STR(_x) #_x
 #define DEF(_x) _x
 #define GET(_x, _y) _x(_y)
-#define TRACE __GNU_PTRACE_FILE__
+
 FILE *trace_out;
 
 #endif
@@ -119,6 +120,7 @@ int daemonize = 0;
 
 void usage() {
     char *t = "Usage: broker [OPTIONS] ...\n"
+      ""
             "REQUIRED OPTIONS\n"
             "-r [ADDR]   Listen for clients/brokers on this port\n"
             "       For example tcp://127.0.0.1:5555\n"
@@ -149,10 +151,8 @@ void usage() {
             "-S     Log to system log\n"
             "-6     Enable IPv6 endpoints\n"
             "       ADDR can now be an IPv6 address e.g. tcp://[::1]:5555\n";
-
-
-
-    printf("%s",t);
+    printf("DoubleDecker version %d.%d.%d (proto: 0x%x)\n%s ",DD_VERSION_MAJOR,
+           DD_VERSION_MINOR, DD_VERSION_PATCH, DD_PRO_VERSION,t);
 }
 
 int s_ddactor_msg(zloop_t *loop, zsock_t *handle, void *arg) {
@@ -332,52 +332,36 @@ void ddbroker_test() {
     return;
 }
 
-//#define PROFILE
 #ifdef PROFILE
+FILE *trace_fp;
+
 void __cyg_profile_func_enter (void *this_fn, void *call_site) __attribute__((no_instrument_function));
 void __cyg_profile_func_exit  (void *this_fn, void *call_site) __attribute__((no_instrument_function));
-
-
-
 
 
 /** Final trace close */
 static void __attribute__((__no_instrument_function__)) gnu_ptrace_close(void) {
     fprintf(stderr, "gnu_ptrace_close\n");
-    fprintf(TRACE, END_TRACE " %ld\n", (long)getpid());
+    fprintf(trace_fp, END_TRACE " %ld\n", (long)getpid());
 
-    if (TRACE != NULL)
-        fclose(TRACE);
+    if (trace_fp != NULL)
+        fclose(trace_fp);
     return;
 }
 
 /** Trace initialization */
 static int  __attribute__((__no_instrument_function__)) gnu_ptrace_init(void) {
-    fprintf(stderr, "gnu_ptrace_init\n");
-    struct stat sta;
-    __GNU_PTRACE_FILE__ = NULL;
+  fprintf(stderr, "gnu_ptrace_init\n");
+  struct stat sta;
 
-    /* See if a trace file exists */
-    if (stat(PTRACE_PIPENAME, &sta) != 0) {
-        /* No trace file: do not trace at all */
-        return 0;
-    } else {
-        /* trace file: open up trace file */
-        if ((TRACE = fopen(PTRACE_PIPENAME, "a")) == NULL) {
-            char *msg = strerror(errno);
-            perror(msg);
-            printf("[gnu_ptrace error]\n");
-            return 0;
-        }
+  fprintf(stderr, "%s %s %p\n", REFERENCE_OFFSET,
+          GET(STR, PTRACE_REFERENCE_FUNCTION),
+          (void *)GET(DEF, PTRACE_REFERENCE_FUNCTION));
 
-        fprintf(stderr, "%s %s %p\n", REFERENCE_OFFSET,
-                GET(STR, PTRACE_REFERENCE_FUNCTION),
-                (void *)GET(DEF, PTRACE_REFERENCE_FUNCTION));
+  /* Tracing requested: a trace file was found */
+  atexit(gnu_ptrace_close);
+  return 1;
 
-        /* Tracing requested: a trace file was found */
-        atexit(gnu_ptrace_close);
-        return 1;
-    }
 }
 
 /** Function called by every function event */
@@ -396,8 +380,8 @@ void  __attribute__((__no_instrument_function__)) gnu_ptrace(char *what, void *p
             return;
     }
 
-    fprintf(TRACE, "%s %p\n", what, p);
-    fflush(TRACE);
+    fprintf(trace_fp, "%s %p\n", what, p);
+    fflush(trace_fp);
     return;
 }
 int call_depth = 0;

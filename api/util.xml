@@ -1,0 +1,16 @@
+<class name="util">
+  DoubleDecker utils class
+  <method name = "string_hash" singleton = "1">
+    Calculate the hash of a string
+    <argument name = "data" type="string"/>
+    <return type = "number" size="4"/>
+  </method>
+  <method name = "sockid_cookie_hash" singleton = "1">
+    Calculate the hash of a sockid cookie combintion
+    <argument name = "sockid" type="zframe"/>
+    <argument name = "cookie" type="zframe"/>
+    <return type = "number" size="4"/>
+  </method>
+
+</class>
+

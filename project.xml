@@ -38,6 +38,12 @@
   <class name = "dd_protocol" private = "1" />
   <class name = "dd_broker_keys" private = "1" />
   <class name = "base64" private = "1" />
+  <class name = "dist_client" private = "1" />
+  <class name = "local_client" private = "1" />
+  <class name = "local_broker" private = "1" />
+  <class name = "subscription" private = "1" />
+  <class name = "client_table" private = "1" />
+  <class name = "util" private = "1" />
 
   <actor name = "dd_client_actor"> DoubleDecker client actor</actor>
 
@@ -58,14 +64,12 @@
 
   <constant name = "dd_pro_version" value = "218955780"
     description = "Protocol version 0x0d0d0004" />
-  
+
+  <constant name = "maxtenantname"   value = "256" 
+        description = "Longest tenant name" />
+  <constant name = "xxhseed" value="123123" />  
   <target name = "cmake" />	
   <target name = "autotools" />
-<!--  <target name = "debian" />
-  <target name = "python" />  
-  <target name = "python_cffi" />  
-  <target name = "java" />
-  <target name = "java" /> -->
 
   
 </project>

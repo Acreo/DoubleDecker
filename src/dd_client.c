@@ -36,6 +36,7 @@
 
 #include <stdio.h>
 #include "dd_classes.h"
+#include "ddlog.h"
 
 //  Structure of our class
 struct _dd_client_t {

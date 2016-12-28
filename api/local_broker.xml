@@ -1,0 +1,73 @@
+<class name="local_broker">
+  DoubleDecker local broker class
+  <constructor>
+    Create a new local broker 
+    <argument name="sockid" type="zframe"/>
+    <argument name="cookie" type="zframe"/>
+    <argument name="distance" type="integer" />
+  </constructor>
+  <destructor>
+    Destroy a local broker
+  </destructor>
+
+  <method name = "is" singleton = "1">
+    Probe the supplied object, and report if it looks like a dd_local_broker_t.
+    <argument name = "self" type = "anything" />
+    <return type = "boolean" />
+  </method>
+
+  <method name="get_cookie">
+    Get the cookie of this local broker
+    <return type="number" size="8" />
+  </method>
+  <method name="get_sockid">
+    Get the socket id of this local broker
+    <return type="zframe" />
+  </method>
+  <method name="get_timeout">
+    Get the timeout value for local broker
+    <return type="integer" />
+  </method>    
+  <method name="get_distance">
+    Get the distance for local broker
+    <return type="integer" />
+  </method>    
+  <method name="hash">
+    Get the hash value of this local broker
+    <return type = "number" size = "4" />
+  </method>
+  <method name="set_cookie">
+    Set the cookie of this local broker
+    <argument name="cookie" type="number" size="8" />
+    <return type="nothing"/>
+  </method>
+  <method name="set_cookie_zframe">
+    Set the cookie of this local broker
+    <argument name="cookie" type="zframe" />
+    <return type="nothing"/>
+  </method>
+
+  <method name="set_sockid">
+    Set the socket id of this local broker
+    <argument name="sockid" type="zframe" />
+    <return type="nothing"/>
+  </method>
+  <method name="reset_timeout">
+    Reset the timeout value for local broker
+    <return type="nothing"/>
+  </method>    
+  <method name="increment_timeout">
+    Increment the timeout value for local broker
+    <return type="integer"/>
+  </method>    
+  <method name="timed_out">
+    Check if the local broker has timed out
+    <return type="boolean"/>
+  </method>    
+  <method name="json">
+    Returns the JSON represenation of the object
+    <return type="json_object" fresh="1"/>
+  </method>
+
+</class>
+

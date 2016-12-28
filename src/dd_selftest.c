@@ -47,6 +47,12 @@ all_tests [] = {
     { "dd_protocol", dd_protocol_test },
     { "dd_broker_keys", dd_broker_keys_test },
     { "base64", base64_test },
+    { "dist_client", dist_client_test },
+    { "local_client", local_client_test },
+    { "local_broker", local_broker_test },
+    { "subscription", subscription_test },
+    { "client_table", client_table_test },
+    { "util", util_test },
 #ifdef DD_BUILD_DRAFT_API
     { "dd_broker", dd_broker_test },
     { "dd_client", dd_client_test },
@@ -111,7 +117,7 @@ main (int argc, char **argv)
         else
         if (streq (argv [argn], "--number")
         ||  streq (argv [argn], "-n")) {
-            puts ("8");
+            puts ("14");
             return 0;
         }
         else
@@ -125,6 +131,12 @@ main (int argc, char **argv)
             puts ("    dd_protocol");
             puts ("    dd_broker_keys");
             puts ("    base64");
+            puts ("    dist_client");
+            puts ("    local_client");
+            puts ("    local_broker");
+            puts ("    subscription");
+            puts ("    client_table");
+            puts ("    util");
             puts ("    dd_client_actor");
             return 0;
         }

@@ -1,0 +1,115 @@
+<class name="client_table">
+  DoubleDecker client table
+  <constructor>
+    Create a new client table
+  </constructor>
+  <destructor>
+    Destroy a client table
+  </destructor>
+
+  <method name="has_node_hash">
+    Check whether there's an client with this name
+    <argument name="sockid" type="zframe"/>
+    <argument name="cookie" type="zframe"/>
+    <argument name="update_timer" type="boolean"/>
+    <return type="boolean"/>
+  </method>
+
+  <method name="get_node_hash">
+    If a client with this sockid and cookie exists, return it, otherwise NULL.
+    <argument name="sockid" type="zframe"/>
+    <argument name="cookie" type="zframe"/>
+    <argument name="update_timer" type="boolean"/>
+    <return type="local_client"/>
+  </method>
+
+  <method name="del_node_hash">
+    Deletes the client with this sockid and cookie
+    <argument name="sockid" type="zframe"/>
+    <argument name="cookie" type="zframe"/>
+    <return type="boolean"/>
+  </method>
+  <method name="del_node">
+    Deletes the client (local_client_t, dist_client_t, or local_broker_t) reference by node
+    <argument name="node" type="anything"/>
+    <return type="boolean"/>
+  </method>
+  
+  <method name="has_node_name">
+    Check whether there's an client with this name
+    <argument name="name" type="string"/>
+    <return type="boolean"/>
+  </method>
+  
+  <method name="get_node_name">
+    If a client with this name exists, return it, otherwise NULL.
+    Can return local_client or dist_client, use _is() to figure out which it is.
+    Returns NULL if not found
+    <argument name="name" type="string"/>
+    <return type="anything"/>
+  </method>
+
+  <method name="del_node_name">
+    Deletes the client with this name
+    <argument name="name" type="string"/>
+    <return type="integer"/>
+  </method>
+  
+  <method name="insert_local">
+    Insert a local client to the table
+    <argument name="client" type="local_client"/>
+    <return type="boolean"/>
+  </method>
+  <method name="insert_dist">
+    Insert a distant client to the table
+    <argument name="client" type="dist_client"/>
+    <return type="boolean"/>
+  </method>
+  <method name="insert_broker">
+    Insert a broker to the table
+    <argument name="broker" type="local_broker"/>
+    <return type="boolean"/>
+  </method>
+
+  <callback_type name="fn">
+    Function prototype that can be used with foreach_local
+    <argument name="self" type="anything"/>
+    <return type="nothing"/>
+  </callback_type>
+  <method name="json">
+    Returns the JSON represenation of the object
+    <return type="json_object" fresh="1"/>
+  </method>
+
+    <callback_type name="arg_fn">
+    Function prototype that can be used with foreach_arg_local
+    <argument name="self" type="anything"/>
+    <argument name="arg" type="anything"/>
+    <return type="nothing"/>
+  </callback_type>
+
+  <method name="foreach">
+    Call method on each local client
+    <argument name="function" type="client_table_fn" callback="1"/>
+    <return type="nothing"/>
+  </method>
+  <method name="foreach_arg">
+    Call method on each client, with supplied argument
+    <argument name="function" type="client_table_arg_fn" callback="1"/>
+    <argument name="arg" type="anything"/>
+    <return type="nothing"/>
+  </method>
+  <method name="local_foreach_arg">
+    Call method on each local client, with supplied argument
+    <argument name="function" type="client_table_arg_fn" callback="1"/>
+    <argument name="arg" type="anything"/>
+    <return type="nothing"/>
+  </method>
+
+  
+</class>
+
+
+
+
+

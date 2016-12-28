@@ -104,6 +104,8 @@ typedef struct _dd_client_actor_t dd_client_actor_t;
 #define DD_ERROR_VERSION    3                  //  
 #define DD_ERROR_TOPIC      4                  //  
 #define DD_PRO_VERSION      218955780          //  
+#define MAXTENANTNAME       256                //  
+#define XXHSEED             123123             //  
 #endif // DD_BUILD_DRAFT_API
 
 //  Public classes, each with its own header file

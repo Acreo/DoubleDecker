@@ -185,7 +185,9 @@ am__DEPENDENCIES_2 = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 src_libdd_la_DEPENDENCIES = $(am__DEPENDENCIES_2)
 am__src_libdd_la_SOURCES_DIST = src/dd_protocol.c src/dd_broker_keys.c \
-	src/base64.c src/platform.h src/dd_broker.c src/dd_client.c \
+	src/base64.c src/dist_client.c src/local_client.c \
+	src/local_broker.c src/subscription.c src/client_table.c \
+	src/util.c src/platform.h src/dd_broker.c src/dd_client.c \
 	src/dd_keys.c src/dd_topic.c src/dd_client_actor.c
 am__dirstamp = $(am__leading_dot)dirstamp
 @ENABLE_DRAFTS_TRUE@am__objects_1 = src/src_libdd_la-dd_broker.lo \
@@ -195,6 +197,11 @@ am__dirstamp = $(am__leading_dot)dirstamp
 @ENABLE_DRAFTS_TRUE@	src/src_libdd_la-dd_client_actor.lo
 am_src_libdd_la_OBJECTS = src/src_libdd_la-dd_protocol.lo \
 	src/src_libdd_la-dd_broker_keys.lo src/src_libdd_la-base64.lo \
+	src/src_libdd_la-dist_client.lo \
+	src/src_libdd_la-local_client.lo \
+	src/src_libdd_la-local_broker.lo \
+	src/src_libdd_la-subscription.lo \
+	src/src_libdd_la-client_table.lo src/src_libdd_la-util.lo \
 	$(am__objects_1)
 src_libdd_la_OBJECTS = $(am_src_libdd_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
@@ -719,6 +726,12 @@ EXTRA_DIST = \
     src/dd_protocol.h \
     src/dd_broker_keys.h \
     src/base64.h \
+    src/dist_client.h \
+    src/local_client.h \
+    src/local_broker.h \
+    src/subscription.h \
+    src/client_table.h \
+    src/util.h \
     LICENSE \
     README.md \
     src/dd_classes.h
@@ -733,7 +746,9 @@ pkgconfig_DATA = src/libdd.pc
 include_HEADERS = include/doubledecker.h include/dd_library.h \
 	$(am__append_2)
 src_libdd_la_SOURCES = src/dd_protocol.c src/dd_broker_keys.c \
-	src/base64.c src/platform.h $(am__append_3)
+	src/base64.c src/dist_client.c src/local_client.c \
+	src/local_broker.c src/subscription.c src/client_table.c \
+	src/util.c src/platform.h $(am__append_3)
 src_libdd_la_CPPFLAGS = ${AM_CPPFLAGS}
 src_libdd_la_LDFLAGS = -version-info @LTVER@ $(LIBTOOL_EXTRA_LDFLAGS) \
 	$(am__append_4) $(am__append_5)
@@ -758,6 +773,12 @@ dist_api_DATA = \
     api/dd_client.xml \
     api/dd_keys.xml \
     api/dd_topic.xml \
+    api/dist_client.xml \
+    api/local_client.xml \
+    api/local_broker.xml \
+    api/subscription.xml \
+    api/client_table.xml \
+    api/util.xml \
     api/dd_client_actor.xml
 
 all: all-recursive
@@ -872,6 +893,18 @@ src/src_libdd_la-dd_protocol.lo: src/$(am__dirstamp) \
 src/src_libdd_la-dd_broker_keys.lo: src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
 src/src_libdd_la-base64.lo: src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+src/src_libdd_la-dist_client.lo: src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+src/src_libdd_la-local_client.lo: src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+src/src_libdd_la-local_broker.lo: src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+src/src_libdd_la-subscription.lo: src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+src/src_libdd_la-client_table.lo: src/$(am__dirstamp) \
+	src/$(DEPDIR)/$(am__dirstamp)
+src/src_libdd_la-util.lo: src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
 src/src_libdd_la-dd_broker.lo: src/$(am__dirstamp) \
 	src/$(DEPDIR)/$(am__dirstamp)
@@ -991,6 +1024,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/src_ddclient-ddclient.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/src_ddperf-ddperf.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/src_libdd_la-base64.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/src_libdd_la-client_table.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/src_libdd_la-dd_broker.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/src_libdd_la-dd_broker_keys.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/src_libdd_la-dd_client.Plo@am__quote@
@@ -998,6 +1032,11 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/src_libdd_la-dd_keys.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/src_libdd_la-dd_protocol.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/src_libdd_la-dd_topic.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/src_libdd_la-dist_client.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/src_libdd_la-local_broker.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/src_libdd_la-local_client.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/src_libdd_la-subscription.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/src_libdd_la-util.Plo@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`;\
@@ -1043,6 +1082,48 @@ src/src_libdd_la-base64.lo: src/base64.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/base64.c' object='src/src_libdd_la-base64.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_libdd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o src/src_libdd_la-base64.lo `test -f 'src/base64.c' || echo '$(srcdir)/'`src/base64.c
+
+src/src_libdd_la-dist_client.lo: src/dist_client.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_libdd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT src/src_libdd_la-dist_client.lo -MD -MP -MF src/$(DEPDIR)/src_libdd_la-dist_client.Tpo -c -o src/src_libdd_la-dist_client.lo `test -f 'src/dist_client.c' || echo '$(srcdir)/'`src/dist_client.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/$(DEPDIR)/src_libdd_la-dist_client.Tpo src/$(DEPDIR)/src_libdd_la-dist_client.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/dist_client.c' object='src/src_libdd_la-dist_client.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_libdd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o src/src_libdd_la-dist_client.lo `test -f 'src/dist_client.c' || echo '$(srcdir)/'`src/dist_client.c
+
+src/src_libdd_la-local_client.lo: src/local_client.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_libdd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT src/src_libdd_la-local_client.lo -MD -MP -MF src/$(DEPDIR)/src_libdd_la-local_client.Tpo -c -o src/src_libdd_la-local_client.lo `test -f 'src/local_client.c' || echo '$(srcdir)/'`src/local_client.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/$(DEPDIR)/src_libdd_la-local_client.Tpo src/$(DEPDIR)/src_libdd_la-local_client.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/local_client.c' object='src/src_libdd_la-local_client.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_libdd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o src/src_libdd_la-local_client.lo `test -f 'src/local_client.c' || echo '$(srcdir)/'`src/local_client.c
+
+src/src_libdd_la-local_broker.lo: src/local_broker.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_libdd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT src/src_libdd_la-local_broker.lo -MD -MP -MF src/$(DEPDIR)/src_libdd_la-local_broker.Tpo -c -o src/src_libdd_la-local_broker.lo `test -f 'src/local_broker.c' || echo '$(srcdir)/'`src/local_broker.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/$(DEPDIR)/src_libdd_la-local_broker.Tpo src/$(DEPDIR)/src_libdd_la-local_broker.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/local_broker.c' object='src/src_libdd_la-local_broker.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_libdd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o src/src_libdd_la-local_broker.lo `test -f 'src/local_broker.c' || echo '$(srcdir)/'`src/local_broker.c
+
+src/src_libdd_la-subscription.lo: src/subscription.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_libdd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT src/src_libdd_la-subscription.lo -MD -MP -MF src/$(DEPDIR)/src_libdd_la-subscription.Tpo -c -o src/src_libdd_la-subscription.lo `test -f 'src/subscription.c' || echo '$(srcdir)/'`src/subscription.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/$(DEPDIR)/src_libdd_la-subscription.Tpo src/$(DEPDIR)/src_libdd_la-subscription.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/subscription.c' object='src/src_libdd_la-subscription.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_libdd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o src/src_libdd_la-subscription.lo `test -f 'src/subscription.c' || echo '$(srcdir)/'`src/subscription.c
+
+src/src_libdd_la-client_table.lo: src/client_table.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_libdd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT src/src_libdd_la-client_table.lo -MD -MP -MF src/$(DEPDIR)/src_libdd_la-client_table.Tpo -c -o src/src_libdd_la-client_table.lo `test -f 'src/client_table.c' || echo '$(srcdir)/'`src/client_table.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/$(DEPDIR)/src_libdd_la-client_table.Tpo src/$(DEPDIR)/src_libdd_la-client_table.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/client_table.c' object='src/src_libdd_la-client_table.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_libdd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o src/src_libdd_la-client_table.lo `test -f 'src/client_table.c' || echo '$(srcdir)/'`src/client_table.c
+
+src/src_libdd_la-util.lo: src/util.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_libdd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT src/src_libdd_la-util.lo -MD -MP -MF src/$(DEPDIR)/src_libdd_la-util.Tpo -c -o src/src_libdd_la-util.lo `test -f 'src/util.c' || echo '$(srcdir)/'`src/util.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) src/$(DEPDIR)/src_libdd_la-util.Tpo src/$(DEPDIR)/src_libdd_la-util.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='src/util.c' object='src/src_libdd_la-util.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_libdd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o src/src_libdd_la-util.lo `test -f 'src/util.c' || echo '$(srcdir)/'`src/util.c
 
 src/src_libdd_la-dd_broker.lo: src/dd_broker.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(src_libdd_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT src/src_libdd_la-dd_broker.lo -MD -MP -MF src/$(DEPDIR)/src_libdd_la-dd_broker.Tpo -c -o src/src_libdd_la-dd_broker.lo `test -f 'src/dd_broker.c' || echo '$(srcdir)/'`src/dd_broker.c

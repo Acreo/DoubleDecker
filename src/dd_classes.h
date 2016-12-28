@@ -44,55 +44,13 @@
 #include "dd_protocol.h"
 #include "dd_broker_keys.h"
 #include "base64.h"
-#include "trie.h"
+#include "dist_client.h"
+#include "local_client.h"
+#include "local_broker.h"
+#include "subscription.h"
+#include "client_table.h"
+#include "util.h"
 
-#define RCU_MEMBARRIER
-#define XXHSEED 1234
-#define MAXTENANTNAME 256
-
-// subscriptions[sockid] = ["b.topicA/0/1/2/", "b.topicB/0/1/2/"]
-struct _subscription_node {
-    zlist_t *topics;
-    zframe_t *sockid;
-    struct cds_lfht_node node;
-};
-
-// Local nodes
-struct _lcl_node {
-    char *name; // client name		/* Node content */
-    char *prefix_name;
-    char *tenant;
-    uint64_t cookie;
-    zframe_t *sockid;
-    int timeout;
-    // sockid_node for lcl_cli_ht
-    // prename_node and rev_lcl_cli_ht (combine with dist_node?)
-    struct cds_lfht_node lcl_node; // Chaining in hash table
-    struct cds_lfht_node rev_node; // Chaining in hash table
-    // struct cds_lfht_node node;
-};
-
-// Distant nodes
-struct _dist_node {
-    char *name; /* Node content */
-    zframe_t *broker;
-    int distance;
-    struct cds_lfht_node node; /* Chaining in hash table */
-};
-
-// Local broker
-struct _lcl_broker {
-    zframe_t *sockid;
-    uint64_t cookie;
-    int distance;
-    int timeout;
-    struct cds_lfht_node node; /* Chaining in hash table */
-};
-typedef struct _lcl_broker local_broker;
-typedef struct _dist_node dist_client;
-typedef struct _lcl_node local_client;
-typedef struct _subscription_node subscribe_node;
-void del_cli_up(dd_broker_t *self, char *prefix_name);
 //  *** To avoid double-definitions, only define if building without draft ***
 #ifndef DD_BUILD_DRAFT_API
 
@@ -110,6 +68,421 @@ DD_EXPORT void
 //  Self test of this class.
 DD_EXPORT void
     base64_test (bool verbose);
+
+//  *** Draft method, defined for internal use only ***
+//  Create a new distant client
+//  Caller owns return value and must destroy it when done.
+DD_EXPORT dist_client_t *
+    dist_client_new (const char *name, zframe_t *broker, int distance);
+
+//  *** Draft method, defined for internal use only ***
+//  Destroy a distant client
+DD_EXPORT void
+    dist_client_destroy (dist_client_t **self_p);
+
+//  *** Draft method, defined for internal use only ***
+//  Probe the supplied object, and report if it looks like a dd_dist_client_t.
+DD_EXPORT bool
+    dist_client_is (void *self);
+
+//  *** Draft method, defined for internal use only ***
+//  Get the full name of this client
+DD_EXPORT const char *
+    dist_client_get_name (dist_client_t *self);
+
+//  *** Draft method, defined for internal use only ***
+//  Get the broker sockid
+DD_EXPORT zframe_t *
+    dist_client_get_broker (dist_client_t *self);
+
+//  *** Draft method, defined for internal use only ***
+//  Get the distance of this client
+DD_EXPORT int
+    dist_client_get_distance (dist_client_t *self);
+
+//  *** Draft method, defined for internal use only ***
+//  Get the hash value of this distant client
+DD_EXPORT uint32_t
+    dist_client_hash (dist_client_t *self);
+
+//  *** Draft method, defined for internal use only ***
+//  Convert the object to JSON and return
+//  Caller owns return value and must destroy it when done.
+DD_EXPORT json_object_t *
+    dist_client_json (dist_client_t *self);
+
+//  *** Draft method, defined for internal use only ***
+//  Set the full name of this client
+DD_EXPORT void
+    dist_client_set_name (dist_client_t *self, const char *name);
+
+//  *** Draft method, defined for internal use only ***
+//  Set the broker sockid
+DD_EXPORT void
+    dist_client_set_broker (dist_client_t *self, zframe_t *sockid);
+
+//  *** Draft method, defined for internal use only ***
+//  Set the distance of this client
+DD_EXPORT void
+    dist_client_set_distance (dist_client_t *self, int distance);
+
+//  *** Draft method, defined for internal use only ***
+//  Self test of this class.
+DD_EXPORT void
+    dist_client_test (bool verbose);
+
+//  *** Draft method, defined for internal use only ***
+//  Create a new local client
+//  Caller owns return value and must destroy it when done.
+DD_EXPORT local_client_t *
+    local_client_new (const char *name, const char *tenant, zframe_t *sockid, zframe_t *cookie);
+
+//  *** Draft method, defined for internal use only ***
+//  Destroy a local client
+DD_EXPORT void
+    local_client_destroy (local_client_t **self_p);
+
+//  *** Draft method, defined for internal use only ***
+//  Probe the supplied object, and report if it looks like a dd_local_client_t.
+DD_EXPORT bool
+    local_client_is (void *self);
+
+//  *** Draft method, defined for internal use only ***
+//  Get the short name of this client
+DD_EXPORT const char *
+    local_client_get_name (local_client_t *self);
+
+//  *** Draft method, defined for internal use only ***
+//  Get the full name of this client
+DD_EXPORT const char *
+    local_client_get_prefix_name (local_client_t *self);
+
+//  *** Draft method, defined for internal use only ***
+//  Get the tenant name of this client
+DD_EXPORT const char *
+    local_client_get_tenant_name (local_client_t *self);
+
+//  *** Draft method, defined for internal use only ***
+//  Get the cookie of this client
+DD_EXPORT uint64_t
+    local_client_get_cookie (local_client_t *self);
+
+//  *** Draft method, defined for internal use only ***
+//  Get the cookie of this client
+DD_EXPORT zframe_t *
+    local_client_get_cookie_zframe (local_client_t *self);
+
+//  *** Draft method, defined for internal use only ***
+//  Get the socket id of this client
+DD_EXPORT zframe_t *
+    local_client_get_sockid (local_client_t *self);
+
+//  *** Draft method, defined for internal use only ***
+//  Get the hash value of this distant client
+DD_EXPORT uint32_t
+    local_client_string_hash (local_client_t *self);
+
+//  *** Draft method, defined for internal use only ***
+//  Get the hash value of this distant client
+DD_EXPORT uint32_t
+    local_client_sockid_hash (local_client_t *self);
+
+//  *** Draft method, defined for internal use only ***
+//  Set the short name of this client
+DD_EXPORT void
+    local_client_set_name (local_client_t *self, const char *name);
+
+//  *** Draft method, defined for internal use only ***
+//  Set the full name of this client
+DD_EXPORT void
+    local_client_set_prefix_name (local_client_t *self, const char *prefix_name);
+
+//  *** Draft method, defined for internal use only ***
+//  Set the tenant name of this client
+DD_EXPORT void
+    local_client_set_tenant_name (local_client_t *self, const char *tenant_name);
+
+//  *** Draft method, defined for internal use only ***
+//  Set the cookie of this client
+DD_EXPORT void
+    local_client_set_cookie (local_client_t *self, uint64_t cookie);
+
+//  *** Draft method, defined for internal use only ***
+//  Set the cookie of this client
+DD_EXPORT void
+    local_client_set_cookie_zframe (local_client_t *self, zframe_t *cookie);
+
+//  *** Draft method, defined for internal use only ***
+//  Set the socket id of this client
+DD_EXPORT void
+    local_client_set_sockid (local_client_t *self, zframe_t *sockid);
+
+//  *** Draft method, defined for internal use only ***
+//  Reset the timeout value for local client
+DD_EXPORT void
+    local_client_reset_timeout (local_client_t *self);
+
+//  *** Draft method, defined for internal use only ***
+//  Increment the timeout value for local client
+DD_EXPORT int
+    local_client_increment_timeout (local_client_t *self);
+
+//  *** Draft method, defined for internal use only ***
+//  Check if the local client has timed out
+DD_EXPORT bool
+    local_client_timed_out (local_client_t *self);
+
+//  *** Draft method, defined for internal use only ***
+//  Returns the JSON represenation of the object
+//  Caller owns return value and must destroy it when done.
+DD_EXPORT json_object_t *
+    local_client_json (local_client_t *self);
+
+//  *** Draft method, defined for internal use only ***
+//  Self test of this class.
+DD_EXPORT void
+    local_client_test (bool verbose);
+
+//  *** Draft method, defined for internal use only ***
+//  Create a new local broker
+//  Caller owns return value and must destroy it when done.
+DD_EXPORT local_broker_t *
+    local_broker_new (zframe_t *sockid, zframe_t *cookie, int distance);
+
+//  *** Draft method, defined for internal use only ***
+//  Destroy a local broker
+DD_EXPORT void
+    local_broker_destroy (local_broker_t **self_p);
+
+//  *** Draft method, defined for internal use only ***
+//  Probe the supplied object, and report if it looks like a dd_local_broker_t.
+DD_EXPORT bool
+    local_broker_is (void *self);
+
+//  *** Draft method, defined for internal use only ***
+//  Get the cookie of this local broker
+DD_EXPORT uint64_t
+    local_broker_get_cookie (local_broker_t *self);
+
+//  *** Draft method, defined for internal use only ***
+//  Get the socket id of this local broker
+DD_EXPORT zframe_t *
+    local_broker_get_sockid (local_broker_t *self);
+
+//  *** Draft method, defined for internal use only ***
+//  Get the timeout value for local broker
+DD_EXPORT int
+    local_broker_get_timeout (local_broker_t *self);
+
+//  *** Draft method, defined for internal use only ***
+//  Get the distance for local broker
+DD_EXPORT int
+    local_broker_get_distance (local_broker_t *self);
+
+//  *** Draft method, defined for internal use only ***
+//  Get the hash value of this local broker
+DD_EXPORT uint32_t
+    local_broker_hash (local_broker_t *self);
+
+//  *** Draft method, defined for internal use only ***
+//  Set the cookie of this local broker
+DD_EXPORT void
+    local_broker_set_cookie (local_broker_t *self, uint64_t cookie);
+
+//  *** Draft method, defined for internal use only ***
+//  Set the cookie of this local broker
+DD_EXPORT void
+    local_broker_set_cookie_zframe (local_broker_t *self, zframe_t *cookie);
+
+//  *** Draft method, defined for internal use only ***
+//  Set the socket id of this local broker
+DD_EXPORT void
+    local_broker_set_sockid (local_broker_t *self, zframe_t *sockid);
+
+//  *** Draft method, defined for internal use only ***
+//  Reset the timeout value for local broker
+DD_EXPORT void
+    local_broker_reset_timeout (local_broker_t *self);
+
+//  *** Draft method, defined for internal use only ***
+//  Increment the timeout value for local broker
+DD_EXPORT int
+    local_broker_increment_timeout (local_broker_t *self);
+
+//  *** Draft method, defined for internal use only ***
+//  Check if the local broker has timed out
+DD_EXPORT bool
+    local_broker_timed_out (local_broker_t *self);
+
+//  *** Draft method, defined for internal use only ***
+//  Returns the JSON represenation of the object
+//  Caller owns return value and must destroy it when done.
+DD_EXPORT json_object_t *
+    local_broker_json (local_broker_t *self);
+
+//  *** Draft method, defined for internal use only ***
+//  Self test of this class.
+DD_EXPORT void
+    local_broker_test (bool verbose);
+
+//  *** Draft method, defined for internal use only ***
+//  Create a new per node subscription list
+//  Caller owns return value and must destroy it when done.
+DD_EXPORT subscription_t *
+    subscription_new (zframe_t *sockid);
+
+//  *** Draft method, defined for internal use only ***
+//  Destroy a subscription list
+DD_EXPORT void
+    subscription_destroy (subscription_t **self_p);
+
+//  *** Draft method, defined for internal use only ***
+//  Probe the supplied object, and report if it looks like a dd_dist_client_t.
+DD_EXPORT bool
+    subscription_is (void *self);
+
+//  *** Draft method, defined for internal use only ***
+//  Get the list of topics
+DD_EXPORT zlist_t *
+    subscription_get_topics (subscription_t *self);
+
+//  *** Draft method, defined for internal use only ***
+//  Add a subscribed topic
+DD_EXPORT bool
+    subscription_add_topic (subscription_t *self, const char *topic);
+
+//  *** Draft method, defined for internal use only ***
+//  Remove a topic
+DD_EXPORT bool
+    subscription_del_topic (subscription_t *self, const char *topic);
+
+//  *** Draft method, defined for internal use only ***
+//  Convert the object to JSON and return
+//  Caller owns return value and must destroy it when done.
+DD_EXPORT json_object_t *
+    subscription_json (subscription_t *self);
+
+//  *** Draft method, defined for internal use only ***
+//  Print the object to stdout
+DD_EXPORT void
+    subscription_print (subscription_t *self);
+
+//  *** Draft method, defined for internal use only ***
+//  Self test of this class.
+DD_EXPORT void
+    subscription_test (bool verbose);
+
+//  *** Draft callbacks, defined for internal use only ***
+// Function prototype that can be used with foreach_local
+typedef void (client_table_fn) (
+    void *self);
+// Function prototype that can be used with foreach_arg_local
+typedef void (client_table_arg_fn) (
+    void *self, void *arg);
+
+//  *** Draft method, defined for internal use only ***
+//  Create a new client table
+//  Caller owns return value and must destroy it when done.
+DD_EXPORT client_table_t *
+    client_table_new (void);
+
+//  *** Draft method, defined for internal use only ***
+//  Destroy a client table
+DD_EXPORT void
+    client_table_destroy (client_table_t **self_p);
+
+//  *** Draft method, defined for internal use only ***
+//  Check whether there's an client with this name
+DD_EXPORT bool
+    client_table_has_node_hash (client_table_t *self, zframe_t *sockid, zframe_t *cookie, bool update_timer);
+
+//  *** Draft method, defined for internal use only ***
+//  If a client with this sockid and cookie exists, return it, otherwise NULL.
+DD_EXPORT local_client_t *
+    client_table_get_node_hash (client_table_t *self, zframe_t *sockid, zframe_t *cookie, bool update_timer);
+
+//  *** Draft method, defined for internal use only ***
+//  Deletes the client with this sockid and cookie
+DD_EXPORT bool
+    client_table_del_node_hash (client_table_t *self, zframe_t *sockid, zframe_t *cookie);
+
+//  *** Draft method, defined for internal use only ***
+//  Deletes the client (local_client_t, dist_client_t, or local_broker_t) reference by node
+DD_EXPORT bool
+    client_table_del_node (client_table_t *self, void *node);
+
+//  *** Draft method, defined for internal use only ***
+//  Check whether there's an client with this name
+DD_EXPORT bool
+    client_table_has_node_name (client_table_t *self, const char *name);
+
+//  *** Draft method, defined for internal use only ***
+//  If a client with this name exists, return it, otherwise NULL.               
+//  Can return local_client or dist_client, use _is() to figure out which it is.
+//  Returns NULL if not found                                                   
+DD_EXPORT void *
+    client_table_get_node_name (client_table_t *self, const char *name);
+
+//  *** Draft method, defined for internal use only ***
+//  Deletes the client with this name
+DD_EXPORT int
+    client_table_del_node_name (client_table_t *self, const char *name);
+
+//  *** Draft method, defined for internal use only ***
+//  Insert a local client to the table
+DD_EXPORT bool
+    client_table_insert_local (client_table_t *self, local_client_t *client);
+
+//  *** Draft method, defined for internal use only ***
+//  Insert a distant client to the table
+DD_EXPORT bool
+    client_table_insert_dist (client_table_t *self, dist_client_t *client);
+
+//  *** Draft method, defined for internal use only ***
+//  Insert a broker to the table
+DD_EXPORT bool
+    client_table_insert_broker (client_table_t *self, local_broker_t *broker);
+
+//  *** Draft method, defined for internal use only ***
+//  Returns the JSON represenation of the object
+//  Caller owns return value and must destroy it when done.
+DD_EXPORT json_object_t *
+    client_table_json (client_table_t *self);
+
+//  *** Draft method, defined for internal use only ***
+//  Call method on each local client
+DD_EXPORT void
+    client_table_foreach (client_table_t *self, client_table_fn function);
+
+//  *** Draft method, defined for internal use only ***
+//  Call method on each client, with supplied argument
+DD_EXPORT void
+    client_table_foreach_arg (client_table_t *self, client_table_arg_fn function, void *arg);
+
+//  *** Draft method, defined for internal use only ***
+//  Call method on each local client, with supplied argument
+DD_EXPORT void
+    client_table_local_foreach_arg (client_table_t *self, client_table_arg_fn function, void *arg);
+
+//  *** Draft method, defined for internal use only ***
+//  Self test of this class.
+DD_EXPORT void
+    client_table_test (bool verbose);
+
+//  *** Draft method, defined for internal use only ***
+//  Calculate the hash of a string
+DD_EXPORT uint32_t
+    util_string_hash (const char *data);
+
+//  *** Draft method, defined for internal use only ***
+//  Calculate the hash of a sockid cookie combintion
+DD_EXPORT uint32_t
+    util_sockid_cookie_hash (zframe_t *sockid, zframe_t *cookie);
+
+//  *** Draft method, defined for internal use only ***
+//  Self test of this class.
+DD_EXPORT void
+    util_test (bool verbose);
 
 #endif // DD_BUILD_DRAFT_API
 

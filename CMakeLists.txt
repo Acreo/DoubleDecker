@@ -160,6 +160,12 @@ set (dd_headers
     src/dd_protocol.h
     src/dd_broker_keys.h
     src/base64.h
+    src/dist_client.h
+    src/local_client.h
+    src/local_broker.h
+    src/subscription.h
+    src/client_table.h
+    src/util.h
 )
 
 IF (ENABLE_DRAFTS)
@@ -183,6 +189,12 @@ set (dd_sources
     src/dd_protocol.c
     src/dd_broker_keys.c
     src/base64.c
+    src/dist_client.c
+    src/local_client.c
+    src/local_broker.c
+    src/subscription.c
+    src/client_table.c
+    src/util.c
 )
 
 IF (ENABLE_DRAFTS)
@@ -364,6 +376,12 @@ set(TEST_CLASSES
     dd_protocol
     dd_broker_keys
     base64
+    dist_client
+    local_client
+    local_broker
+    subscription
+    client_table
+    util
 )
 
 IF (ENABLE_DRAFTS)

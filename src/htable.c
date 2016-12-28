@@ -2,40 +2,36 @@
 #include "dd_classes.h"
 
 // Testing locally showed XXH64 to be about 20% faster than XXH64
-#include "xxhash.h"
+//#include "xxhash.h"
+#include "trie.h"
+#ifdef RCU_CDS
 static int match_lcl_node_prename(struct cds_lfht_node *ht_node,
                                   const void *_key) {
-  local_client *node = caa_container_of(ht_node, local_client, rev_node);
+  local_client_t *node = caa_container_of(ht_node, local_client_t, rev_node);
   const char *key = (const char *)_key;
   return (strncmp(node->prefix_name, key, strlen(key)) == 0);
 }
 static int match_lcl_node_sockid(struct cds_lfht_node *ht_node,
                                  const void *_key) {
-  local_client *node = caa_container_of(ht_node, local_client, lcl_node);
+  local_client_t *node = caa_container_of(ht_node, local_client_t, lcl_node);
   zframe_t *key = (zframe_t *)_key;
   return memcmp(zframe_data(node->sockid), zframe_data(key),
                 zframe_size(key)) == 0;
 }
 static int match_lcl_broker(struct cds_lfht_node *ht_node, const void *_key) {
 
-  local_broker *node = caa_container_of(ht_node, local_broker, node);
+  local_broker_t *node = caa_container_of(ht_node, local_broker_t, node);
   zframe_t *key = (zframe_t *)_key;
 
   return memcmp(zframe_data(node->sockid), zframe_data(key),
                 zframe_size(key)) == 0;
 }
 static int match_dist_node(struct cds_lfht_node *ht_node, const void *_key) {
-  dist_client *node = caa_container_of(ht_node, dist_client, node);
+  dist_client_t *node = caa_container_of(ht_node, dist_client_t, node);
   const char *key = (const char*) _key;
   return (strncmp(node->name, key, strlen(key)) == 0);
 }
-static int match_subscribe_node(struct cds_lfht_node *ht_node,
-                                const void *_key) {
-  subscribe_node *node = caa_container_of(ht_node, subscribe_node, node);
-  zframe_t *key = (zframe_t *)_key;
-  return memcmp(zframe_data(node->sockid), zframe_data(key),
-                zframe_size(key)) == 0;
-}
+
 unsigned long int string_hash(char *string){
     unsigned long int key_hash = 0;
     while (*string)
@@ -53,8 +49,8 @@ int insert_local_client(dd_broker_t *self, zframe_t *sockid, ddtenant_t *ten,
                         char *client_name) {
   char prefix_name[MAXTENANTNAME];
   struct cds_lfht_iter iter;
-  local_client *np;
-  np = (local_client*) malloc(sizeof(local_client));
+  local_client_t *np;
+  np = (local_client_t*) malloc(sizeof(local_client_t));
   np->cookie = ten->cookie;
   np->timeout = 0;
   np->sockid = zframe_dup(sockid);
@@ -63,14 +59,14 @@ int insert_local_client(dd_broker_t *self, zframe_t *sockid, ddtenant_t *ten,
 
   snprintf(prefix_name, MAXTENANTNAME, "%s.%s", ten->name, client_name);
 
-  /* dd_debug("insert_local_client: prefix_name %s", prefix_name); */
+  /* dd_debug("insert_local_client_t: prefix_name %s", prefix_name); */
   np->prefix_name = strdup(prefix_name);
 
   // Calculate the sockid_cookie hash
   unsigned long int sockid_cookie = sockid_cookie_hash(sockid, ten->cookie);
   // Calculate the prefix_name hash
   unsigned long int prename = string_hash(prefix_name);
-  dist_client *dn;
+  dist_client_t *dn;
   if ((dn = hashtable_has_dist_node(self, np->prefix_name))) {
     goto cleanup;
   }
@@ -124,7 +120,7 @@ void hashtable_remove_dist_node(dd_broker_t *self, char *prefix_name) {
     rcu_read_unlock();
   } else {
     int ret = cds_lfht_del(self->dist_cli_ht, ht_node);
-    dist_client *mp = caa_container_of(ht_node, dist_client, node);
+    dist_client_t *mp = caa_container_of(ht_node, dist_client_t, node);
     if (ret) {
       dd_debug(" - Distant client %s deleted (concurrently)", mp->name);
       rcu_read_unlock();
@@ -135,12 +131,12 @@ void hashtable_remove_dist_node(dd_broker_t *self, char *prefix_name) {
     }
   }
 }
-dist_client *hashtable_has_dist_node(dd_broker_t *self, char *prefix_name) {
+dist_client_t *hashtable_has_dist_node(dd_broker_t *self, char *prefix_name) {
   /*
    * hash lookup to see if local
    */
   struct cds_lfht_iter iter;
-  dist_client *np;
+  dist_client_t *np;
   //int hash = XXH64(prefix_name, strlen(prefix_name), XXHSEED);
     unsigned long int hash = string_hash(prefix_name);
   rcu_read_lock();
@@ -148,7 +144,7 @@ dist_client *hashtable_has_dist_node(dd_broker_t *self, char *prefix_name) {
   struct cds_lfht_node *ht_node = cds_lfht_iter_get_node(&iter);
   rcu_read_unlock();
   if (ht_node) {
-    np = caa_container_of(ht_node, dist_client, node);
+    np = caa_container_of(ht_node, dist_client_t, node);
     return np;
   }
   return NULL;
@@ -159,7 +155,7 @@ dist_client *hashtable_has_dist_node(dd_broker_t *self, char *prefix_name) {
 void hashtable_insert_dist_node(dd_broker_t *self, char *prefix_name,
                                 zframe_t *sockid, int dist) {
   // add to has table
-  dist_client *mp = (dist_client*) malloc(sizeof(dist_client));
+  dist_client_t *mp = (dist_client_t*) malloc(sizeof(dist_client_t));
   //int hash = XXH64(prefix_name, strlen(prefix_name), XXHSEED);
     unsigned long int hash = string_hash(prefix_name);
   cds_lfht_node_init(&mp->node);
@@ -170,16 +166,16 @@ void hashtable_insert_dist_node(dd_broker_t *self, char *prefix_name,
   cds_lfht_add(self->dist_cli_ht, hash, &mp->node);
   rcu_read_unlock();
 }
-void delete_dist_clients(dd_broker_t *self, local_broker *br) {
+void delete_dist_clients(dd_broker_t *self, local_broker_t *br) {
   struct cds_lfht_iter iter;
-  dist_client *mp;
+  dist_client_t *mp;
 
   cds_lfht_first(self->dist_cli_ht, &iter);
   struct cds_lfht_node *ht_node = cds_lfht_iter_get_node(&iter);
   /* dd_debug("delete_dist_clients:"); */
   //  zframe_print(br->sockid, "broker");
   while (ht_node != NULL) {
-    mp = caa_container_of(ht_node, dist_client, node);
+    mp = caa_container_of(ht_node, dist_client_t, node);
     dd_debug("Distclient %s", mp->name);
     //    zframe_print(mp->broker, "client");
     if (zframe_eq(mp->broker, br->sockid)) {
@@ -198,13 +194,13 @@ void delete_dist_clients(dd_broker_t *self, local_broker *br) {
   }
 }
 
-local_broker *hashtable_has_local_broker(dd_broker_t *self, zframe_t *sockid,
+local_broker_t *hashtable_has_local_broker(dd_broker_t *self, zframe_t *sockid,
                                          uint64_t cookie, int update) {
   /*
    * hash lookup to see if local
    */
   struct cds_lfht_iter iter;
-  local_broker *np;
+  local_broker_t *np;
   /*XXH64_state_t hash1;
   XXH64_reset(&hash1, XXHSEED);
   XXH64_update(&hash1, zframe_data(sockid), zframe_size(sockid));
@@ -218,7 +214,7 @@ local_broker *hashtable_has_local_broker(dd_broker_t *self, zframe_t *sockid,
   struct cds_lfht_node *ht_node = cds_lfht_iter_get_node(&iter);
   rcu_read_unlock();
   if (ht_node) {
-    np = caa_container_of(ht_node, local_broker, node);
+    np = caa_container_of(ht_node, local_broker_t, node);
     if (update)
       np->timeout = 0;
     return np;
@@ -230,7 +226,7 @@ local_broker *hashtable_has_local_broker(dd_broker_t *self, zframe_t *sockid,
  */
 void hashtable_insert_local_broker(dd_broker_t *self, zframe_t *sockid,
                                    uint64_t cookie) {
-  local_broker *mp = (local_broker*) malloc(sizeof(local_broker));
+  local_broker_t *mp = (local_broker_t*) malloc(sizeof(local_broker_t));
   /*XXH64_state_t hash1;
   XXH64_reset(&hash1, XXHSEED);
   XXH64_update(&hash1, zframe_data(sockid), zframe_size(sockid));
@@ -249,10 +245,10 @@ void hashtable_insert_local_broker(dd_broker_t *self, zframe_t *sockid,
   rcu_read_unlock();
 }
 
-local_client *hashtable_has_rev_local_node(dd_broker_t *self, char *prefix_name,
+local_client_t *hashtable_has_rev_local_node(dd_broker_t *self, char *prefix_name,
                                            int update) {
   struct cds_lfht_iter iter;
-  local_client *np;
+  local_client_t *np;
   /*XXH64_state_t hash1;
   XXH64_reset(&hash1, XXHSEED);
   int prelen = strlen(prefix_name);
@@ -269,7 +265,7 @@ local_client *hashtable_has_rev_local_node(dd_broker_t *self, char *prefix_name,
   rcu_read_unlock();
   if (ht_node) {
     dd_debug("hashtable_has_rev_local_node, match found!");
-    np = caa_container_of(ht_node, local_client, rev_node);
+    np = caa_container_of(ht_node, local_client_t, rev_node);
     if (update)
       np->timeout = 0;
     return np;
@@ -278,10 +274,10 @@ local_client *hashtable_has_rev_local_node(dd_broker_t *self, char *prefix_name,
   return NULL;
 }
 
-local_client *hashtable_has_local_node(dd_broker_t *self, zframe_t *sockid,
+local_client_t *hashtable_has_local_node(dd_broker_t *self, zframe_t *sockid,
                                        zframe_t *cookie, int update) {
   struct cds_lfht_iter iter;
-  local_client *np;
+  local_client_t *np;
   /*XXH64_state_t hash1;
   XXH64_reset(&hash1, XXHSEED);
   XXH64_update(&hash1, zframe_data(sockid), zframe_size(sockid));
@@ -299,7 +295,7 @@ local_client *hashtable_has_local_node(dd_broker_t *self, zframe_t *sockid,
   struct cds_lfht_node *ht_node = cds_lfht_iter_get_node(&iter);
   rcu_read_unlock();
   if (ht_node) {
-    np = caa_container_of(ht_node, local_client, lcl_node);
+    np = caa_container_of(ht_node, local_client_t, lcl_node);
     if (update)
       np->timeout = 0;
     return np;
@@ -310,7 +306,7 @@ local_client *hashtable_has_local_node(dd_broker_t *self, zframe_t *sockid,
 void hashtable_unlink_rev_local_node(dd_broker_t *self, char *prefix_name) {
 
   struct cds_lfht_iter iter;
-  local_client *np;
+  local_client_t *np;
   /* XXH64_state_t hash1;
   XXH64_reset(&hash1, XXHSEED);
   int prelen = strlen(prefix_name);
@@ -329,7 +325,7 @@ void hashtable_unlink_rev_local_node(dd_broker_t *self, char *prefix_name) {
     rcu_read_unlock();
   } else {
     int ret = cds_lfht_del(self->rev_lcl_cli_ht, ht_node);
-    np = caa_container_of(ht_node, local_client, rev_node);
+    np = caa_container_of(ht_node, local_client_t, rev_node);
     if (ret) {
       dd_debug("hashtable_unlink_local_node: Local key %s concurrently "
                "unlinked",
@@ -343,11 +339,11 @@ void hashtable_unlink_rev_local_node(dd_broker_t *self, char *prefix_name) {
     }
   }
 }
-// Does not free the local_client pointer
+// Does not free the local_client_t pointer
 void hashtable_unlink_local_node(dd_broker_t *self, zframe_t *sockid,
                                  uint64_t cookie) {
   struct cds_lfht_iter iter;
-  local_client *np;
+  local_client_t *np;
 /*  XXH64_state_t hash1;
   XXH64_reset(&hash1, XXHSEED);
   XXH64_update(&hash1, zframe_data(sockid), zframe_size(sockid));
@@ -367,7 +363,7 @@ void hashtable_unlink_local_node(dd_broker_t *self, zframe_t *sockid,
     rcu_read_unlock();
   } else {
     int ret = cds_lfht_del(self->lcl_cli_ht, ht_node);
-    np = caa_container_of(ht_node, local_client, lcl_node);
+    np = caa_container_of(ht_node, local_client_t, lcl_node);
     if (ret) {
       dd_debug("hashtable_unlink_local_node: Local key %s concurrently "
                "unlinked",
@@ -388,7 +384,7 @@ void hashtable_unlink_local_node(dd_broker_t *self, zframe_t *sockid,
 void hashtable_insert_local_node(dd_broker_t *self, zframe_t *sockid,
                                  char *name) {
   // add to hash table
-  local_client *mp = (local_client*) malloc(sizeof(local_client));
+  local_client_t *mp = (local_client_t*) malloc(sizeof(local_client_t));
   int hash = XXH64(zframe_data(sockid), zframe_size(sockid), XXHSEED);
   cds_lfht_node_init(&mp->lcl_node);
   mp->sockid = sockid;
@@ -399,166 +395,17 @@ void hashtable_insert_local_node(dd_broker_t *self, zframe_t *sockid,
   rcu_read_unlock();
 }
 
-// return 0 if no subscriptions were found
-// otherwise , return how many was removed
-int remove_subscriptions(dd_broker_t *self, zframe_t *sockid) {
-  struct cds_lfht_iter iter;
-  int hash = XXH64(zframe_data(sockid), zframe_size(sockid), XXHSEED);
-  subscribe_node *sn;
-
-  rcu_read_lock();
-  cds_lfht_lookup(self->subscribe_ht, hash, match_subscribe_node, sockid,
-                  &iter);
-  struct cds_lfht_node *ht_node = cds_lfht_iter_get_node(&iter);
-  rcu_read_unlock();
-  if (!ht_node)
-    return 0;
-
-  sn = (subscribe_node *)caa_container_of(ht_node, subscribe_node, node);
-
-  int ntop = 0;
-  if (sn->topics) {
-    ntop = zlist_size(sn->topics);
-    char *topic = (char *) zlist_first(sn->topics);
-    char *oldtopic;
-    while (topic) {
-
-      nn_trie_unsubscribe(&self->topics_trie, (uint8_t *)topic, strlen(topic),
-                          sockid, 1);
-      oldtopic = topic;
-      topic = (char *)zlist_next(sn->topics);
-      free(oldtopic);
-    }
-
-    zlist_destroy(&sn->topics);
-    zframe_destroy(&sn->sockid);
-  }
-  rcu_read_lock();
-  cds_lfht_del(self->subscribe_ht, ht_node);
-  rcu_read_unlock();
-  free(sn);
-  return ntop;
-}
-
-// return 0 if no subscriptions were found
-// otherwise , return how many was removed
-int remove_subscription(dd_broker_t *self, zframe_t *sockid, char *topic) {
-  struct cds_lfht_iter iter;
-  int hash = XXH64(zframe_data(sockid), zframe_size(sockid), XXHSEED);
-  subscribe_node *sn;
-
-  rcu_read_lock();
-  cds_lfht_lookup(self->subscribe_ht, hash, match_subscribe_node, sockid,
-                  &iter);
-  struct cds_lfht_node *ht_node = cds_lfht_iter_get_node(&iter);
-  rcu_read_unlock();
-  if (!ht_node)
-    return 0;
-
-  sn = (subscribe_node *)caa_container_of(ht_node, subscribe_node, node);
-
-  int ntop = 0;
-  if (sn->topics) {
-    ntop = zlist_size(sn->topics);
-    char *t = (char *)zlist_first(sn->topics);
-    while (t) {
-      if (strcmp(topic, t) == 0) {
-        nn_trie_unsubscribe(&self->topics_trie, (uint8_t *)topic, strlen(topic),
-                            sockid, 1);
-        zlist_remove(sn->topics, t);
-        free(t);
-      }
-      t = (char *)zlist_next(sn->topics);
-    }
-
-    zlist_destroy(&sn->topics);
-    zframe_destroy(&sn->sockid);
-  }
-  rcu_read_lock();
-  cds_lfht_del(self->subscribe_ht, ht_node);
-  rcu_read_unlock();
-  free(sn);
-  return ntop;
-}
-
-// add subscription for "topic" to "sockid"
-// return 0 topic already existed
-// return 1 if it was appended
-// return 2 if new entry was created
-int insert_subscription(dd_broker_t *self, zframe_t *sockid, char *topic) {
-  struct cds_lfht_iter iter;
-  int hash = XXH64(zframe_data(sockid), zframe_size(sockid), XXHSEED);
-  subscribe_node *sn;
-
-  rcu_read_lock();
-  cds_lfht_lookup(self->subscribe_ht, hash, match_subscribe_node, sockid,
-                  &iter);
-  struct cds_lfht_node *ht_node = cds_lfht_iter_get_node(&iter);
-  rcu_read_unlock();
-
-  // already there, append topic
-  if (ht_node) {
-    sn = (subscribe_node *)caa_container_of(ht_node, subscribe_node, node);
-    if (zlist_contains_str(sn->topics, topic) == 0) {
-      zlist_append(sn->topics, strdup(topic));
-      return 1;
-    } else {
-      // already there, return 0
-      return 0;
-    }
-  }
-  // first insertion, create new node
-  sn = (subscribe_node *)  malloc(sizeof(subscribe_node));
-  cds_lfht_node_init(&sn->node);
-  sn->sockid = zframe_dup(sockid);
-  sn->topics = zlist_new();
-  zlist_append(sn->topics, strdup(topic));
-  rcu_read_lock();
-  cds_lfht_add(self->subscribe_ht, hash, &sn->node);
-  rcu_read_unlock();
-  return 2;
-}
-
-void hashtable_subscribe_destroy(struct cds_lfht **self_p) {
-  if (self_p) {
-    struct cds_lfht *self = *self_p;
-    subscribe_node *sn;
-    struct cds_lfht_iter iter;
-
-    rcu_read_lock();
-    cds_lfht_first(self, &iter);
-    struct cds_lfht_node *ht_node = cds_lfht_iter_get_node(&iter);
-    while (ht_node) {
-      sn = (subscribe_node *)caa_container_of(ht_node, subscribe_node, node);
-
-      zframe_destroy(&sn->sockid);
-      if (sn->topics) {
-        zlist_autofree(sn->topics);
-        zlist_destroy(&sn->topics);
-      }
-      cds_lfht_next(self, &iter);
-      ht_node = cds_lfht_iter_get_node(&iter);
-    }
-    rcu_read_unlock();
-    int rc = cds_lfht_destroy(self, NULL);
-      if(rc != 0){
-          dd_error("Could not delete hashtable!");
-      }
-
-    *self_p = NULL;
-  }
-}
 void hashtable_local_client_destroy(struct cds_lfht **self_p) {
   if (self_p) {
     struct cds_lfht *self = *self_p;
-    local_client *lc;
+    local_client_t *lc;
     struct cds_lfht_iter iter;
 
     rcu_read_lock();
     cds_lfht_first(self, &iter);
     struct cds_lfht_node *ht_node = cds_lfht_iter_get_node(&iter);
     while (ht_node) {
-      lc = (local_client *)caa_container_of(ht_node, local_client, lcl_node);
+      lc = (local_client_t *)caa_container_of(ht_node, local_client_t, lcl_node);
       zframe_destroy(&lc->sockid);
 
       if (lc->name) {
@@ -604,12 +451,12 @@ void print_zlist_str(zlist_t *list) {
 }
 void print_sub_ht(dd_broker_t *self) {
   struct cds_lfht_iter iter;
-  subscribe_node *mp;
+  subscription_t *mp;
   cds_lfht_first(self->subscribe_ht, &iter);
   struct cds_lfht_node *ht_node = cds_lfht_iter_get_node(&iter);
   dd_debug("Hashtable: subscribe_ht");
   while (ht_node != NULL) {
-    mp = caa_container_of(ht_node, subscribe_node, node);
+    mp = caa_container_of(ht_node, subscription_t, node);
     zframe_print(mp->sockid, "mp->sockid");
     print_zlist_str(mp->topics);
     cds_lfht_next(self->lcl_cli_ht, &iter);
@@ -618,12 +465,12 @@ void print_sub_ht(dd_broker_t *self) {
 }
 void print_local_ht(dd_broker_t *self) {
   struct cds_lfht_iter iter;
-  local_client *mp;
+  local_client_t *mp;
   cds_lfht_first(self->lcl_cli_ht, &iter);
   struct cds_lfht_node *ht_node = cds_lfht_iter_get_node(&iter);
   dd_debug("Local clients: SOCKID");
   while (ht_node != NULL) {
-    mp = caa_container_of(ht_node, local_client, lcl_node);
+    mp = caa_container_of(ht_node, local_client_t, lcl_node);
     zframe_print(mp->sockid, "mp->sockid");
     cds_lfht_next(self->lcl_cli_ht, &iter);
     ht_node = cds_lfht_iter_get_node(&iter);
@@ -633,7 +480,7 @@ void print_local_ht(dd_broker_t *self) {
   cds_lfht_first(self->rev_lcl_cli_ht, &iter);
   ht_node = cds_lfht_iter_get_node(&iter);
   while (ht_node != NULL) {
-    local_client *mp = caa_container_of(ht_node, local_client, rev_node);
+    local_client_t *mp = caa_container_of(ht_node, local_client_t, rev_node);
     dd_debug("\t%s", mp->prefix_name);
     cds_lfht_next(self->lcl_cli_ht, &iter);
     ht_node = cds_lfht_iter_get_node(&iter);
@@ -641,12 +488,12 @@ void print_local_ht(dd_broker_t *self) {
 }
 void print_dist_ht(dd_broker_t *self) {
   struct cds_lfht_iter iter;
-  dist_client *mp;
+  dist_client_t *mp;
   cds_lfht_first(self->dist_cli_ht, &iter);
   struct cds_lfht_node *ht_node = cds_lfht_iter_get_node(&iter);
   dd_debug("Distant client: PREFIXNAME");
   while (ht_node != NULL) {
-    mp = caa_container_of(ht_node, dist_client, node);
+    mp = caa_container_of(ht_node, dist_client_t, node);
     dd_debug("\tname: %s", mp->name);
     cds_lfht_next(self->lcl_cli_ht, &iter);
     ht_node = cds_lfht_iter_get_node(&iter);
@@ -654,14 +501,191 @@ void print_dist_ht(dd_broker_t *self) {
 }
 void print_broker_ht(dd_broker_t *self) {
   struct cds_lfht_iter iter;
-  local_broker *mp;
+  local_broker_t *mp;
   cds_lfht_first(self->lcl_br_ht, &iter);
   struct cds_lfht_node *ht_node = cds_lfht_iter_get_node(&iter);
   dd_debug("Hashtable: lcl_br_ht");
   while (ht_node != NULL) {
-    mp = caa_container_of(ht_node, local_broker, node);
+    mp = caa_container_of(ht_node, local_broker_t, node);
     zframe_print(mp->sockid,"\tname:");
     cds_lfht_next(self->lcl_cli_ht, &iter);
     ht_node = cds_lfht_iter_get_node(&iter);
+  }
+}
+#endif
+
+
+int zlist_contains_str(zlist_t *list, char *string) {
+  char *str = (char*) zlist_first(list);
+  while (str) {
+    if (strcmp(string, str) == 0)
+      return 1;
+
+    str = (char *)zlist_next(list);
+  }
+  return 0;
+}
+
+static int match_subscription_t(struct cds_lfht_node *ht_node,
+                                const void *_key) {
+  subscription_t *node = caa_container_of(ht_node, subscription_t, node);
+  zframe_t *key = (zframe_t *)_key;
+  return memcmp(zframe_data(node->sockid), zframe_data(key),
+                zframe_size(key)) == 0;
+}
+// return 0 if no subscriptions were found
+// otherwise , return how many was removed
+//int remove_subscriptions(dd_broker_t *self, zframe_t *sockid) {
+int remove_subscriptions(struct cds_lfht *sub_ht, struct nn_trie *topics_trie, zframe_t *sockid) {
+
+  struct cds_lfht_iter iter;
+  int hash = XXH64(zframe_data(sockid), zframe_size(sockid), XXHSEED);
+  subscription_t *sn;
+
+  rcu_read_lock();
+  cds_lfht_lookup(sub_ht, hash, match_subscription_t, sockid,
+                  &iter);
+  struct cds_lfht_node *ht_node = cds_lfht_iter_get_node(&iter);
+  rcu_read_unlock();
+  if (!ht_node)
+    return 0;
+
+  sn = (subscription_t *)caa_container_of(ht_node, subscription_t, node);
+
+  int ntop = 0;
+  if (sn->topics) {
+    ntop = zlist_size(sn->topics);
+    char *topic = (char *) zlist_first(sn->topics);
+    char *oldtopic;
+    while (topic) {
+
+      nn_trie_unsubscribe(topics_trie, (uint8_t *)topic, strlen(topic),
+                          sockid, 1);
+      oldtopic = topic;
+      topic = (char *)zlist_next(sn->topics);
+      free(oldtopic);
+    }
+
+    zlist_destroy(&sn->topics);
+    zframe_destroy(&sn->sockid);
+  }
+  rcu_read_lock();
+  cds_lfht_del(sub_ht, ht_node);
+  rcu_read_unlock();
+  free(sn);
+  return ntop;
+}
+
+// return 0 if no subscriptions were found
+// otherwise , return how many was removed
+//int remove_subscription(dd_broker_t *self, zframe_t *sockid, char *topic) {
+
+int remove_subscription(struct cds_lfht *sub_ht, struct nn_trie *topics_trie, zframe_t *sockid, char* topic) {
+
+  struct cds_lfht_iter iter;
+  int hash = XXH64(zframe_data(sockid), zframe_size(sockid), XXHSEED);
+  subscription_t *sn;
+
+  rcu_read_lock();
+  cds_lfht_lookup(sub_ht, hash, match_subscription_t, sockid,
+                  &iter);
+  struct cds_lfht_node *ht_node = cds_lfht_iter_get_node(&iter);
+  rcu_read_unlock();
+  if (!ht_node)
+    return 0;
+
+  sn = (subscription_t *)caa_container_of(ht_node, subscription_t, node);
+
+  int ntop = 0;
+  if (sn->topics) {
+    ntop = zlist_size(sn->topics);
+    char *t = (char *)zlist_first(sn->topics);
+    while (t) {
+      if (strcmp(topic, t) == 0) {
+        nn_trie_unsubscribe(topics_trie, (uint8_t *)topic, strlen(topic),
+                            sockid, 1);
+        zlist_remove(sn->topics, t);
+        free(t);
+      }
+      t = (char *)zlist_next(sn->topics);
+    }
+
+    zlist_destroy(&sn->topics);
+    zframe_destroy(&sn->sockid);
+  }
+  rcu_read_lock();
+  cds_lfht_del(sub_ht, ht_node);
+  rcu_read_unlock();
+  free(sn);
+  return ntop;
+}
+
+// add subscription for "topic" to "sockid"
+// return 0 topic already existed
+// return 1 if it was appended
+// return 2 if new entry was created
+//int insert_subscription(dd_broker_t *self, zframe_t *sockid, char *topic) {
+int insert_subscription(struct cds_lfht *sub_ht, zframe_t *sockid, char *topic) {
+
+  struct cds_lfht_iter iter;
+  int hash = XXH64(zframe_data(sockid), zframe_size(sockid), XXHSEED);
+  subscription_t *sn;
+
+  rcu_read_lock();
+  cds_lfht_lookup(sub_ht, hash, match_subscription_t, sockid,
+                  &iter);
+  struct cds_lfht_node *ht_node = cds_lfht_iter_get_node(&iter);
+  rcu_read_unlock();
+
+  // already there, append topic
+  if (ht_node) {
+    sn = (subscription_t *)caa_container_of(ht_node, subscription_t, node);
+    if (zlist_contains_str(sn->topics, topic) == 0) {
+      zlist_append(sn->topics, strdup(topic));
+      return 1;
+    } else {
+      // already there, return 0
+      return 0;
+    }
+  }
+  // first insertion, create new node
+  sn = (subscription_t *)  malloc(sizeof(subscription_t));
+  cds_lfht_node_init(&sn->node);
+  sn->sockid = zframe_dup(sockid);
+  sn->topics = zlist_new();
+  zlist_append(sn->topics, strdup(topic));
+  rcu_read_lock();
+  cds_lfht_add(sub_ht, hash, &sn->node);
+  rcu_read_unlock();
+  return 2;
+}
+
+void hashtable_subscribe_destroy(struct cds_lfht **self_p) {
+  if (self_p) {
+    struct cds_lfht *self = *self_p;
+    subscription_t *sn;
+    struct cds_lfht_iter iter;
+
+    rcu_read_lock();
+    cds_lfht_first(self, &iter);
+    struct cds_lfht_node *ht_node = cds_lfht_iter_get_node(&iter);
+    while (ht_node) {
+      sn = (subscription_t *)caa_container_of(ht_node, subscription_t, node);
+
+      zframe_destroy(&sn->sockid);
+      if (sn->topics) {
+        zlist_autofree(sn->topics);
+        zlist_destroy(&sn->topics);
+      }
+      cds_lfht_next(self, &iter);
+      ht_node = cds_lfht_iter_get_node(&iter);
+    }
+    rcu_read_unlock();
+    int rc = cds_lfht_destroy(self, NULL);
+    if(rc != 0){
+      dd_error("Could not delete hashtable!");
+    }
+
+    *self_p = NULL;
   }
 }

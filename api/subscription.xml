@@ -1,0 +1,38 @@
+<class name="subscription">
+  DoubleDecker subscription class
+  <constructor>
+    Create a new per node subscription list
+    <argument name="sockid" type="zframe"/>
+  </constructor>
+  <destructor>
+    Destroy a subscription list
+  </destructor>
+  <method name = "is" singleton = "1">
+    Probe the supplied object, and report if it looks like a dd_dist_client_t.
+    <argument name = "self" type = "anything" />
+    <return type = "boolean" />
+  </method>
+  <method name="get_topics">
+    Get the list of topics 
+    <return type="zlist"/>
+  </method>
+  <method name="add_topic">
+    Add a subscribed topic
+    <argument name = "topic" type="string"/>
+    <return type="boolean"/>
+  </method>
+  <method name="del_topic">
+    Remove a topic
+    <argument name="topic" type="string"/>
+    <return type="boolean"/>
+  </method>
+  <method name="json">
+    Convert the object to JSON and return
+    <return type="json_object" fresh="1"/>
+  </method>
+  <method name="print">
+    Print the object to stdout
+    <return type="nothing"/>
+  </method>
+
+</class>
